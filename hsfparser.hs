@@ -1,5 +1,6 @@
 -- import Text.ParserCombinators.Parsec
 
+import Data.List
 import Text.Parsec
 import Text.Parsec.String
 import Text.Parsec.Expr
@@ -7,15 +8,41 @@ import Text.Parsec.Token
 import Text.Parsec.Language
 import qualified Text.Parsec.Token as P
 
-data Identifier = Identifier [Char] deriving(Show)
-data Reference = Reference [Identifier] deriving(Show)
-data LinkRef = LinkRef [Identifier] deriving(Show)
-data Body = Body [Assignment] deriving(Show)
+data Identifier = Identifier [Char]
+data Reference = Reference [Identifier]
+data LinkRef = LinkRef [Identifier]
+data Body = Body [Assignment]
 data BasicValue = BoolValue Bool | NumValue Integer | StringValue [Char] | NullValue
-                | DataRef [Identifier] | Vector [BasicValue] deriving(Show)
-data Value = BasicValue BasicValue | LinkValue LinkRef | ProtoValue [Prototype] deriving(Show)
-data Assignment = Assignment Reference Value deriving(Show)
-data Prototype = RefProto Reference | BodyProto Body deriving(Show)
+                | DataRef [Identifier] | Vector [BasicValue]
+data Value = BasicValue BasicValue | LinkValue LinkRef | ProtoValue [Prototype]
+data Assignment = Assignment Reference Value
+data Prototype = RefProto Reference | BodyProto Body
+
+instance Show Identifier where
+	show (Identifier str) = str
+instance Show Reference where
+	show (Reference ids) = intercalate ":" (map show ids)
+instance Show LinkRef where
+	show (LinkRef ids) = intercalate ":" (map show ids)
+instance Show Body where
+	show (Body as) = intercalate " " (map show as)
+instance Show Assignment where
+	show (Assignment ref val) = (show ref) ++ " " ++ (show val)
+instance Show Prototype where
+	show (RefProto ref) = (show ref)
+	show (BodyProto body) = "{" ++ (show body) ++ "}"
+instance Show Value where
+	show (BasicValue bv) = (show bv) ++ ";"
+	show (LinkValue ref) = (show ref) ++ ";" 
+	show (ProtoValue ps) = "extends " ++ (intercalate "," (map show ps))
+instance Show BasicValue where
+	show (BoolValue True) = "true"
+	show (BoolValue False) = "false"
+	show (NumValue n) = show n
+	show (StringValue str) = show str
+	show (NullValue) = "NULL"
+	show (DataRef ids) = intercalate ":" (map show ids)
+	show (Vector bvs) = "[" ++ (intercalate "," (map show bvs)) ++ "]"
 
 -- **** the lexer
 
