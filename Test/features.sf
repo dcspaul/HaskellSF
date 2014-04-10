@@ -1,0 +1,3 @@
+blob 34 ; a:b NULL; foo23 "stuff" ; _boolvar false;
+proto extends p:q  myref DATA x:y:zzz; x1 extends { boo 2; }
+v [true,95,[1,2],"foo"];

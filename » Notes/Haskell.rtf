@@ -1,0 +1,57 @@
+{\rtf1\ansi\ansicpg1252\cocoartf1265\cocoasubrtf190
+{\fonttbl\f0\fnil\fcharset0 ChalkboardSE-Regular;}
+{\colortbl;\red255\green255\blue255;}
+\paperw11900\paperh16840\margl1440\margr1440\vieww14040\viewh15940\viewkind0
+\pard\tx566\tx1133\tx1700\tx2267\tx2834\tx3401\tx3968\tx4535\tx5102\tx5669\tx6236\tx6803\pardirnatural
+
+\f0\b\fs28 \cf0 Links
+\b0 \
+\
+A good overview in this paper: {\field{\*\fldinst{HYPERLINK "http://www.cs.nott.ac.uk/~gmh/pearl.pdf"}}{\fldrslt Monadic Parsing in Haskell}}\
+\
+A good introduction to Parsec: {\field{\*\fldinst{HYPERLINK "http://book.realworldhaskell.org/read/using-parsec.html"}}{\fldrslt Chapter\'a016.\'a0Using Parsec}}\
+Another intro  including the expression parser: {\field{\*\fldinst{HYPERLINK "http://www.haskell.org/haskellwiki/Parsing_expressions_and_statements"}}{\fldrslt Parsing expressions and statements - HaskellWiki}}\
+Slightly different stuff on parsing with monads: {\field{\*\fldinst{HYPERLINK "http://en.wikibooks.org/wiki/Haskell/Practical_monads"}}{\fldrslt Haskell/Practical monads - Wikibooks}}\
+\
+Parsec combinator reference: {\field{\*\fldinst{HYPERLINK "http://hackage.haskell.org/package/parsec-3.0.0/docs/Text-Parsec-Combinator.html"}}{\fldrslt Text.Parsec.Combinator}}\
+Parsec token reference: {\field{\*\fldinst{HYPERLINK "http://hackage.haskell.org/package/parsec-3.0.1/docs/Text-ParserCombinators-Parsec-Token.html"}}{\fldrslt Text.ParserCombinators.Parsec.Token}}\
+Some more combinators (non-standard?): {\field{\*\fldinst{HYPERLINK "http://cvs.haskell.org/Hugs/pages/libraries/base/Text-ParserCombinators-ReadP.html"}}{\fldrslt Text.ParserCombinators.ReadP}}\
+\
+
+\b Haskell Notes\
+
+\b0 \
+some monadic thing >>= f\
+f gets the inside of the monad and must return a monadic value\
+Just "me" >>= \\s -> Just (s ++ "!")\
+if the LHS is outside the Monad, it just gets passed through\
+Nothing >>= \\s -> Just (s ++ "!")\
+\
+some monadic thing >> blob\
+returns blob if the argument is in the monad\
+Just "me" >> Just "yeah"\
+if the LHS is outside the Monad, it just gets passed through\
+Nothing >> Just "never happens"\
+\
+Inside a "do" ...\
+<- extracts the inside from a monad: <- Just "me" is "me"\
+return converts the other way: return "me" is Just "me"\
+\
+----\
+\
+Monads:\
+\
+A >>= B\
+\
+evaluate A ...\
+- if it returns something valid, then apply function B to the "inside" of the result\
+- if it returns something invalid, then pass it on without calling B\
+\
+A >>= B\
+\
+evaluate A ...\
+- if it returns something valid, then evaluate B (and return the result)\
+- if it returns something invalid, then pass it on without calling B\
+\
+\
+}
