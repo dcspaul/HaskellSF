@@ -7,8 +7,6 @@
 \f0\b\fs28 \cf0 Links
 \b0 \
 \
-A good overview in this paper: {\field{\*\fldinst{HYPERLINK "http://www.cs.nott.ac.uk/~gmh/pearl.pdf"}}{\fldrslt Monadic Parsing in Haskell}}\
-\
 A good introduction to Parsec: {\field{\*\fldinst{HYPERLINK "http://book.realworldhaskell.org/read/using-parsec.html"}}{\fldrslt Chapter\'a016.\'a0Using Parsec}}\
 Another intro  including the expression parser: {\field{\*\fldinst{HYPERLINK "http://www.haskell.org/haskellwiki/Parsing_expressions_and_statements"}}{\fldrslt Parsing expressions and statements - HaskellWiki}}\
 Slightly different stuff on parsing with monads: {\field{\*\fldinst{HYPERLINK "http://en.wikibooks.org/wiki/Haskell/Practical_monads"}}{\fldrslt Haskell/Practical monads - Wikibooks}}\
@@ -18,11 +16,12 @@ Parsec token reference: {\field{\*\fldinst{HYPERLINK "http://hackage.haskell.org
 Some more combinators (non-standard?): {\field{\*\fldinst{HYPERLINK "http://cvs.haskell.org/Hugs/pages/libraries/base/Text-ParserCombinators-ReadP.html"}}{\fldrslt Text.ParserCombinators.ReadP}}\
 \
 
-\b Haskell Notes\
+\b Monads\
+\pard\tx566\tx1133\tx1700\tx2267\tx2834\tx3401\tx3968\tx4535\tx5102\tx5669\tx6236\tx6803\pardirnatural
 
-\b0 \
+\b0 \cf0 \
 some monadic thing >>= f\
-f gets the inside of the monad and must return a monadic value\
+f accepts the inside of the monad and must return a monadic value\
 Just "me" >>= \\s -> Just (s ++ "!")\
 if the LHS is outside the Monad, it just gets passed through\
 Nothing >>= \\s -> Just (s ++ "!")\
@@ -37,21 +36,60 @@ Inside a "do" ...\
 <- extracts the inside from a monad: <- Just "me" is "me"\
 return converts the other way: return "me" is Just "me"\
 \
-----\
+\pard\tx566\tx1133\tx1700\tx2267\tx2834\tx3401\tx3968\tx4535\tx5102\tx5669\tx6236\tx6803\pardirnatural
+
+\b \cf0 Monadic Parsers\
+\pard\tx566\tx1133\tx1700\tx2267\tx2834\tx3401\tx3968\tx4535\tx5102\tx5669\tx6236\tx6803\pardirnatural
+
+\b0 \cf0 \
+Based on this (good) paper: {\field{\*\fldinst{HYPERLINK "http://www.cs.nott.ac.uk/~gmh/pearl.pdf"}}{\fldrslt Monadic Parsing in Haskell}}\
 \
-Monads:\
+A parser is a function: newtype Parser a = Parser (String -> [(a,String)])\
+- takes a string\
+- returns a list of ( object, rest ) pairs\
+- the "object" is the parsed object\
+- the "rest" is the remaining string\
+- the "list" is because there may have been more than one possibility\
 \
-A >>= B\
+You need different types of parsers for different object types:\
+- e.g. a "Parser Char" might chew off the first character and return [ (head,tail) ]\
 \
-evaluate A ...\
-- if it returns something valid, then apply function B to the "inside" of the result\
-- if it returns something invalid, then pass it on without calling B\
+To make this into a monad ...\
+- the inside of the Monad has type "a"\
+- "return SOMETHING" just creates a parser which returns [(SOMETHING, string)] when applied to a string\
+- remember that a parser is a function over strings\
 \
-A >>= B\
+>>=\
+- given a parser for A\
+- and a function which takes an A and makes a parser for B\
+- return a parser for B\
+this is tricky because we need to handle the possibilities of "lists" of results\
+which involves some comprehension & concatenation. But basically ...\
+- applying the parser for A which returns an A (and the remaining string)\
+- applying the function to the A to get a parser for B\
+- applying the parser for B to the remaining string\
 \
-evaluate A ...\
-- if it returns something valid, then evaluate B (and return the result)\
-- if it returns something invalid, then pass it on without calling B\
+The choice operator (++) ...\
+- concatenates the lists of results from two parsers\
+- this means that the results are tried in order\
+- since the evaluation is lazy, this means that we only evaluate what we need!\
+- zero is the left and right zero, and ++ is associative\
+\
+The deterministic choice operator (+++) ...\
+- this is like (++) but only returns the first result (if any)\
+- this prevents explosion when there are lots of alternatives\
+\
+sat ...\
+- the parser "sat" takes a boolean predicate\
+- and returns a char iff it satisifes the predicate\
+- this can be used to create (eg) a digit parser etc\
+\
+combinators ...\
+- eg. string, many p, many1 p, p sepBy `sep`,  p sepBy1 `sep`, cain1  op a, chainl1 p op a \
+\
+\
+\
+\
 \
 \
 }
