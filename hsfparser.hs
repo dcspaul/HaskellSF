@@ -32,6 +32,7 @@ m_integer = P.integer lexer
 m_stringLiteral = P.stringLiteral lexer
 m_colon = P.colon lexer
 m_semi = P.semi lexer
+m_comma = P.comma lexer
 m_commaSep = P.commaSep lexer
 
 -- **** the parser
@@ -57,11 +58,11 @@ basicValue = do { num <- m_stringLiteral ; return (StringValue num) }
 	<|> do { m_reserved "DATA" ; (Reference ref) <- reference ; return (DataRef ref) }
 	<|> do { m_reservedOp "[" ; v <- m_commaSep basicValue; m_reservedOp "]" ; return (Vector v) }
 
--- V ::= BV ; | LR ; | [P]
+-- V ::= BV ; | LR ; | extends [PS]
 value :: Parser Value
 value = do { bv <- basicValue ; m_semi ; return (BasicValue bv) }
 	<|> do { lr <- linkref ; m_semi ; return (LinkValue lr) }
-	<|> do { elt_list <- prototype `sepBy` m_whiteSpace ; return (ProtoValue elt_list) }
+	<|> do { m_reserved "extends"; elt_list <- prototype `sepBy1` m_comma ; return (ProtoValue elt_list) }
 
 -- A ::= R V
 assignment :: Parser Assignment
@@ -71,13 +72,10 @@ assignment = do { lhs <- reference ; rhs <- value ; return (Assignment lhs rhs) 
 body :: Parser Body
 body = do { assignment_list <- assignment `sepBy` m_whiteSpace ; return (Body assignment_list) }
 
--- P ::= extends R | extends { B }
+-- P ::= R | { B }
 prototype :: Parser Prototype
-prototype = do {
-	m_reserved "extends";
-	do { ref <- reference ; return (RefProto ref) }
+prototype = do { ref <- reference ; return (RefProto ref) }
 	<|> do { try (m_reservedOp "{") ; b <- body ; try (m_reservedOp "}") ; return (BodyProto b) }
-	}
 
 -- SF ::= B <eof>
 specification :: Parser Body
@@ -85,7 +83,7 @@ specification = do { b <- body ; eof ; return b }
 
 -- *** main
 
-main = do { result <- parseFromFile specification "/Users/paul/Work/Playground/HaskellSF/Test/patrick3.sf"
+main = do { result <- parseFromFile specification "/Users/paul/Work/Playground/HaskellSF/Test/herry4.sf"
 	; case (result) of
 		Left err  -> print err
 		Right strings  -> print strings
