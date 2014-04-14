@@ -10,6 +10,9 @@ import Text.Parsec.Expr
 import Text.Parsec.Token
 import Text.Parsec.Language
 import qualified Text.Parsec.Token as P
+--
+import Data.Map (Map)
+import qualified Data.Map as Map
 
 {--
  ** utility functions
@@ -36,12 +39,13 @@ indentBlock = indentBlockBy (tabString 2)
  ** abstract syntax
 --}
 
-data Identifier = Identifier [Char]
+-- the deriving is necessary so we can use these as map keys
+data Identifier = Identifier [Char] deriving(Eq,Ord)
 data Reference = Reference [Identifier]
 data LinkRef = LinkRef [Identifier]
 data Body = Body [Assignment]
 data BasicValue = BoolValue Bool | NumValue Integer | StringValue [Char] | NullValue
-                | DataRef [Identifier] | Vector [BasicValue]
+                | DataRef [Identifier] | Vector [BasicValue] deriving(Eq)
 data Value = BasicValue BasicValue | LinkValue LinkRef | ProtoValue [Prototype]
 data Assignment = Assignment Reference Value
 data Prototype = RefProto Reference | BodyProto Body
@@ -111,7 +115,7 @@ ident = do { i <- m_identifier ; return (Identifier i) }
 
 -- R :: = I(:I)*
 reference :: Parser Reference
-reference = do { ref <- ident `sepBy1` m_colon ; return (Reference ref) }
+reference = do { ref <- ident `sepBy1` m_colon; return (Reference ref) }
 
 -- LR ::= R
 linkref :: Parser LinkRef
@@ -151,6 +155,79 @@ prototype = do { ref <- reference ; return (RefProto ref) }
 -- SF ::= B <eof>
 specification :: Parser Body
 specification = do { m_whiteSpace; b <- body ; eof ; return b }
+
+{--
+ ** evaluator
+--}
+
+data StoreValue = StoreValue BasicValue | SubStore Store deriving(Eq)
+type Store = Map Identifier StoreValue
+type NameSpace = Reference
+type Context = (NameSpace,Store)
+
+sfPrefix :: Reference -> Reference
+sfPrefix (Reference []) = (Reference [])
+sfPrefix (Reference xs) = (Reference (init xs))
+
+sfConcat :: Reference -> Reference -> Reference
+sfConcat (Reference r1) (Reference r2) = (Reference (r1 ++ r2))
+
+maybePair :: (a,Maybe b) -> Maybe (a,b)
+maybePair (a,Nothing) = Nothing
+maybePair (a,Just b) = Just (a,b)
+
+sfFind :: Store -> Reference -> Maybe StoreValue
+sfFind store (Reference []) = Just (SubStore store)
+sfFind store (Reference (id:ids)) = sfFind' ids (Map.lookup id store)
+	where
+		sfFind' [] (Just v) = Just v
+		sfFind' ids (Just (SubStore store)) = sfFind store (Reference ids)
+		sfFind' _ _ = Nothing
+
+sfResolv :: Context -> Reference -> Maybe (NameSpace,StoreValue)
+sfResolv (Reference [], store) ref = maybePair (Reference [], sfFind store ref)
+sfResolv (ns, store) ref
+	| v == Nothing 		= sfResolv (sfPrefix ns, store) ns
+	| otherwise 		= maybePair (ns, v)
+	where v = sfFind store (sfConcat ns ref)
+
+sfConfigValue :: StoreValue -> Maybe Store
+sfConfigValue (StoreValue v) = Nothing
+sfConfigValue (SubStore store) = Just store
+
+-- maps: https://www.haskell.org/ghc/docs/6.12.2/html/libraries/containers-0.3.0.0/Data-Map.html#v%3AshowTree
+
+initialContext :: Context
+initialContext = (Reference [],Map.empty)
+
+evalSFSpecification :: Body -> Maybe Store
+evalSFSpecification spec = 
+	do {
+	    -- Maybe StoreValue ....> StoreValue
+		cfg <- sfFind store (Reference [Identifier "sfConfig"]);
+		-- Maybe Store ......> Store
+		cfg2 <- sfConfigValue cfg ;
+		-- Store .....> Maybe Store
+		return cfg2
+	} where (ns,store) = evalBody initialContext spec
+
+-- I am swapping Herry's argument order so that we can do the partial evaluation
+evalBody :: Context -> Body -> Context
+evalBody context (Body assignments) = foldl evalAssignment context assignments
+
+evalAssignment :: Context -> Assignment -> Context
+evalAssignment context assignment = initialContext
+-- evalAssignment (ns,st) (Assignment ref val) = insert ref (evalValue st val) st
+
+-- evalValue :: Store -> Value -> Store
+-- evalValue st s@(BasicValue bv) = (StoreValue s)
+-- evalValue st (LinkValue ref) = (StoreValue (BasicValue NullValue))
+-- evalValue st (ProtoValue ps) = (StoreValue (BasicValue NullValue))
+
+
+
+
+
 
 -- *** main
 
