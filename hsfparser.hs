@@ -1,12 +1,40 @@
--- import Text.ParserCombinators.Parsec
+{--
+ ** SmartFrog parser
+--}
 
 import Data.List
+import Data.List.Split (splitOn) 
 import Text.Parsec
 import Text.Parsec.String
 import Text.Parsec.Expr
 import Text.Parsec.Token
 import Text.Parsec.Language
 import qualified Text.Parsec.Token as P
+
+{--
+ ** utility functions
+--}
+
+tabString :: Int -> String
+tabString n = foldl1 (++) (replicate n " ")
+
+join :: [a] -> [[a]] -> [a]
+join delim l = concat (intersperse delim l)
+
+replace :: Eq a => [a] -> [a] -> [a] -> [a]
+replace old new = join new . splitOn old
+
+indentBlockBy :: String -> String -> String
+indentBlockBy ts text
+	| length text == 0		= text
+	| otherwise				= "\n" ++ ts ++ (replace "\n" ("\n" ++ ts) text) ++ "\n"
+
+indentBlock :: String -> String
+indentBlock = indentBlockBy (tabString 2)
+
+{--
+ ** abstract syntax
+--}
 
 data Identifier = Identifier [Char]
 data Reference = Reference [Identifier]
@@ -18,47 +46,40 @@ data Value = BasicValue BasicValue | LinkValue LinkRef | ProtoValue [Prototype]
 data Assignment = Assignment Reference Value
 data Prototype = RefProto Reference | BodyProto Body
 
--- how much at neginning = leading l
--- hoe much to pass on to children = t
+{--
+ ** unparser / pretty-printer
+--}
 
-tabsize = 3
-spaceit t str = (concat $ replicate t " ") ++ str
+instance Show Identifier where
+	show (Identifier id) = id
+instance Show Reference where
+	show (Reference ids) = (intercalate ":" (map show ids))
+instance Show LinkRef where
+	show (LinkRef ids) = show (Reference ids)
+instance Show Body where
+	show (Body as) = intercalate "\n" (map show as)
+instance Show Assignment where
+	show (Assignment ref val) = (show ref) ++ " " ++ (show val)
+instance Show Prototype where
+	show (RefProto ref) = show ref
+	show (BodyProto body) = "{" ++ bodyContents ++ "}"
+		where bodyContents = (indentBlock (show body))
+instance Show Value where
+	show (BasicValue bv) = (show bv) ++ ";"
+	show (LinkValue ref) = (show ref) ++ ";"
+	show (ProtoValue ps) = "extends " ++ (intercalate ", " (map show ps))
+instance Show BasicValue where
+	show (BoolValue True) = "true"
+	show (BoolValue False) = "false"
+	show (NumValue n) = show n
+	show (StringValue str) = show str
+	show (NullValue) =  "NULL"
+	show (DataRef ids) = intercalate ":" (map show ids)
+	show (Vector bvs) = "[" ++ (intercalate "," (map show bvs)) ++ "]"
 
-instance Show Identifier where show i = showIdentifier 0 0 i
-showIdentifier l t (Identifier str) = spaceit l str
-
-instance Show Reference where show r = showReference 0 0 r
-showReference l t (Reference ids) = spaceit l (intercalate ":" (map (showIdentifier 0 t) ids))
-	
-instance Show LinkRef where show r = showLinkRef 0 0 r
-showLinkRef l t (LinkRef ids) = spaceit l (intercalate ":" (map (showIdentifier 0 t) ids))
-	
-instance Show Body where show b = showBody 0 0 b
-showBody l t (Body as) = intercalate "" (map (showAssignment l t) as)
-	
-instance Show Assignment where show a = showAssignment 0 0 a
-showAssignment l t (Assignment ref val) = spaceit l (((showReference 0 t) ref) ++ " " ++ ((showValue 0 t) val))
-	
-instance Show Prototype where show p = showPrototype 0 0 p
-showPrototype l t (RefProto ref) = spaceit l (((showReference 0 t) ref))
--- showPrototype l t (BodyProto (Body [])) = (spaceit l "{") ++ (showBody (t+tabsize) (t+tabsize) body) ++ (spaceit t "}")
-showPrototype l t (BodyProto body) = (spaceit l "{\n") ++ (showBody (t+tabsize) (t+tabsize) body) ++ (spaceit t "}")
-	
-instance Show Value where show v = showValue 0 0 v
-showValue l t (BasicValue bv) = spaceit l (((showBV 0 t) bv) ++ ";\n")
-showValue l t (LinkValue ref) = spaceit l (((showLinkRef 0 t) ref) ++ ";\n")
-showValue l t (ProtoValue ps) = spaceit l ("extends " ++ (intercalate ", " (map (showPrototype 0 t) ps)) ++ "\n")
-	
-instance Show BasicValue where show bv = showBV 0 0 bv
-showBV l t (BoolValue True) = spaceit l ("true")
-showBV l t (BoolValue False) = spaceit l ("false")
-showBV l t (NumValue n) = spaceit l (show n)
-showBV l t (StringValue str) = spaceit l (show str)
-showBV l t (NullValue) = spaceit l ("NULL")
-showBV l t (DataRef ids) = spaceit l (intercalate ":" (map (showIdentifier 0 t) ids))
-showBV l t (Vector bvs) = spaceit l ("[" ++ (intercalate "," (map (showBV 0 t) bvs)) ++ "]")
-
--- **** the lexer
+{--
+ ** lexer
+--}
 
 lexer = P.makeTokenParser emptyDef {
 	reservedNames = ["true", "false","NULL","DATA","extends"],
@@ -81,7 +102,9 @@ m_commaSep = P.commaSep lexer
 m_braces = P.braces lexer
 m_brackets = P.brackets lexer
 
--- **** the parser
+{--
+ ** parser
+--}
 
 ident :: Parser Identifier
 ident = do { i <- m_identifier ; return (Identifier i) }
@@ -131,7 +154,7 @@ specification = do { m_whiteSpace; b <- body ; eof ; return b }
 
 -- *** main
 
-main = do { result <- parseFromFile specification "/Users/paul/Work/Playground/HaskellSF/Test/herry4.sf"
+main = do { result <- parseFromFile specification "/Users/paul/Work/Playground/HaskellSF/Test/patrick3.sf"
 	; case (result) of
 		Left err  -> print err
 		Right strings  -> print strings
