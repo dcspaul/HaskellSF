@@ -36,6 +36,10 @@ indentBlockBy ts text
 indentBlock :: String -> String
 indentBlock = indentBlockBy (tabString 2)
 
+maybePair :: (a,Maybe b) -> Maybe (a,b)
+maybePair (a,Nothing) = Nothing
+maybePair (a,Just b) = Just (a,b)
+
 {--
  ** abstract syntax
 --}
@@ -50,10 +54,6 @@ data BasicValue = BoolValue Bool | NumValue Integer | StringValue [Char] | NullV
 data Value = BasicValue BasicValue | LinkValue LinkRef | ProtoValue [Prototype]
 data Assignment = Assignment Reference Value
 data Prototype = RefProto Reference | BodyProto Body
-
-{--
- ** unparser / pretty-printer
---}
 
 instance Show Identifier where
 	show (Identifier id) = id
@@ -158,24 +158,36 @@ specification :: Parser Body
 specification = do { m_whiteSpace; b <- body ; eof ; return b }
 
 {--
- ** evaluator
+ ** store
 --}
 
 data StoreValue = StoreValue BasicValue | SubStore Store deriving(Eq)
 data Store = Store (Map Identifier StoreValue) deriving(Eq)
-type NameSpace = Reference
-type Context = (NameSpace,Store)
-type ErrorMessage = String
+
+-- FIXME - display results in proper JSON
+-- we need our own version of something to print the basic values 
+-- so that we can format the JSON lists properly ...
 
 instance Show Store where
-	show (Store map) = intercalate "\n" $ foldrWithKey showMapEntry [] map
+	show (Store map) = indentBlock $ intercalate "\n" $ foldrWithKey showMapEntry [] map
 		where showMapEntry k v result = ((show k) ++ ": " ++ (show v)):result
 instance Show StoreValue where
 	show (StoreValue bv) = (show bv)
 	show (SubStore store) = indentBlock (show store)
 
+{--
+ ** semantic functions
+--}
+
+type NameSpace = Reference
+type Context = (NameSpace,Store)
+type ErrorMessage = String
+
+lookupStore :: Identifier -> Store -> Maybe StoreValue
 lookupStore id (Store map) = Map.lookup id map
-putStore id value (Store map) = Map.insert id value map
+
+putStore :: Identifier -> StoreValue -> Store -> Store
+putStore id value (Store map) = (Store (Map.insert id value map))
 
 sfPrefix :: Reference -> Reference
 sfPrefix (Reference []) = (Reference [])
@@ -184,11 +196,6 @@ sfPrefix (Reference xs) = (Reference (init xs))
 sfConcat :: Reference -> Reference -> Reference
 sfConcat (Reference r1) (Reference r2) = (Reference (r1 ++ r2))
 
-maybePair :: (a,Maybe b) -> Maybe (a,b)
-maybePair (a,Nothing) = Nothing
-maybePair (a,Just b) = Just (a,b)
-
--- lookup reference in store
 sfFind :: Store -> Reference -> Maybe StoreValue
 sfFind store (Reference []) = Just (SubStore store)
 sfFind store (Reference (id:ids)) = sfFind' ids (lookupStore id store)
@@ -197,7 +204,6 @@ sfFind store (Reference (id:ids)) = sfFind' ids (lookupStore id store)
 		sfFind' ids (Just (SubStore store)) = sfFind store (Reference ids)
 		sfFind' _ _ = Nothing
 
--- lookup reference in store searching higher namespaces
 sfResolv :: Context -> Reference -> Maybe (NameSpace,StoreValue)
 sfResolv (Reference [], store) ref = maybePair (Reference [], sfFind store ref)
 sfResolv (ns, store) ref
@@ -205,7 +211,6 @@ sfResolv (ns, store) ref
 	| otherwise 		= maybePair (ns, v)
 	where v = sfFind store (sfConcat ns ref)
 
--- extract the final value of sfConfig from the computed store
 extractSfConfig :: Store -> Either ErrorMessage Store
 extractSfConfig store =
 	do {
@@ -220,19 +225,21 @@ extractSfConfig store =
 		return sfConfigStore
 	}
 
+{--
+ ** evaluation functions
+--}
 
--- maps: https://www.haskell.org/ghc/docs/6.12.2/html/libraries/containers-0.3.0.0/Data-Map.html#v%3AshowTree
+type Evaluator a = Context -> a -> Either ErrorMessage Context
 
 initialContext :: Context
 initialContext = (Reference [],(Store Map.empty))
 
 -- **** how do we do the foldl thing trapping the errors ?
-evalBody :: Context -> Body -> Either ErrorMessage Context
-evalBody context body = Right initialContext
--- evalBody context body = Left "evalBody to be implemented!"
+evalBody :: Evaluator Body
+evalBody context body = Left "evalBody to be implemented!"
 -- evalBody context (Body assignments) = foldl evalAssignment context assignments
 
-evalAssignment :: Context -> Assignment -> Either ErrorMessage Context
+evalAssignment :: Evaluator Assignment
 evalAssignment context assignment = Left "evalAssignment to be implemented!"
 -- evalAssignment (ns,st) (Assignment ref val) = insert ref (evalValue st val) st
 
