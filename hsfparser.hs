@@ -2,6 +2,7 @@
  ** SmartFrog parser
 --}
 
+import Data.Map (foldrWithKey)
 import Data.List
 import Data.List.Split (splitOn) 
 import Text.Parsec
@@ -161,9 +162,20 @@ specification = do { m_whiteSpace; b <- body ; eof ; return b }
 --}
 
 data StoreValue = StoreValue BasicValue | SubStore Store deriving(Eq)
-type Store = Map Identifier StoreValue
+data Store = Store (Map Identifier StoreValue) deriving(Eq)
 type NameSpace = Reference
 type Context = (NameSpace,Store)
+type ErrorMessage = String
+
+instance Show Store where
+	show (Store map) = intercalate "\n" $ foldrWithKey showMapEntry [] map
+		where showMapEntry k v result = ((show k) ++ ": " ++ (show v)):result
+instance Show StoreValue where
+	show (StoreValue bv) = (show bv)
+	show (SubStore store) = indentBlock (show store)
+
+lookupStore id (Store map) = Map.lookup id map
+putStore id value (Store map) = Map.insert id value map
 
 sfPrefix :: Reference -> Reference
 sfPrefix (Reference []) = (Reference [])
@@ -176,14 +188,16 @@ maybePair :: (a,Maybe b) -> Maybe (a,b)
 maybePair (a,Nothing) = Nothing
 maybePair (a,Just b) = Just (a,b)
 
+-- lookup reference in store
 sfFind :: Store -> Reference -> Maybe StoreValue
 sfFind store (Reference []) = Just (SubStore store)
-sfFind store (Reference (id:ids)) = sfFind' ids (Map.lookup id store)
+sfFind store (Reference (id:ids)) = sfFind' ids (lookupStore id store)
 	where
 		sfFind' [] (Just v) = Just v
 		sfFind' ids (Just (SubStore store)) = sfFind store (Reference ids)
 		sfFind' _ _ = Nothing
 
+-- lookup reference in store searching higher namespaces
 sfResolv :: Context -> Reference -> Maybe (NameSpace,StoreValue)
 sfResolv (Reference [], store) ref = maybePair (Reference [], sfFind store ref)
 sfResolv (ns, store) ref
@@ -191,32 +205,35 @@ sfResolv (ns, store) ref
 	| otherwise 		= maybePair (ns, v)
 	where v = sfFind store (sfConcat ns ref)
 
-sfConfigValue :: StoreValue -> Maybe Store
-sfConfigValue (StoreValue v) = Nothing
-sfConfigValue (SubStore store) = Just store
+-- extract the final value of sfConfig from the computed store
+extractSfConfig :: Store -> Either ErrorMessage Store
+extractSfConfig store =
+	do {
+		sfConfigValue <- case (sfFind store (Reference [Identifier "sfConfig"])) of
+			Nothing -> Left "no sfConfig component"
+			(Just value) -> Right value
+		;
+		sfConfigStore <- case sfConfigValue of
+			(StoreValue v) -> Left ( "sfConfig component is basic value (" ++ (show v) ++ ")" )
+			(SubStore store) -> Right store
+		;
+		return sfConfigStore
+	}
+
 
 -- maps: https://www.haskell.org/ghc/docs/6.12.2/html/libraries/containers-0.3.0.0/Data-Map.html#v%3AshowTree
 
 initialContext :: Context
-initialContext = (Reference [],Map.empty)
+initialContext = (Reference [],(Store Map.empty))
 
-evalSFSpecification :: Body -> Maybe Store
-evalSFSpecification spec = 
-	do {
-	    -- Maybe StoreValue ....> StoreValue
-		cfg <- sfFind store (Reference [Identifier "sfConfig"]);
-		-- Maybe Store ......> Store
-		cfg2 <- sfConfigValue cfg ;
-		-- Store .....> Maybe Store
-		return cfg2
-	} where (ns,store) = evalBody initialContext spec
+-- **** how do we do the foldl thing trapping the errors ?
+evalBody :: Context -> Body -> Either ErrorMessage Context
+evalBody context body = Right initialContext
+-- evalBody context body = Left "evalBody to be implemented!"
+-- evalBody context (Body assignments) = foldl evalAssignment context assignments
 
--- I am swapping Herry's argument order so that we can do the partial evaluation
-evalBody :: Context -> Body -> Context
-evalBody context (Body assignments) = foldl evalAssignment context assignments
-
-evalAssignment :: Context -> Assignment -> Context
-evalAssignment context assignment = initialContext
+evalAssignment :: Context -> Assignment -> Either ErrorMessage Context
+evalAssignment context assignment = Left "evalAssignment to be implemented!"
 -- evalAssignment (ns,st) (Assignment ref val) = insert ref (evalValue st val) st
 
 -- evalValue :: Store -> Value -> Store
@@ -225,14 +242,24 @@ evalAssignment context assignment = initialContext
 -- evalValue st (ProtoValue ps) = (StoreValue (BasicValue NullValue))
 
 
-
-
-
-
 -- *** main
 
-main = do { result <- parseFromFile specification "/Users/paul/Work/Playground/HaskellSF/Test/patrick3.sf"
-	; case (result) of
-		Left err  -> print err
-		Right strings  -> print strings
-		}
+evalSF :: (Either ParseError Body) -> Either ErrorMessage Store
+evalSF (Left parseError) = Left ("parse error: " ++ (show parseError))
+evalSF (Right parseTree) = do
+	(_,store) <- evalBody initialContext parseTree
+	result <- extractSfConfig store
+	return result
+
+compileSF :: String -> IO()
+compileSF sourceFile = do
+	parseResult <- parseFromFile specification sourceFile ;
+	case (evalSF parseResult) of
+		Left err  -> print ("SF compilation failed: " ++ err)
+		Right store  -> print store
+
+main = compileSF "/Users/paul/Work/Playground/HaskellSF/Test/patrick3.sf" 
+
+
+
+
