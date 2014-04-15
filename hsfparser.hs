@@ -47,11 +47,10 @@ maybePair (a,Just b) = Just (a,b)
 -- the deriving is necessary so we can use these as map keys
 data Identifier = Identifier [Char] deriving(Eq,Ord)
 data Reference = Reference [Identifier]
-data LinkRef = LinkRef [Identifier]
 data Body = Body [Assignment]
 data BasicValue = BoolValue Bool | NumValue Integer | StringValue [Char] | NullValue
                 | DataRef [Identifier] | Vector [BasicValue] deriving(Eq)
-data Value = BasicValue BasicValue | LinkValue LinkRef | ProtoValue [Prototype]
+data Value = BasicValue BasicValue | LinkValue Reference | ProtoValue [Prototype]
 data Assignment = Assignment Reference Value
 data Prototype = RefProto Reference | BodyProto Body
 
@@ -59,8 +58,6 @@ instance Show Identifier where
 	show (Identifier id) = id
 instance Show Reference where
 	show (Reference ids) = (intercalate ":" (map show ids))
-instance Show LinkRef where
-	show (LinkRef ids) = show (Reference ids)
 instance Show Body where
 	show (Body as) = intercalate "\n" (map show as)
 instance Show Assignment where
@@ -118,10 +115,6 @@ ident = do { i <- m_identifier ; return (Identifier i) }
 reference :: Parser Reference
 reference = do { ref <- ident `sepBy1` m_colon; return (Reference ref) }
 
--- LR ::= R
-linkref :: Parser LinkRef
-linkref = do { (Reference ref) <- reference ; return (LinkRef ref) }
-
 -- BV ::= Bool | Num | Str | DATA R | Null | Vector [BV]
 basicValue :: Parser BasicValue
 basicValue = do { s <- m_stringLiteral ; return (StringValue s) }
@@ -136,7 +129,7 @@ basicValue = do { s <- m_stringLiteral ; return (StringValue s) }
 -- V ::= BV ; | LR ; | extends [PS]
 value :: Parser Value
 value = do { bv <- basicValue ; m_semi ; return (BasicValue bv) }
-	<|> do { lr <- linkref ; m_semi ; return (LinkValue lr) }
+	<|> do { lr <- reference ; m_semi ; return (LinkValue lr) }
 	<|> do { m_reserved "extends"; ps <- protoList; return (ProtoValue ps) }
 	where protoList = do { ps <- prototype `sepBy1` m_comma; return (ps) }
 
@@ -175,6 +168,22 @@ instance Show StoreValue where
 	show (StoreValue bv) = (show bv)
 	show (SubStore store) = indentBlock (show store)
 
+-- I am using maps for the store which change the semantics 
+-- slightly from Herry's implementation using lists
+-- i.e. the order will be different 
+-- I don't think this should be significant
+-- if it is, you should be able to replace the store implementation
+-- by changing these functions (and the data definition above)
+
+lookupStore :: Identifier -> Store -> Maybe StoreValue
+lookupStore id (Store map) = Map.lookup id map
+
+putStore :: Identifier -> StoreValue -> Store -> Store
+putStore id value (Store map) = (Store (Map.insert id value map))
+
+emptyStore :: Store
+emptyStore = (Store Map.empty)
+
 {--
  ** semantic functions
 --}
@@ -182,12 +191,6 @@ instance Show StoreValue where
 type NameSpace = Reference
 type Context = (NameSpace,Store)
 type ErrorMessage = String
-
-lookupStore :: Identifier -> Store -> Maybe StoreValue
-lookupStore id (Store map) = Map.lookup id map
-
-putStore :: Identifier -> StoreValue -> Store -> Store
-putStore id value (Store map) = (Store (Map.insert id value map))
 
 sfPrefix :: Reference -> Reference
 sfPrefix (Reference []) = (Reference [])
@@ -211,8 +214,8 @@ sfResolv (ns, store) ref
 	| otherwise 		= maybePair (ns, v)
 	where v = sfFind store (sfConcat ns ref)
 
-extractSfConfig :: Store -> Either ErrorMessage Store
-extractSfConfig store =
+sfConfig :: Store -> Either ErrorMessage Store
+sfConfig store =
 	do {
 		sfConfigValue <- case (sfFind store (Reference [Identifier "sfConfig"])) of
 			Nothing -> Left "no sfConfig component"
@@ -225,23 +228,37 @@ extractSfConfig store =
 		return sfConfigStore
 	}
 
+sfRefLength :: Reference -> Int
+sfRefLength (Reference ids) = length ids
+
 {--
  ** evaluation functions
 --}
 
-type Evaluator a = Context -> a -> Either ErrorMessage Context
+type Evaluator a = Either ErrorMessage Context -> a -> Either ErrorMessage Context
 
-initialContext :: Context
-initialContext = (Reference [],(Store Map.empty))
+initialContext :: Either ErrorMessage Context
+initialContext = Right (Reference [],emptyStore)
 
--- **** how do we do the foldl thing trapping the errors ?
 evalBody :: Evaluator Body
-evalBody context body = Left "evalBody to be implemented!"
--- evalBody context (Body assignments) = foldl evalAssignment context assignments
+evalBody context (Body assignments) = foldl evalAssignment context assignments
 
 evalAssignment :: Evaluator Assignment
-evalAssignment context assignment = Left "evalAssignment to be implemented!"
--- evalAssignment (ns,st) (Assignment ref val) = insert ref (evalValue st val) st
+evalAssignment (Left errorMessage) _ = (Left errorMessage)
+evalAssignment (Right (ns,store)) (Assignment ref v)
+	| (sfRefLength ref) == 1		= evalValue (Right (ns,store)) (LinkValue (sfConcat ns ref))
+	| otherwise = case (context) of
+		  Nothing -> Left "hmm. can't resolv reference!"
+		  Just (_, StoreValue _) -> Left "reference not an object (error 6)"
+		  Just (ns', _) -> evalValue (Right (ns,store)) (LinkValue (sfConcat ns' ref))
+		  where context = sfResolv (ns,store) (sfPrefix ref)
+		  
+evalValue :: Evaluator Value
+evalValue context (BasicValue bv) = Left "eval BasicValue not implemented"
+evalValue context (LinkValue ref) = Left "eval LinkValue not implemented"
+evalValue context (ProtoValue [p]) = Left "eval ProtoValue not implemented"
+
+
 
 -- evalValue :: Store -> Value -> Store
 -- evalValue st s@(BasicValue bv) = (StoreValue s)
@@ -255,7 +272,7 @@ evalSF :: (Either ParseError Body) -> Either ErrorMessage Store
 evalSF (Left parseError) = Left ("parse error: " ++ (show parseError))
 evalSF (Right parseTree) = do
 	(_,store) <- evalBody initialContext parseTree
-	result <- extractSfConfig store
+	result <- sfConfig store
 	return result
 
 compileSF :: String -> IO()
