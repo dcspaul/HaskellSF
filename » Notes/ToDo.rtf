@@ -4,7 +4,23 @@
 \paperw11900\paperh16840\margl1440\margr1440\vieww14040\viewh15940\viewkind0
 \pard\tx566\tx1133\tx1700\tx2267\tx2834\tx3401\tx3968\tx4535\tx5102\tx5669\tx6236\tx6803\pardirnatural
 
-\f0\fs28 \cf0 - look at the monadic stuff again\
+\f0\fs28 \cf0 0) Check whetehr the functions \\x y z talkes atriple or is curried?\
+   we can write \\(x,y) !!!\
+1) think about the store\
+    we seem to need to be able to represent PHI sub S?\
+    I think we should re-implement this as a list the same as Herry's to be sure of the semantics\
+    we can translate it back to a map later if we want\
+2) write a (') version of the find/resolv functions which returns an error if not found\
+   we can then use this in the semantic functions in a neater way\
+3) we are working on the bind function\
+\
+- fix up the exiting semantic functions to return the right type\
+- write the remaining semantic functions\
+what about recovering the output at the top level?\
+\
+\
+\
+- look at the monadic stuff again\
 - eg. handling of errors in the ancestor problem\
 \
  other Haskell book?\

@@ -191,14 +191,34 @@ emptyStore = (Store Map.empty)
 type NameSpace = Reference
 type Context = (NameSpace,Store)
 type ErrorMessage = String
+type Result = Either ErrorMessage Store
 
+-- 6.7
+(|+|) :: Reference -> Reference -> Reference
+(|+|) (Reference r1) (Reference r2) = (Reference (r1 ++ r2))
+
+-- 6.11
 sfPrefix :: Reference -> Reference
 sfPrefix (Reference []) = (Reference [])
 sfPrefix (Reference xs) = (Reference (init xs))
 
-sfConcat :: Reference -> Reference -> Reference
-sfConcat (Reference r1) (Reference r2) = (Reference (r1 ++ r2))
+-- 6.13
+sfBind :: (Store,Reference,Value) -> Result
+sfBind (_,(Reference []),_) -> Left "attempt to bind empty reference (error 3)"
+sfBind (s,(Reference [id]),v) -> Right sfPut(s,id,v)
+*** HERE - PHI_S is a bit of a problem - we can't represent that?
+sfBind (PHI_S,(Reference id:id':ids),v) -> Left "parent not store (error 2)"
 
+
+
+
+
+--  *** STUFF BELOW NEEDS REVISITING ....
+
+
+
+
+-- 6.14
 sfFind :: Store -> Reference -> Maybe StoreValue
 sfFind store (Reference []) = Just (SubStore store)
 sfFind store (Reference (id:ids)) = sfFind' ids (lookupStore id store)
@@ -235,38 +255,75 @@ sfRefLength (Reference ids) = length ids
  ** evaluation functions
 --}
 
-type Evaluator a = Either ErrorMessage Context -> a -> Either ErrorMessage Context
+evalBody :: Body -> (Namespace,Store) -> Result
 
-initialContext :: Either ErrorMessage Context
-initialContext = Right (Reference [],emptyStore)
+evalBody (Body a:b) = \ns s -> do
+	fA <- evalAssignment a
+	fB <- evalBody b
+	return fB(ns, fA(ns,s))
 
-evalBody :: Evaluator Body
-evalBody context (Body assignments) = foldl evalAssignment context assignments
+evalBody (Body []) = \ns s -> (Right s)
 
-evalAssignment :: Evaluator Assignment
-evalAssignment (Left errorMessage) _ = (Left errorMessage)
-evalAssignment (Right (ns,store)) (Assignment ref v)
-	| (sfRefLength ref) == 1		= evalValue (Right (ns,store)) (LinkValue (sfConcat ns ref))
-	| otherwise = case (context) of
-		  Nothing -> Left "hmm. can't resolv reference!"
-		  Just (_, StoreValue _) -> Left "reference not an object (error 6)"
-		  Just (ns', _) -> evalValue (Right (ns,store)) (LinkValue (sfConcat ns' ref))
-		  where context = sfResolv (ns,store) (sfPrefix ref)
-		  
-evalValue :: Evaluator Value
-evalValue context (BasicValue bv) = Left "eval BasicValue not implemented"
-evalValue context (LinkValue ref) = Left "eval LinkValue not implemented"
-evalValue context (ProtoValue [p]) = Left "eval ProtoValue not implemented"
+evalAssignment :: Assignment -> (Namespace,Store) -> Result
 
+evalAssignment (Assignment r v) = \ns s -> do
+	fV <- evalValue v
+	a  <- if (sfRefLength r) == 1
+		then evalAssignment'  r fV (ns,s)
+		else evalAssignment'' r fV (ns,s)
+	return a
+}
 
+evalAssignment' r fV (ns,s) = fV(ns (ns |+| r) s)
 
--- evalValue :: Store -> Value -> Store
--- evalValue st s@(BasicValue bv) = (StoreValue s)
--- evalValue st (LinkValue ref) = (StoreValue (BasicValue NullValue))
--- evalValue st (ProtoValue ps) = (StoreValue (BasicValue NullValue))
+evalAssignment'' r fV (ns,s) = 
+    case (context) of
+   		  Nothing -> Left ( "can't resolve reference: " ++ r )
+   		  Just (_, StoreValue _) -> Left ( "reference not an object: " ++ r ++ " (error 6)" )
+   		  Just (ns', v') -> fV(ns (ns' |+| r) s)	
+   	where context = sfResolv s ns (sfPrefix r)
+
+evalValue :: Value -> (NameSpace,Reference,Store) -> Result
+
+evalValue (BasicValue bv) = \ns r s -> sfBind(s,r,(BasicValue bv))
+
+** SFRESOLV TO RETURN AN ERORR not a maybe
+
+evalValue (LinkValue lr) = \ns r s -> do
+	(ns',v') <- sfResolv(s, ns,(LinkValue lr))
+	s' <- sfBind(s, r, v')
+	return s' 
+
+** what is the phi in the semantics for this ??
+
+evalValue (ProtoValue ps) = \ns r s -> do
+	fP <- evalProtoList ps
+	s' <- sfBind(s,r,??)
+	return fP(ns, r, s')
+
+evalProtoList :: [Prototype] -> (NameSpace,Reference,Store) -> Result
+
+evalProtoList ((BodyProto b):ps) = \ns r s -> do
+	fP <- evalProtoList ps
+	fB <- evalBody b
+	s' <- fB(r, s)
+	p' <- fP(ns, r, s')
+	return p'
+
+evalProtoList ((RefProto r'):ps) = \ns r s -> do
+	fP <- evalProtoList ps
+	p' <- inherit(s, ns, r', r)
+	p'' <- fP(ns, r, p')
+	return p''
+
+evalProtoList ([]) = \ns r s -> (Right s)
+
 
 
 -- *** main
+
+initialContext :: Either ErrorMessage Context
+initialContext = Right (Reference [],emptyStore)
 
 evalSF :: (Either ParseError Body) -> Either ErrorMessage Store
 evalSF (Left parseError) = Left ("parse error: " ++ (show parseError))
