@@ -333,10 +333,10 @@ compileSF sourceFile = do
 	case (parseResult) of
 		Left err  -> print ("SF parser failed: " ++ (show err))
 		Right body -> case (evalSpecification body) of
-			Left errorMessage -> print ( errorMessage ++ "\n" ++ (show body) )
+			Left errorMessage -> print ( errorMessage ++ "\n" ++ show body )
 			Right store -> print store
 
-main = compileSF "/Users/paul/Work/Playground/HaskellSF/Test/features.sf" 
+main = compileSF "/Users/paul/Work/Playground/HaskellSF/Test/herry4.sf" 
 
 
 
