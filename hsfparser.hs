@@ -38,8 +38,6 @@ maybePair :: (a,Maybe b) -> Maybe (a,b)
 maybePair (a,Nothing) = Nothing
 maybePair (a,Just b) = Just (a,b)
 
-
-
 {--
  ** abstract syntax
 --}
@@ -234,19 +232,28 @@ sfResolv (s, ns, r)
 	| otherwise 		= maybePair (ns, v)
 	where v = sfFind (s, ns |+| r)
 
+-- 6.17
+sfCopy :: (Store,Store,Reference) -> Result
 
+sfCopy ( s1, Store [], pfx ) = Right s1
 
+sfCopy ( s1, Store ((i,v):s2), pfx ) = do
+	s' <- sfBind( s1, pfx |+| (Reference [i]), v)
+	sfCopy (s',Store s2,pfx)
 
+-- 6.18
+sfInherit :: (Store,NameSpace,Reference,Reference) -> Result
 
-
+sfInherit (s, ns, p, r) =
+	case (sfResolv(s,ns,p)) of
+		Nothing -> Left ( "error 4 (can't resolve prototype): " ++ (show p) )
+		Just (ns',SubStore s') -> sfCopy(s,s',r)
+		Just (ns',StoreValue v') -> Left ( "error 4 (prototype is not a store): " ++ (show p) )
 
 {--
  ** evaluation functions
 --}
 	
-	
-sfInherit :: (Store,NameSpace,Reference,Reference) -> Result
-sfInherit _ = Left "sfInherit not implemented"
 
 -- 6.22
 evalBasicValue :: BasicValue -> Result
@@ -329,7 +336,7 @@ compileSF sourceFile = do
 			Left errorMessage -> print ( errorMessage ++ "\n" ++ (show body) )
 			Right store -> print store
 
-main = compileSF "/Users/paul/Work/Playground/HaskellSF/Test/herry4.sf" 
+main = compileSF "/Users/paul/Work/Playground/HaskellSF/Test/features.sf" 
 
 
 
