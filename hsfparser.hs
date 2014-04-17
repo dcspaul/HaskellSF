@@ -38,9 +38,6 @@ maybePair :: (a,Maybe b) -> Maybe (a,b)
 maybePair (a,Nothing) = Nothing
 maybePair (a,Just b) = Just (a,b)
 
-isSimpleRef :: Reference -> Bool
-isSimpleRef (Reference [_]) = True
-isSimpleRef (Reference _) = False
 
 
 {--
@@ -156,8 +153,8 @@ specification = do { m_whiteSpace; b <- body ; eof ; return b }
  ** store
 --}
 
-data StoreValue = StoreValue BasicValue | SubStore Store deriving(Eq)
-data Store = Store [(Identifier,StoreValue)] deriving(Eq)
+data StoreValue = StoreValue BasicValue | SubStore Store deriving(Eq,Show)
+data Store = Store [(Identifier,StoreValue)] deriving(Eq,Show)
 
 prefixToStore ( i, v, Store s ) = Store ((i,v):s)
 
@@ -277,22 +274,16 @@ evalValue (ProtoValue ps) = \(ns,r,s) -> do
 -- 6.25
 evalAssignment :: Assignment -> (NameSpace,Store) -> Result
 
-evalAssignment (Assignment r v) =
-	if (isSimpleRef r)
-		then evalSimpleAssignment (Assignment r v)
-		else evalCompoundAssignment (Assignment r v)
-
-evalSimpleAssignment (Assignment r v) = \(ns,s) -> do
+evalAssignment (Assignment r@(Reference [_]) v) = \(ns,s) -> do
 	fV <- evalValue v $ (ns, (ns |+| r), s)
 	return fV
 
-evalCompoundAssignment (Assignment r v) = \(ns,s) -> do
+evalAssignment (Assignment r v) = \(ns,s) -> do
 	fV <- case (sfResolv (s,ns,(sfPrefix r))) of
 		Nothing -> Left ( "error 6 (can't resolve reference): " ++ (show r) )
 		Just (_, StoreValue _) -> Left ( "error 6 (reference not an object): " ++ (show r) )
 		Just (ns', _) -> evalValue v $ (ns, ns' |+| r, s)
 	return fV
-
 
 -- 6.26
 evalBody :: Body -> (NameSpace,Store) -> Result
@@ -304,6 +295,15 @@ evalBody (Body (a:b)) = \(ns,s) -> do
 
 evalBody (Body []) = \(ns,s) -> (Right s)
 
+-- 6.27
+evalSpecification :: Body -> Result
+
+evalSpecification b = do
+	fB <- evalBody b $ (Reference [], Store [])
+	case (sfFind(fB,Reference [Identifier "sfConfig"])) of
+		Nothing -> Left "no sfConfig at top level of specification"
+		Just (StoreValue _) -> Left "sfConfig cannot be a basic value"
+		Just (SubStore s) -> return s
 
 -- *** main
 
@@ -311,8 +311,10 @@ compileSF :: String -> IO()
 compileSF sourceFile = do
 	parseResult <- parseFromFile specification sourceFile ;
 	case (parseResult) of
-		Left err  -> print ("SF compilation failed: " ++ (show err))
-		Right store  -> print store
+		Left err  -> print ("SF parser failed: " ++ (show err))
+		Right body -> case (evalSpecification body) of
+			Left errorMessage -> print errorMessage
+			Right store -> print store
 
 main = compileSF "/Users/paul/Work/Playground/HaskellSF/Test/patrick3.sf" 
 
