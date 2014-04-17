@@ -11,9 +11,6 @@ import Text.Parsec.Expr
 import Text.Parsec.Token
 import Text.Parsec.Language
 import qualified Text.Parsec.Token as P
---
-import Data.Map (Map)
-import qualified Data.Map as Map
 
 {--
  ** utility functions
@@ -36,16 +33,21 @@ indentBlockBy ts text
 indentBlock :: String -> String
 indentBlock = indentBlockBy (tabString 2)
 
+-- there must be a nice generic way of saying this ?
 maybePair :: (a,Maybe b) -> Maybe (a,b)
 maybePair (a,Nothing) = Nothing
 maybePair (a,Just b) = Just (a,b)
+
+isSimpleRef :: Reference -> Bool
+isSimpleRef (Reference [_]) = True
+isSimpleRef (Reference _) = False
+
 
 {--
  ** abstract syntax
 --}
 
--- the deriving is necessary so we can use these as map keys
-data Identifier = Identifier [Char] deriving(Eq,Ord)
+data Identifier = Identifier [Char] deriving(Eq)
 data Reference = Reference [Identifier]
 data Body = Body [Assignment]
 data BasicValue = BoolValue Bool | NumValue Integer | StringValue [Char] | NullValue
@@ -155,41 +157,19 @@ specification = do { m_whiteSpace; b <- body ; eof ; return b }
 --}
 
 data StoreValue = StoreValue BasicValue | SubStore Store deriving(Eq)
-data Store = Store (Map Identifier StoreValue) deriving(Eq)
+data Store = Store [(Identifier,StoreValue)] deriving(Eq)
 
--- FIXME - display results in proper JSON
--- we need our own version of something to print the basic values 
--- so that we can format the JSON lists properly ...
+prefixToStore ( i, v, Store s ) = Store ((i,v):s)
 
-instance Show Store where
-	show (Store map) = indentBlock $ intercalate "\n" $ foldrWithKey showMapEntry [] map
-		where showMapEntry k v result = ((show k) ++ ": " ++ (show v)):result
-instance Show StoreValue where
-	show (StoreValue bv) = (show bv)
-	show (SubStore store) = indentBlock (show store)
-
--- I am using maps for the store which change the semantics 
--- slightly from Herry's implementation using lists
--- i.e. the order will be different 
--- I don't think this should be significant
--- if it is, you should be able to replace the store implementation
--- by changing these functions (and the data definition above)
-
-lookupStore :: Identifier -> Store -> Maybe StoreValue
-lookupStore id (Store map) = Map.lookup id map
-
-putStore :: Identifier -> StoreValue -> Store -> Store
-putStore id value (Store map) = (Store (Map.insert id value map))
-
-emptyStore :: Store
-emptyStore = (Store Map.empty)
+isSubStore :: StoreValue -> Bool
+isSubStore (SubStore _) = True
+isSubStore (StoreValue _) = False
 
 {--
  ** semantic functions
 --}
 
 type NameSpace = Reference
-type Context = (NameSpace,Store)
 type ErrorMessage = String
 type Result = Either ErrorMessage Store
 
@@ -200,143 +180,138 @@ type Result = Either ErrorMessage Store
 -- 6.11
 sfPrefix :: Reference -> Reference
 sfPrefix (Reference []) = (Reference [])
-sfPrefix (Reference xs) = (Reference (init xs))
+sfPrefix (Reference [_]) = (Reference [])
+sfPrefix (Reference is) = (Reference (init is))
+
+-- 6.12
+sfPut :: (Store,Identifier,StoreValue) -> Store
+sfPut ( Store [], i, v ) = Store [(i,v)]
+sfPut ( Store ((is,vs):s'), i, v )
+	| is == i	= Store ((i,v):s')
+	| otherwise = prefixToStore(is,vs,sfPut(Store s',i,v))
 
 -- 6.13
-sfBind :: (Store,Reference,Value) -> Result
-sfBind (_,(Reference []),_) -> Left "attempt to bind empty reference (error 3)"
-sfBind (s,(Reference [id]),v) -> Right sfPut(s,id,v)
-*** HERE - PHI_S is a bit of a problem - we can't represent that?
-sfBind (PHI_S,(Reference id:id':ids),v) -> Left "parent not store (error 2)"
+sfBind :: (Store,Reference,StoreValue) -> Result
+
+sfBind ( _, Reference [], _ ) = Left "error 3 (attempt to replace root store)"
+
+sfBind( s, Reference [i], v ) = Right (sfPut (s,i,v))
+
+sfBind( Store [], Reference (i:r'), v ) = Left "error 2 (reference has no parent)"
+
+sfBind( Store ((is,vs@(SubStore ss)):s'), Reference (i:r'), v )
+	| is == i		= do { s'' <- sfBind(ss,Reference r',v) ; return (Store ((i,(SubStore s'')):s')) }
+	| otherwise		= do { s'' <- sfBind(Store s',Reference (i:r'),v) ; return (prefixToStore (is,vs,s''))  }
+
+sfBind( Store ((is,vs@(StoreValue sv)):s'), Reference (i:r'), v )
+	| is == i		= Left "error 1 (parent not a store)"
+	| otherwise		= do { s'' <- sfBind(Store s',Reference (i:r'),v) ; return (prefixToStore (is,vs,s''))  }
 
 
+-- 6.14 
+sfFind :: (Store,Reference) -> Maybe StoreValue
 
+sfFind (s, (Reference [])) = Just (SubStore s)
 
+sfFind ((Store []), _) = Nothing
 
---  *** STUFF BELOW NEEDS REVISITING ....
+sfFind ((Store ((is,vs):s')), Reference [i])
+	| is == i   = Just vs
+	| otherwise = sfFind (Store s', Reference [i])
 
+sfFind ((Store ((is,vs@(SubStore ss)):s')), Reference (i:r'))
+	| is == i		= sfFind(ss,Reference r')
+	| otherwise 	= sfFind (Store s', Reference (i:r'))
 
+sfFind ((Store ((is,vs@(StoreValue sv)):s')), Reference (i:r'))
+	| is == i		= Nothing
+	| otherwise 	= sfFind (Store s', Reference (i:r'))
 
+-- 6.16
+sfResolv :: (Store,NameSpace,Reference) -> Maybe (NameSpace,StoreValue)
 
--- 6.14
-sfFind :: Store -> Reference -> Maybe StoreValue
-sfFind store (Reference []) = Just (SubStore store)
-sfFind store (Reference (id:ids)) = sfFind' ids (lookupStore id store)
-	where
-		sfFind' [] (Just v) = Just v
-		sfFind' ids (Just (SubStore store)) = sfFind store (Reference ids)
-		sfFind' _ _ = Nothing
+sfResolv (s, Reference [], r) = maybePair (Reference [], sfFind(s,r))
 
-sfResolv :: Context -> Reference -> Maybe (NameSpace,StoreValue)
-sfResolv (Reference [], store) ref = maybePair (Reference [], sfFind store ref)
-sfResolv (ns, store) ref
-	| v == Nothing 		= sfResolv (sfPrefix ns, store) ns
+sfResolv (s, ns, r)
+	| v == Nothing 		= sfResolv (s, sfPrefix ns, r)
 	| otherwise 		= maybePair (ns, v)
-	where v = sfFind store (sfConcat ns ref)
+	where v = sfFind (s, ns |+| r)
 
-sfConfig :: Store -> Either ErrorMessage Store
-sfConfig store =
-	do {
-		sfConfigValue <- case (sfFind store (Reference [Identifier "sfConfig"])) of
-			Nothing -> Left "no sfConfig component"
-			(Just value) -> Right value
-		;
-		sfConfigStore <- case sfConfigValue of
-			(StoreValue v) -> Left ( "sfConfig component is basic value (" ++ (show v) ++ ")" )
-			(SubStore store) -> Right store
-		;
-		return sfConfigStore
-	}
 
-sfRefLength :: Reference -> Int
-sfRefLength (Reference ids) = length ids
+
+
+
+
 
 {--
  ** evaluation functions
 --}
+	
 
-evalBody :: Body -> (Namespace,Store) -> Result
+-- 6.22
+evalBasicValue :: BasicValue -> Result
+evalBasicValue _ = Left "evalBasicValue not implemented"
 
-evalBody (Body a:b) = \ns s -> do
-	fA <- evalAssignment a
-	fB <- evalBody b
-	return fB(ns, fA(ns,s))
+-- 6.23
+evalProtoList :: [Prototype] -> (NameSpace,Reference,Store) -> Result
+evalProtoList _ = \(ns,r,s) -> Left "evalProtoList not implemented"
 
-evalBody (Body []) = \ns s -> (Right s)
 
-evalAssignment :: Assignment -> (Namespace,Store) -> Result
-
-evalAssignment (Assignment r v) = \ns s -> do
-	fV <- evalValue v
-	a  <- if (sfRefLength r) == 1
-		then evalAssignment'  r fV (ns,s)
-		else evalAssignment'' r fV (ns,s)
-	return a
-}
-
-evalAssignment' r fV (ns,s) = fV(ns (ns |+| r) s)
-
-evalAssignment'' r fV (ns,s) = 
-    case (context) of
-   		  Nothing -> Left ( "can't resolve reference: " ++ r )
-   		  Just (_, StoreValue _) -> Left ( "reference not an object: " ++ r ++ " (error 6)" )
-   		  Just (ns', v') -> fV(ns (ns' |+| r) s)	
-   	where context = sfResolv s ns (sfPrefix r)
-
+-- 6.24
 evalValue :: Value -> (NameSpace,Reference,Store) -> Result
 
-evalValue (BasicValue bv) = \ns r s -> sfBind(s,r,(BasicValue bv))
+evalValue (BasicValue bv) = \(ns,r,s) -> sfBind(s, r, StoreValue bv)
 
-** SFRESOLV TO RETURN AN ERORR not a maybe
-
-evalValue (LinkValue lr) = \ns r s -> do
-	(ns',v') <- sfResolv(s, ns,(LinkValue lr))
+evalValue (LinkValue lr) = \(ns,r,s) -> do
+	(ns',v') <- case (sfResolv(s, ns, lr)) of
+		Nothing -> Left ( "error 5 (can't resolve link value): " ++ (show lr) )
+		Just (n,v) -> Right (n,v)
 	s' <- sfBind(s, r, v')
 	return s' 
 
-** what is the phi in the semantics for this ??
+evalValue (ProtoValue ps) = \(ns,r,s) -> do
+	s' <- sfBind(s,r,SubStore (Store []))
+	fP <- evalProtoList ps $ (ns,r,s')
+	return fP
+	
+-- 6.25
+evalAssignment :: Assignment -> (NameSpace,Store) -> Result
 
-evalValue (ProtoValue ps) = \ns r s -> do
-	fP <- evalProtoList ps
-	s' <- sfBind(s,r,??)
-	return fP(ns, r, s')
+evalAssignment (Assignment r v) =
+	if (isSimpleRef r)
+		then evalSimpleAssignment (Assignment r v)
+		else evalCompoundAssignment (Assignment r v)
 
-evalProtoList :: [Prototype] -> (NameSpace,Reference,Store) -> Result
+evalSimpleAssignment (Assignment r v) = \(ns,s) -> do
+	fV <- evalValue v $ (ns, (ns |+| r), s)
+	return fV
 
-evalProtoList ((BodyProto b):ps) = \ns r s -> do
-	fP <- evalProtoList ps
-	fB <- evalBody b
-	s' <- fB(r, s)
-	p' <- fP(ns, r, s')
-	return p'
+evalCompoundAssignment (Assignment r v) = \(ns,s) -> do
+	fV <- case (sfResolv (s,ns,(sfPrefix r))) of
+		Nothing -> Left ( "error 6 (can't resolve reference): " ++ (show r) )
+		Just (_, StoreValue _) -> Left ( "error 6 (reference not an object): " ++ (show r) )
+		Just (ns', _) -> evalValue v $ (ns, ns' |+| r, s)
+	return fV
 
-evalProtoList ((RefProto r'):ps) = \ns r s -> do
-	fP <- evalProtoList ps
-	p' <- inherit(s, ns, r', r)
-	p'' <- fP(ns, r, p')
-	return p''
 
-evalProtoList ([]) = \ns r s -> (Right s)
+-- 6.26
+evalBody :: Body -> (NameSpace,Store) -> Result
 
+evalBody (Body (a:b)) = \(ns,s) -> do
+	fA <- evalAssignment a $ (ns,s)
+	fB <- evalBody (Body b) $ (ns,fA)
+	return fB
+
+evalBody (Body []) = \(ns,s) -> (Right s)
 
 
 -- *** main
 
-initialContext :: Either ErrorMessage Context
-initialContext = Right (Reference [],emptyStore)
-
-evalSF :: (Either ParseError Body) -> Either ErrorMessage Store
-evalSF (Left parseError) = Left ("parse error: " ++ (show parseError))
-evalSF (Right parseTree) = do
-	(_,store) <- evalBody initialContext parseTree
-	result <- sfConfig store
-	return result
-
 compileSF :: String -> IO()
 compileSF sourceFile = do
 	parseResult <- parseFromFile specification sourceFile ;
-	case (evalSF parseResult) of
-		Left err  -> print ("SF compilation failed: " ++ err)
+	case (parseResult) of
+		Left err  -> print ("SF compilation failed: " ++ (show err))
 		Right store  -> print store
 
 main = compileSF "/Users/paul/Work/Playground/HaskellSF/Test/patrick3.sf" 
