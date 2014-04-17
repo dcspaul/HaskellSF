@@ -244,6 +244,9 @@ sfResolv (s, ns, r)
  ** evaluation functions
 --}
 	
+	
+sfInherit :: (Store,NameSpace,Reference,Reference) -> Result
+sfInherit _ = Left "sfInherit not implemented"
 
 -- 6.22
 evalBasicValue :: BasicValue -> Result
@@ -251,8 +254,18 @@ evalBasicValue _ = Left "evalBasicValue not implemented"
 
 -- 6.23
 evalProtoList :: [Prototype] -> (NameSpace,Reference,Store) -> Result
-evalProtoList _ = \(ns,r,s) -> Left "evalProtoList not implemented"
 
+evalProtoList ((BodyProto bp):ps) = \(ns,r,s) -> do
+	fB <- evalBody bp $ (r,s)
+	fP <- evalProtoList ps $ (ns, r, fB)
+	return fP
+
+evalProtoList ((RefProto rp):ps) = \(ns,r,s) -> do
+	s' <- sfInherit(s,ns,rp,r)
+	fP <- evalProtoList ps $ (ns, r, s')
+	return fP
+
+evalProtoList ([]) = \(ns,r,s) -> (Right s)
 
 -- 6.24
 evalValue :: Value -> (NameSpace,Reference,Store) -> Result
@@ -313,10 +326,10 @@ compileSF sourceFile = do
 	case (parseResult) of
 		Left err  -> print ("SF parser failed: " ++ (show err))
 		Right body -> case (evalSpecification body) of
-			Left errorMessage -> print errorMessage
+			Left errorMessage -> print ( errorMessage ++ "\n" ++ (show body) )
 			Right store -> print store
 
-main = compileSF "/Users/paul/Work/Playground/HaskellSF/Test/patrick3.sf" 
+main = compileSF "/Users/paul/Work/Playground/HaskellSF/Test/herry4.sf" 
 
 
 
