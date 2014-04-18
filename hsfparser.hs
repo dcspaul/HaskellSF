@@ -10,6 +10,7 @@ import Text.Parsec.Expr
 import Text.Parsec.Token
 import Text.Parsec.Language
 import qualified Text.Parsec.Token as P
+import System.Environment
 
 {------------------------------------------------------------------------------
     utility functions
@@ -409,13 +410,13 @@ evalSpecification b = do
     main program
 ------------------------------------------------------------------------------}
 
-compileSF :: String -> IO()
-compileSF sourceFile = do
+compile :: String -> IO String
+compile sourceFile = do
 	parseResult <- parseFromFile specification sourceFile ;
 	case (parseResult) of
-		Left err  -> putStr $ "** SF parser failed: " ++ (show err)
+		Left err  -> return ( "** SF parser failed: " ++ (show err) )
 		Right body -> case (evalSpecification body) of
-			Left errorMessage -> putStr $ "** SF evaluation failed: " ++ errorMessage ++ "\n\n" ++ showParseItem body
-			Right store -> putStr $ showStoreItem store
+			Left errorMessage -> return ( "** SF evaluation failed: " ++ errorMessage ++ "\n\n" ++ showParseItem body )
+			Right store -> return ( showStoreItem store )
 
-main = compileSF "/Users/paul/Work/Playground/HaskellSF/Test/paul3.sf" 
+main = getArgs >>= ( mapM compile ) >>= ( mapM putStrLn )

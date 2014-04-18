@@ -1,2 +1,2 @@
-parser:	parser3.hs
-	ghc -package parsec -o parser parser3.hs
+hsfparser:	hsfparser.hs
+	ghc -package parsec -o hsfparser hsfparser.hs
