@@ -2,7 +2,6 @@
     SmartFrog evaluator
 ------------------------------------------------------------------------------}
 
-import Data.Map (foldrWithKey)
 import Data.List
 import Data.List.Split (splitOn) 
 import Text.Parsec
@@ -154,6 +153,11 @@ specification = do { m_whiteSpace; b <- body ; eof ; return b }
     store
 ------------------------------------------------------------------------------}
 
+-- the store is implemented strictly as in the semantics from the paper 
+-- ie. as hierarchical lists. this means that the result preserves the
+-- ordering defined in the semantics, although I don't believe that this
+-- is significant (or the same sa the production compiler?)
+
 data StoreValue = StoreValue BasicValue | SubStore Store deriving(Eq)
 data Store = Store [(Identifier,StoreValue)] deriving(Eq)
 
@@ -181,7 +185,9 @@ instance StoreItem BasicValue where
 	showStoreItem (StringValue str) = show str
 	showStoreItem (NullValue) = "Null"
 	showStoreItem (DataRef ids) = intercalate ":" (map showStoreItem ids)
-	showStoreItem (Vector bvs) = "[" ++ (indentBlock (intercalate ",\n" (map showStoreItem bvs)))  ++ "]"
+	showStoreItem (Vector bvs) = "[" ++ (intercalate ", " (map showStoreItem bvs)) ++ "]"
+	-- this version puts each element on a new line
+	-- showStoreItem (Vector bvs) = "[" ++ (indentBlock (intercalate ",\n" (map showStoreItem bvs)))  ++ "]"
 
 {------------------------------------------------------------------------------
     semantic functions
@@ -192,16 +198,30 @@ type ErrorMessage = String
 type Result = Either ErrorMessage Store
 
 -- 6.7
+-- this operator concatenates two references
+-- the version in the paper is rather more complicated because it
+-- accepts single identifiers as well, but I think this is only used in one case
+-- so we do the conversion when it is called
+
 (|+|) :: Reference -> Reference -> Reference
 (|+|) (Reference r1) (Reference r2) = (Reference (r1 ++ r2))
 
 -- 6.11
+-- this function returns the longest strict prefix of the given reference
+-- I don't know whether the first two cases are ever actually called
+-- (or if the result is meaningful/legal?)
+
 sfPrefix :: Reference -> Reference
 sfPrefix (Reference []) = (Reference [])
 sfPrefix (Reference [_]) = (Reference [])
 sfPrefix (Reference is) = (Reference (init is))
 
 -- 6.12
+-- this function updates the value of an identifier in a store,
+-- or adds it if it does not already exist.
+-- notice that this operates only on single identifiers --
+-- the following function (bind) extends this to support hierarchical references
+
 sfPut :: (Store,Identifier,StoreValue) -> Store
 sfPut ( Store [], i, v ) = Store [(i,v)]
 sfPut ( Store ((is,vs):s'), i, v )
@@ -209,6 +229,10 @@ sfPut ( Store ((is,vs):s'), i, v )
 	| otherwise = prefixToStore(is,vs,sfPut(Store s',i,v))
 
 -- 6.13
+-- this function updates the value of a reference in a store
+-- return an error if an attempt is made to update a reference whose parent does not exist,
+-- or whose parent is not itself a store, or if we are attempting to replace the root store
+
 sfBind :: (Store,Reference,StoreValue) -> Result
 
 sfBind ( _, Reference [], _ ) = Left "error 3 (attempt to replace root store)"
@@ -225,7 +249,10 @@ sfBind( Store ((is,vs@(StoreValue sv)):s'), Reference (i:r'), v )
 	| is == i		= Left "error 1 (parent not a store)"
 	| otherwise		= do { s'' <- sfBind(Store s',Reference (i:r'),v) ; return (prefixToStore (is,vs,s''))  }
 
--- 6.14 
+-- 6.14
+-- this function looks up the value of a reference in a store
+-- return Nothing if the target is not found
+
 sfFind :: (Store,Reference) -> Maybe StoreValue
 
 sfFind (s, (Reference [])) = Just (SubStore s)
@@ -245,6 +272,12 @@ sfFind ((Store ((is,vs@(StoreValue sv)):s')), Reference (i:r'))
 	| otherwise 	= sfFind (Store s', Reference (i:r'))
 
 -- 6.16
+-- this function looks up a reference in a store, by starting with a given namespace
+-- (reference of the sub-store) and searching up the hierarchy of parent stores until
+-- a value is found (or not). It returns a tuple (ns,v) where ns is the namespace
+-- in which the target element is found and v is the value.
+-- return Nothing if the target is not found
+
 sfResolv :: (Store,NameSpace,Reference) -> Maybe (NameSpace,StoreValue)
 
 sfResolv (s, Reference [], r) = maybePair (Reference [], sfFind(s,r))
@@ -255,6 +288,9 @@ sfResolv (s, ns, r)
 	where v = sfFind (s, ns |+| r)
 
 -- 6.17
+-- this function copies every attribute from the second store to the first store at
+-- the given prefix. return an error if the underlying bind returns an error
+
 sfCopy :: (Store,Store,Reference) -> Result
 
 sfCopy ( s1, Store [], pfx ) = Right s1
@@ -264,6 +300,10 @@ sfCopy ( s1, Store ((i,v):s2), pfx ) = do
 	sfCopy (s',Store s2,pfx)
 
 -- 6.18
+-- this function copies values from a given prototype to the target store
+-- the prototype may be located in a higher-level namespace, hence the use of
+-- resolve to locate the corresponding store
+
 sfInherit :: (Store,NameSpace,Reference,Reference) -> Result
 
 sfInherit (s, ns, p, r) =
@@ -276,11 +316,13 @@ sfInherit (s, ns, p, r) =
     evaluation functions
 ------------------------------------------------------------------------------}
 
--- 6.22
-evalBasicValue :: BasicValue -> Result
-evalBasicValue _ = Left "evalBasicValue not implemented"
-
 -- 6.23
+-- A prototype is a sequence of bodies or references.
+-- Bodies are evaluated directly, while references are first resolved
+-- (in the current context) and then evaluated.
+-- Composition proceeds right-to-left (since defined values override
+-- any corresponding values in an extended prototype).
+
 evalProtoList :: [Prototype] -> (NameSpace,Reference,Store) -> Result
 
 evalProtoList ((BodyProto bp):ps) = \(ns,r,s) -> do
@@ -296,6 +338,10 @@ evalProtoList ((RefProto rp):ps) = \(ns,r,s) -> do
 evalProtoList ([]) = \(ns,r,s) -> (Right s)
 
 -- 6.24
+-- A value is either a basic value, a prototype, or a link reference.
+-- Basic values are entered directly in the store.
+-- Prototypes are first evaluated, and link references are first resolved.
+
 evalValue :: Value -> (NameSpace,Reference,Store) -> Result
 
 evalValue (BasicValue bv) = \(ns,r,s) -> sfBind(s, r, StoreValue bv)
@@ -313,6 +359,10 @@ evalValue (ProtoValue ps) = \(ns,r,s) -> do
 	return fP
 	
 -- 6.25
+-- To assign a value to a reference, the store entry for the
+-- reference is updated to contain the value.
+-- Error 6 occurs if the prefix of the target reference is not an object.
+
 evalAssignment :: Assignment -> (NameSpace,Store) -> Result
 
 evalAssignment (Assignment r@(Reference [_]) v) = \(ns,s) -> do
@@ -327,6 +377,10 @@ evalAssignment (Assignment r v) = \(ns,s) -> do
 	return fV
 
 -- 6.26
+-- A body is a sequence of assignments.
+-- These are recursively evaluated left-to-right with the store resulting
+-- from one assignment being used as input to the next assignment.
+
 evalBody :: Body -> (NameSpace,Store) -> Result
 
 evalBody (Body (a:b)) = \(ns,s) -> do
@@ -337,6 +391,11 @@ evalBody (Body (a:b)) = \(ns,s) -> do
 evalBody (Body []) = \(ns,s) -> (Right s)
 
 -- 6.27
+-- A complete SFSpecification is evaluated as a body, in the context of an empty store
+-- and a reference to the root namespace.
+-- The evaluation of the main sfConfig component is returned & other components are ignored.
+-- It is an error if the main sfConfig element is not a store (eg., if it is a basic value).
+	
 evalSpecification :: Body -> Result
 
 evalSpecification b = do
@@ -359,4 +418,4 @@ compileSF sourceFile = do
 			Left errorMessage -> putStr $ "** SF evaluation failed: " ++ errorMessage ++ "\n\n" ++ showParseItem body
 			Right store -> putStr $ showStoreItem store
 
-main = compileSF "/Users/paul/Work/Playground/HaskellSF/Test/paul2.sf" 
+main = compileSF "/Users/paul/Work/Playground/HaskellSF/Test/paul3.sf" 
