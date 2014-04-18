@@ -51,30 +51,33 @@ data Value = BasicValue BasicValue | LinkValue Reference | ProtoValue [Prototype
 data Assignment = Assignment Reference Value
 data Prototype = RefProto Reference | BodyProto Body
 
-instance Show Identifier where
-	show (Identifier id) = id
-instance Show Reference where
-	show (Reference ids) = (intercalate ":" (map show ids))
-instance Show Body where
-	show (Body as) = intercalate "\n" (map show as)
-instance Show Assignment where
-	show (Assignment ref val) = (show ref) ++ " " ++ (show val)
-instance Show Prototype where
-	show (RefProto ref) = show ref
-	show (BodyProto body) = "{" ++ bodyContents ++ "}"
-		where bodyContents = (indentBlock (show body))
-instance Show Value where
-	show (BasicValue bv) = (show bv) ++ ";"
-	show (LinkValue ref) = (show ref) ++ ";"
-	show (ProtoValue ps) = "extends " ++ (intercalate ", " (map show ps))
-instance Show BasicValue where
-	show (BoolValue True) = "true"
-	show (BoolValue False) = "false"
-	show (NumValue n) = show n
-	show (StringValue str) = show str
-	show (NullValue) =  "NULL"
-	show (DataRef ids) = intercalate ":" (map show ids)
-	show (Vector bvs) = "[" ++ (intercalate "," (map show bvs)) ++ "]"
+class ParseItem a where
+	showParseItem :: a -> String 
+	
+instance ParseItem Identifier where
+	showParseItem (Identifier id) = id
+instance ParseItem Reference where
+	showParseItem (Reference ids) = (intercalate ":" (map showParseItem ids))
+instance ParseItem Body where
+	showParseItem (Body as) = intercalate "\n" (map showParseItem as)
+instance ParseItem Assignment where
+	showParseItem (Assignment ref val) = (showParseItem ref) ++ " " ++ (showParseItem val)
+instance ParseItem Prototype where
+	showParseItem (RefProto ref) = showParseItem ref
+	showParseItem (BodyProto body) = "{" ++ bodyContents ++ "}"
+		where bodyContents = (indentBlock (showParseItem body))
+instance ParseItem Value where
+	showParseItem (BasicValue bv) = (showParseItem bv) ++ ";"
+	showParseItem (LinkValue ref) = (showParseItem ref) ++ ";"
+	showParseItem (ProtoValue ps) = "extends " ++ (intercalate ", " (map showParseItem ps))
+instance ParseItem BasicValue where
+	showParseItem (BoolValue True) = "true"
+	showParseItem (BoolValue False) = "false"
+	showParseItem (NumValue n) = show n
+	showParseItem (StringValue str) = show str
+	showParseItem (NullValue) =  "NULL"
+	showParseItem (DataRef ids) = "DATA " ++ (intercalate ":" (map showParseItem ids))
+	showParseItem (Vector bvs) = "[" ++ (intercalate "," (map showParseItem bvs)) ++ "]"
 
 {------------------------------------------------------------------------------
     lexer
@@ -151,8 +154,8 @@ specification = do { m_whiteSpace; b <- body ; eof ; return b }
     store
 ------------------------------------------------------------------------------}
 
-data StoreValue = StoreValue BasicValue | SubStore Store deriving(Eq,Show)
-data Store = Store [(Identifier,StoreValue)] deriving(Eq,Show)
+data StoreValue = StoreValue BasicValue | SubStore Store deriving(Eq)
+data Store = Store [(Identifier,StoreValue)] deriving(Eq)
 
 prefixToStore ( i, v, Store s ) = Store ((i,v):s)
 
@@ -161,24 +164,24 @@ isSubStore (SubStore _) = True
 isSubStore (StoreValue _) = False
 
 class StoreItem a where
-	showItem :: a -> String 
+	showStoreItem :: a -> String 
 	
 instance StoreItem Identifier where
-	showItem (Identifier i) = id i
+	showStoreItem (Identifier i) = id i
 instance StoreItem Store where
-	showItem (Store as) =
-		(intercalate ",\n" (map showItemEntry as))
+	showStoreItem (Store as) =
+		(intercalate ",\n" (map showStoreItemEntry as))
 		where
-			showItemEntry (i, StoreValue bv) = (showItem i) ++ ": " ++ (showItem bv)
-			showItemEntry (i, SubStore s) = (showItem i) ++ ": {" ++ (indentBlock (showItem s))  ++ "}"
+			showStoreItemEntry (i, StoreValue bv) = (showStoreItem i) ++ ": " ++ (showStoreItem bv)
+			showStoreItemEntry (i, SubStore s) = (showStoreItem i) ++ ": {" ++ (indentBlock (showStoreItem s))  ++ "}"
 instance StoreItem BasicValue where
-	showItem (BoolValue True) = "true"
-	showItem (BoolValue False) = "false"
-	showItem (NumValue n) = show n
-	showItem (StringValue str) = id str
-	showItem (NullValue) = "Null"
-	showItem (DataRef ids) = intercalate ":" (map showItem ids)
-	showItem (Vector bvs) = "[\n" ++ (indentBlock (intercalate ",\n" (map showItem bvs)))  ++ "\n]"
+	showStoreItem (BoolValue True) = "true"
+	showStoreItem (BoolValue False) = "false"
+	showStoreItem (NumValue n) = show n
+	showStoreItem (StringValue str) = show str
+	showStoreItem (NullValue) = "Null"
+	showStoreItem (DataRef ids) = intercalate ":" (map showStoreItem ids)
+	showStoreItem (Vector bvs) = "[" ++ (indentBlock (intercalate ",\n" (map showStoreItem bvs)))  ++ "]"
 
 {------------------------------------------------------------------------------
     semantic functions
@@ -265,9 +268,9 @@ sfInherit :: (Store,NameSpace,Reference,Reference) -> Result
 
 sfInherit (s, ns, p, r) =
 	case (sfResolv(s,ns,p)) of
-		Nothing -> Left ( "error 4 (can't resolve prototype): " ++ (show p) )
+		Nothing -> Left ( "error 4 (can't resolve prototype): " ++ (showParseItem p) )
 		Just (ns',SubStore s') -> sfCopy(s,s',r)
-		Just (ns',StoreValue v') -> Left ( "error 4 (prototype is not a store): " ++ (show p) )
+		Just (ns',StoreValue v') -> Left ( "error 4 (prototype is not a store): " ++ (showParseItem p) )
 
 {------------------------------------------------------------------------------
     evaluation functions
@@ -299,7 +302,7 @@ evalValue (BasicValue bv) = \(ns,r,s) -> sfBind(s, r, StoreValue bv)
 
 evalValue (LinkValue lr) = \(ns,r,s) -> do
 	(ns',v') <- case (sfResolv(s, ns, lr)) of
-		Nothing -> Left ( "error 5 (can't resolve link value): " ++ (show lr) )
+		Nothing -> Left ( "error 5 (can't resolve link value): " ++ (showParseItem lr) )
 		Just (n,v) -> Right (n,v)
 	s' <- sfBind(s, r, v')
 	return s' 
@@ -318,8 +321,8 @@ evalAssignment (Assignment r@(Reference [_]) v) = \(ns,s) -> do
 
 evalAssignment (Assignment r v) = \(ns,s) -> do
 	fV <- case (sfResolv (s,ns,(sfPrefix r))) of
-		Nothing -> Left ( "error 6 (can't resolve reference): " ++ (show r) )
-		Just (_, StoreValue _) -> Left ( "error 6 (reference not an object): " ++ (show r) )
+		Nothing -> Left ( "error 6 (can't resolve reference): " ++ (showParseItem r) )
+		Just (_, StoreValue _) -> Left ( "error 6 (reference not an object): " ++ (showParseItem r) )
 		Just (ns', _) -> evalValue v $ (ns, ns' |+| r, s)
 	return fV
 
@@ -340,7 +343,7 @@ evalSpecification b = do
 	fB <- evalBody b $ (Reference [], Store [])
 	case (sfFind(fB,Reference [Identifier "sfConfig"])) of
 		Nothing -> Left "no sfConfig at top level of specification"
-		Just (StoreValue _) -> Left "sfConfig cannot be a basic value"
+		Just (StoreValue bv) -> Left ( "sfConfig cannot be a basic value: " ++ (showParseItem bv) )
 		Just (SubStore s) -> return s
 
 {------------------------------------------------------------------------------
@@ -351,9 +354,9 @@ compileSF :: String -> IO()
 compileSF sourceFile = do
 	parseResult <- parseFromFile specification sourceFile ;
 	case (parseResult) of
-		Left err  -> print ("SF parser failed: " ++ (show err))
+		Left err  -> putStr $ "** SF parser failed: " ++ (show err)
 		Right body -> case (evalSpecification body) of
-			Left errorMessage -> print $ errorMessage ++ "\n" ++ show body
-			Right store -> putStr $ showItem store
+			Left errorMessage -> putStr $ "** SF evaluation failed: " ++ errorMessage ++ "\n\n" ++ showParseItem body
+			Right store -> putStr $ showStoreItem store
 
-main = compileSF "/Users/paul/Work/Playground/HaskellSF/Test/herry4.sf" 
+main = compileSF "/Users/paul/Work/Playground/HaskellSF/Test/paul2.sf" 
