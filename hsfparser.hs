@@ -1,6 +1,6 @@
-{--
- ** SmartFrog parser
---}
+{------------------------------------------------------------------------------
+    SmartFrog evaluator
+------------------------------------------------------------------------------}
 
 import Data.Map (foldrWithKey)
 import Data.List
@@ -12,9 +12,9 @@ import Text.Parsec.Token
 import Text.Parsec.Language
 import qualified Text.Parsec.Token as P
 
-{--
- ** utility functions
---}
+{------------------------------------------------------------------------------
+    utility functions
+------------------------------------------------------------------------------}
 
 tabString :: Int -> String
 tabString n = foldl1 (++) (replicate n " ")
@@ -38,9 +38,9 @@ maybePair :: (a,Maybe b) -> Maybe (a,b)
 maybePair (a,Nothing) = Nothing
 maybePair (a,Just b) = Just (a,b)
 
-{--
- ** abstract syntax
---}
+{------------------------------------------------------------------------------
+    abstract syntax
+------------------------------------------------------------------------------}
 
 data Identifier = Identifier [Char] deriving(Eq)
 data Reference = Reference [Identifier]
@@ -76,9 +76,9 @@ instance Show BasicValue where
 	show (DataRef ids) = intercalate ":" (map show ids)
 	show (Vector bvs) = "[" ++ (intercalate "," (map show bvs)) ++ "]"
 
-{--
- ** lexer
---}
+{------------------------------------------------------------------------------
+    lexer
+------------------------------------------------------------------------------}
 
 lexer = P.makeTokenParser emptyDef {
 	reservedNames = ["true", "false","NULL","DATA","extends"],
@@ -101,9 +101,9 @@ m_commaSep = P.commaSep lexer
 m_braces = P.braces lexer
 m_brackets = P.brackets lexer
 
-{--
- ** parser
---}
+{------------------------------------------------------------------------------
+    parser
+------------------------------------------------------------------------------}
 
 ident :: Parser Identifier
 ident = do { i <- m_identifier ; return (Identifier i) }
@@ -147,9 +147,9 @@ prototype = do { ref <- reference ; return (RefProto ref) }
 specification :: Parser Body
 specification = do { m_whiteSpace; b <- body ; eof ; return b }
 
-{--
- ** store
---}
+{------------------------------------------------------------------------------
+    store
+------------------------------------------------------------------------------}
 
 data StoreValue = StoreValue BasicValue | SubStore Store deriving(Eq,Show)
 data Store = Store [(Identifier,StoreValue)] deriving(Eq,Show)
@@ -160,9 +160,29 @@ isSubStore :: StoreValue -> Bool
 isSubStore (SubStore _) = True
 isSubStore (StoreValue _) = False
 
-{--
- ** semantic functions
---}
+class StoreItem a where
+	showItem :: a -> String 
+	
+instance StoreItem Identifier where
+	showItem (Identifier i) = id i
+instance StoreItem Store where
+	showItem (Store as) =
+		(intercalate ",\n" (map showItemEntry as))
+		where
+			showItemEntry (i, StoreValue bv) = (showItem i) ++ ": " ++ (showItem bv)
+			showItemEntry (i, SubStore s) = (showItem i) ++ ": {" ++ (indentBlock (showItem s))  ++ "}"
+instance StoreItem BasicValue where
+	showItem (BoolValue True) = "true"
+	showItem (BoolValue False) = "false"
+	showItem (NumValue n) = show n
+	showItem (StringValue str) = id str
+	showItem (NullValue) = "Null"
+	showItem (DataRef ids) = intercalate ":" (map showItem ids)
+	showItem (Vector bvs) = "[\n" ++ (indentBlock (intercalate ",\n" (map showItem bvs)))  ++ "\n]"
+
+{------------------------------------------------------------------------------
+    semantic functions
+------------------------------------------------------------------------------}
 
 type NameSpace = Reference
 type ErrorMessage = String
@@ -201,7 +221,6 @@ sfBind( Store ((is,vs@(SubStore ss)):s'), Reference (i:r'), v )
 sfBind( Store ((is,vs@(StoreValue sv)):s'), Reference (i:r'), v )
 	| is == i		= Left "error 1 (parent not a store)"
 	| otherwise		= do { s'' <- sfBind(Store s',Reference (i:r'),v) ; return (prefixToStore (is,vs,s''))  }
-
 
 -- 6.14 
 sfFind :: (Store,Reference) -> Maybe StoreValue
@@ -250,10 +269,9 @@ sfInherit (s, ns, p, r) =
 		Just (ns',SubStore s') -> sfCopy(s,s',r)
 		Just (ns',StoreValue v') -> Left ( "error 4 (prototype is not a store): " ++ (show p) )
 
-{--
- ** evaluation functions
---}
-	
+{------------------------------------------------------------------------------
+    evaluation functions
+------------------------------------------------------------------------------}
 
 -- 6.22
 evalBasicValue :: BasicValue -> Result
@@ -325,7 +343,9 @@ evalSpecification b = do
 		Just (StoreValue _) -> Left "sfConfig cannot be a basic value"
 		Just (SubStore s) -> return s
 
--- *** main
+{------------------------------------------------------------------------------
+    main program
+------------------------------------------------------------------------------}
 
 compileSF :: String -> IO()
 compileSF sourceFile = do
@@ -333,11 +353,7 @@ compileSF sourceFile = do
 	case (parseResult) of
 		Left err  -> print ("SF parser failed: " ++ (show err))
 		Right body -> case (evalSpecification body) of
-			Left errorMessage -> print ( errorMessage ++ "\n" ++ show body )
-			Right store -> print store
+			Left errorMessage -> print $ errorMessage ++ "\n" ++ show body
+			Right store -> putStr $ showItem store
 
 main = compileSF "/Users/paul/Work/Playground/HaskellSF/Test/herry4.sf" 
-
-
-
-
