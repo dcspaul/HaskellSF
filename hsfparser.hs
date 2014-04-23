@@ -2,16 +2,18 @@
     SmartFrog evaluator
 ------------------------------------------------------------------------------}
 
-import Data.List
+import Data.List (intercalate)
 import Data.List.Split (splitOn) 
-import Text.Parsec
-import Text.Parsec.String
-import Text.Parsec.Expr
-import Text.Parsec.Token
-import Text.Parsec.Language
+import Text.Parsec (sepBy, sepBy1, (<|>), eof)
+import Text.Parsec.String (Parser, parseFromFile)
+import Text.Parsec.Language (emptyDef)
+import System.Environment (getArgs)
+
 import qualified Text.Parsec.Token as P
-import System.Environment
+
+-- MissingH
 import Data.List.Utils (addToAL)
+import Data.String.Utils (join,replace)
 
 {------------------------------------------------------------------------------
     utility functions
@@ -19,12 +21,6 @@ import Data.List.Utils (addToAL)
 
 tabString :: Int -> String
 tabString n = foldl1 (++) (replicate n " ")
-
-join :: [a] -> [[a]] -> [a]
-join delim l = concat (intersperse delim l)
-
-replace :: Eq a => [a] -> [a] -> [a] -> [a]
-replace old new = join new . splitOn old
 
 indentBlockBy :: String -> String -> String
 indentBlockBy ts text
@@ -85,11 +81,11 @@ instance ParseItem BasicValue where
 ------------------------------------------------------------------------------}
 
 lexer = P.makeTokenParser emptyDef {
-	reservedNames = ["true", "false","NULL","DATA","extends"],
-	reservedOpNames = ["{","}","[","]"],
-	commentStart = "/*",
-	commentEnd = "*/",
-	commentLine = "//"
+	P.reservedNames = ["true", "false","NULL","DATA","extends"],
+	P.reservedOpNames = ["{","}","[","]"],
+	P.commentStart = "/*",
+	P.commentEnd = "*/",
+	P.commentLine = "//"
 	}
 
 m_identifier = P.identifier lexer
