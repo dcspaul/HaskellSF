@@ -11,6 +11,7 @@ import Text.Parsec.Token
 import Text.Parsec.Language
 import qualified Text.Parsec.Token as P
 import System.Environment
+import Data.List.Utils (addToAL)
 
 {------------------------------------------------------------------------------
     utility functions
@@ -224,10 +225,7 @@ sfPrefix (Reference is) = (Reference (init is))
 -- the following function (bind) extends this to support hierarchical references
 
 sfPut :: (Store,Identifier,StoreValue) -> Store
-sfPut ( Store [], i, v ) = Store [(i,v)]
-sfPut ( Store ((is,vs):s'), i, v )
-	| is == i	= Store ((i,v):s')
-	| otherwise = prefixToStore(is,vs,sfPut(Store s',i,v))
+sfPut ( Store s, i, v ) = Store ( addToAL s i v )
 
 -- 6.13
 -- this function updates the value of a reference in a store
@@ -328,13 +326,11 @@ evalProtoList :: [Prototype] -> (NameSpace,Reference,Store) -> Result
 
 evalProtoList ((BodyProto bp):ps) = \(ns,r,s) -> do
 	fB <- evalBody bp $ (r,s)
-	fP <- evalProtoList ps $ (ns, r, fB)
-	return fP
+	evalProtoList ps $ (ns, r, fB)
 
 evalProtoList ((RefProto rp):ps) = \(ns,r,s) -> do
 	s' <- sfInherit(s,ns,rp,r)
-	fP <- evalProtoList ps $ (ns, r, s')
-	return fP
+	evalProtoList ps $ (ns, r, s')
 
 evalProtoList ([]) = \(ns,r,s) -> (Right s)
 
@@ -351,13 +347,11 @@ evalValue (LinkValue lr) = \(ns,r,s) -> do
 	(ns',v') <- case (sfResolv(s, ns, lr)) of
 		Nothing -> Left ( "error 5 (can't resolve link value): " ++ (showParseItem lr) )
 		Just (n,v) -> Right (n,v)
-	s' <- sfBind(s, r, v')
-	return s' 
+	sfBind(s, r, v')
 
 evalValue (ProtoValue ps) = \(ns,r,s) -> do
 	s' <- sfBind(s,r,SubStore (Store []))
-	fP <- evalProtoList ps $ (ns,r,s')
-	return fP
+	evalProtoList ps $ (ns,r,s')
 	
 -- 6.25
 -- To assign a value to a reference, the store entry for the
@@ -367,15 +361,13 @@ evalValue (ProtoValue ps) = \(ns,r,s) -> do
 evalAssignment :: Assignment -> (NameSpace,Store) -> Result
 
 evalAssignment (Assignment r@(Reference [_]) v) = \(ns,s) -> do
-	fV <- evalValue v $ (ns, (ns |+| r), s)
-	return fV
+	evalValue v $ (ns, (ns |+| r), s)
 
 evalAssignment (Assignment r v) = \(ns,s) -> do
-	fV <- case (sfResolv (s,ns,(sfPrefix r))) of
+	case (sfResolv (s,ns,(sfPrefix r))) of
 		Nothing -> Left ( "error 6 (can't resolve reference): " ++ (showParseItem r) )
 		Just (_, StoreValue _) -> Left ( "error 6 (reference not an object): " ++ (showParseItem r) )
 		Just (ns', _) -> evalValue v $ (ns, ns' |+| r, s)
-	return fV
 
 -- 6.26
 -- A body is a sequence of assignments.
@@ -386,8 +378,7 @@ evalBody :: Body -> (NameSpace,Store) -> Result
 
 evalBody (Body (a:b)) = \(ns,s) -> do
 	fA <- evalAssignment a $ (ns,s)
-	fB <- evalBody (Body b) $ (ns,fA)
-	return fB
+	evalBody (Body b) $ (ns,fA)
 
 evalBody (Body []) = \(ns,s) -> (Right s)
 
@@ -414,9 +405,10 @@ compile :: String -> IO String
 compile sourceFile = do
 	parseResult <- parseFromFile specification sourceFile ;
 	case (parseResult) of
-		Left err  -> return ( "** SF parser failed: " ++ (show err) )
+		Left err  -> return ( "\n** SF parser failed: " ++ sourceFile ++ "\n" ++ (show err) )
 		Right body -> case (evalSpecification body) of
-			Left errorMessage -> return ( "** SF evaluation failed: " ++ errorMessage ++ "\n\n" ++ showParseItem body )
-			Right store -> return ( showStoreItem store )
+			Left errorMessage -> return ( "\n** SF evaluation failed: " ++ sourceFile ++ "\n" ++
+										  errorMessage ++ "\n\n" ++ showParseItem body )
+			Right store -> return ( "\n** SF compiled: " ++ sourceFile ++ "\n\n" ++ showStoreItem store )
 
 main = getArgs >>= ( mapM compile ) >>= ( mapM putStrLn )
