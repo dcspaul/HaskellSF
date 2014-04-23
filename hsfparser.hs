@@ -3,37 +3,21 @@
 ------------------------------------------------------------------------------}
 
 import Data.List (intercalate)
-import Data.List.Split (splitOn) 
+import Data.List.Split (splitOn)
+import System.Environment (getArgs)
+
+-- Parsec
 import Text.Parsec (sepBy, sepBy1, (<|>), eof)
 import Text.Parsec.String (Parser, parseFromFile)
 import Text.Parsec.Language (emptyDef)
-import System.Environment (getArgs)
-
 import qualified Text.Parsec.Token as P
 
--- MissingH
+-- cabal install MissingH
 import Data.List.Utils (addToAL)
 import Data.String.Utils (join,replace)
 
-{------------------------------------------------------------------------------
-    utility functions
-------------------------------------------------------------------------------}
-
-tabString :: Int -> String
-tabString n = foldl1 (++) (replicate n " ")
-
-indentBlockBy :: String -> String -> String
-indentBlockBy ts text
-	| length text == 0		= text
-	| otherwise				= "\n" ++ ts ++ (replace "\n" ("\n" ++ ts) text) ++ "\n"
-
-indentBlock :: String -> String
-indentBlock = indentBlockBy (tabString 2)
-
--- there must be a nice generic way of saying this ?
-maybePair :: (a,Maybe b) -> Maybe (a,b)
-maybePair (a,Nothing) = Nothing
-maybePair (a,Just b) = Just (a,b)
+-- cabal install Safe
+import Safe (initSafe)
 
 {------------------------------------------------------------------------------
     abstract syntax
@@ -47,34 +31,6 @@ data BasicValue = BoolValue Bool | NumValue Integer | StringValue [Char] | NullV
 data Value = BasicValue BasicValue | LinkValue Reference | ProtoValue [Prototype]
 data Assignment = Assignment Reference Value
 data Prototype = RefProto Reference | BodyProto Body
-
-class ParseItem a where
-	showParseItem :: a -> String 
-	
-instance ParseItem Identifier where
-	showParseItem (Identifier id) = id
-instance ParseItem Reference where
-	showParseItem (Reference ids) = (intercalate ":" (map showParseItem ids))
-instance ParseItem Body where
-	showParseItem (Body as) = intercalate "\n" (map showParseItem as)
-instance ParseItem Assignment where
-	showParseItem (Assignment ref val) = (showParseItem ref) ++ " " ++ (showParseItem val)
-instance ParseItem Prototype where
-	showParseItem (RefProto ref) = showParseItem ref
-	showParseItem (BodyProto body) = "{" ++ bodyContents ++ "}"
-		where bodyContents = (indentBlock (showParseItem body))
-instance ParseItem Value where
-	showParseItem (BasicValue bv) = (showParseItem bv) ++ ";"
-	showParseItem (LinkValue ref) = (showParseItem ref) ++ ";"
-	showParseItem (ProtoValue ps) = "extends " ++ (intercalate ", " (map showParseItem ps))
-instance ParseItem BasicValue where
-	showParseItem (BoolValue True) = "true"
-	showParseItem (BoolValue False) = "false"
-	showParseItem (NumValue n) = show n
-	showParseItem (StringValue str) = show str
-	showParseItem (NullValue) =  "NULL"
-	showParseItem (DataRef ids) = "DATA " ++ (intercalate ":" (map showParseItem ids))
-	showParseItem (Vector bvs) = "[" ++ (intercalate "," (map showParseItem bvs)) ++ "]"
 
 {------------------------------------------------------------------------------
     lexer
@@ -148,44 +104,60 @@ specification :: Parser Body
 specification = do { m_whiteSpace; b <- body ; eof ; return b }
 
 {------------------------------------------------------------------------------
+    parse tree rendering
+------------------------------------------------------------------------------}
+
+tabString :: Int -> String
+tabString n = foldl1 (++) (replicate n " ")
+
+indentBlockBy :: String -> String -> String
+indentBlockBy ts text
+	| length text == 0		= text
+	| otherwise				= "\n" ++ ts ++ (replace "\n" ("\n" ++ ts) text) ++ "\n"
+
+indentBlock :: String -> String
+indentBlock = indentBlockBy (tabString 2)
+
+class ParseItem a where
+	render :: a -> String 
+	
+instance ParseItem Identifier where
+	render (Identifier id) = id
+instance ParseItem Reference where
+	render (Reference ids) = (intercalate ":" (map render ids))
+instance ParseItem Body where
+	render (Body as) = intercalate "\n" (map render as)
+instance ParseItem Assignment where
+	render (Assignment ref val) = (render ref) ++ " " ++ (render val)
+instance ParseItem Prototype where
+	render (RefProto ref) = render ref
+	render (BodyProto body) = "{" ++ bodyContents ++ "}"
+		where bodyContents = (indentBlock (render body))
+instance ParseItem Value where
+	render (BasicValue bv) = (render bv) ++ ";"
+	render (LinkValue ref) = (render ref) ++ ";"
+	render (ProtoValue ps) = "extends " ++ (intercalate ", " (map render ps))
+instance ParseItem BasicValue where
+	render (BoolValue True) = "true"
+	render (BoolValue False) = "false"
+	render (NumValue n) = show n
+	render (StringValue str) = show str
+	render (NullValue) =  "NULL"
+	render (DataRef ids) = "DATA " ++ (intercalate ":" (map render ids))
+	render (Vector bvs) = "[" ++ (intercalate "," (map render bvs)) ++ "]"
+
+{------------------------------------------------------------------------------
     store
 ------------------------------------------------------------------------------}
 
 -- the store is implemented strictly as in the semantics from the paper 
 -- ie. as hierarchical lists. this means that the result preserves the
 -- ordering defined in the semantics, although I don't believe that this
--- is significant (or the same sa the production compiler?)
+-- is significant (or the same as the production compiler?)
+-- The JSON standard also says (I think) that the order is records is not significant
 
 data StoreValue = StoreValue BasicValue | SubStore Store deriving(Eq)
 data Store = Store [(Identifier,StoreValue)] deriving(Eq)
-
-prefixToStore ( i, v, Store s ) = Store ((i,v):s)
-
-isSubStore :: StoreValue -> Bool
-isSubStore (SubStore _) = True
-isSubStore (StoreValue _) = False
-
-class StoreItem a where
-	showStoreItem :: a -> String 
-	
-instance StoreItem Identifier where
-	showStoreItem (Identifier i) = id i
-instance StoreItem Store where
-	showStoreItem (Store as) =
-		(intercalate ",\n" (map showStoreItemEntry as))
-		where
-			showStoreItemEntry (i, StoreValue bv) = (showStoreItem i) ++ ": " ++ (showStoreItem bv)
-			showStoreItemEntry (i, SubStore s) = (showStoreItem i) ++ ": {" ++ (indentBlock (showStoreItem s))  ++ "}"
-instance StoreItem BasicValue where
-	showStoreItem (BoolValue True) = "true"
-	showStoreItem (BoolValue False) = "false"
-	showStoreItem (NumValue n) = show n
-	showStoreItem (StringValue str) = show str
-	showStoreItem (NullValue) = "Null"
-	showStoreItem (DataRef ids) = intercalate ":" (map showStoreItem ids)
-	showStoreItem (Vector bvs) = "[" ++ (intercalate ", " (map showStoreItem bvs)) ++ "]"
-	-- this version puts each element on a new line
-	-- showStoreItem (Vector bvs) = "[" ++ (indentBlock (intercalate ",\n" (map showStoreItem bvs)))  ++ "]"
 
 {------------------------------------------------------------------------------
     semantic functions
@@ -206,13 +178,9 @@ type Result = Either ErrorMessage Store
 
 -- 6.11
 -- this function returns the longest strict prefix of the given reference
--- I don't know whether the first two cases are ever actually called
--- (or if the result is meaningful/legal?)
 
 sfPrefix :: Reference -> Reference
-sfPrefix (Reference []) = (Reference [])
-sfPrefix (Reference [_]) = (Reference [])
-sfPrefix (Reference is) = (Reference (init is))
+sfPrefix (Reference r) = (Reference (initSafe r))
 
 -- 6.12
 -- this function updates the value of an identifier in a store,
@@ -229,42 +197,30 @@ sfPut ( Store s, i, v ) = Store ( addToAL s i v )
 -- or whose parent is not itself a store, or if we are attempting to replace the root store
 
 sfBind :: (Store,Reference,StoreValue) -> Result
-
-sfBind ( _, Reference [], _ ) = Left "error 3 (attempt to replace root store)"
-
-sfBind( s, Reference [i], v ) = Right (sfPut (s,i,v))
-
-sfBind( Store [], Reference (i:r'), v ) = Left "error 2 (reference has no parent)"
-
-sfBind( Store ((is,vs@(SubStore ss)):s'), Reference (i:r'), v )
-	| is == i		= do { s'' <- sfBind(ss,Reference r',v) ; return (Store ((i,(SubStore s'')):s')) }
-	| otherwise		= do { s'' <- sfBind(Store s',Reference (i:r'),v) ; return (prefixToStore (is,vs,s''))  }
-
-sfBind( Store ((is,vs@(StoreValue sv)):s'), Reference (i:r'), v )
-	| is == i		= Left "error 1 (parent not a store)"
-	| otherwise		= do { s'' <- sfBind(Store s',Reference (i:r'),v) ; return (prefixToStore (is,vs,s''))  }
+sfBind ( Store ivs, Reference is, v ) = sfBind' ivs is v where
+	sfBind' _   []  _    = Left "[error 3] attempt to replace root store"
+	sfBind' ivs [i] v    = Right (sfPut (Store ivs,i,v))
+	sfBind' ivs (i:is) v =
+		case (lookup i ivs) of
+			Nothing -> Left ( "[error 2] reference has no parent: " ++ (render (Reference (i:is))))
+			Just (StoreValue _) -> Left ( "[error 1] parent not a store: " ++ (render (Reference (i:is))))
+			Just (SubStore (Store ivs')) -> do
+				s' <- sfBind' ivs' is v
+				return (Store (addToAL ivs i (SubStore s')))
 
 -- 6.14
 -- this function looks up the value of a reference in a store
 -- return Nothing if the target is not found
 
 sfFind :: (Store,Reference) -> Maybe StoreValue
-
-sfFind (s, (Reference [])) = Just (SubStore s)
-
-sfFind ((Store []), _) = Nothing
-
-sfFind ((Store ((is,vs):s')), Reference [i])
-	| is == i   = Just vs
-	| otherwise = sfFind (Store s', Reference [i])
-
-sfFind ((Store ((is,vs@(SubStore ss)):s')), Reference (i:r'))
-	| is == i		= sfFind(ss,Reference r')
-	| otherwise 	= sfFind (Store s', Reference (i:r'))
-
-sfFind ((Store ((is,vs@(StoreValue sv)):s')), Reference (i:r'))
-	| is == i		= Nothing
-	| otherwise 	= sfFind (Store s', Reference (i:r'))
+sfFind ( Store ivs, Reference is ) = sfFind' ivs is where
+	sfFind' ivs [] = Just (SubStore (Store ivs))
+	sfFind' []  _  = Nothing
+	sfFind' ivs (i:is) =
+		case (lookup i ivs) of
+			Nothing -> Nothing
+			Just (StoreValue v) -> if null is then Just (StoreValue v) else Nothing
+			Just (SubStore (Store ivs')) -> sfFind' ivs' is
 
 -- 6.16
 -- this function looks up a reference in a store, by starting with a given namespace
@@ -274,22 +230,21 @@ sfFind ((Store ((is,vs@(StoreValue sv)):s')), Reference (i:r'))
 -- return Nothing if the target is not found
 
 sfResolv :: (Store,NameSpace,Reference) -> Maybe (NameSpace,StoreValue)
-
-sfResolv (s, Reference [], r) = maybePair (Reference [], sfFind(s,r))
-
-sfResolv (s, ns, r)
+sfResolv (s, ns@(Reference is), r)
+	| is == []			= maybePair (Reference [], sfFind(s,r))
 	| v == Nothing 		= sfResolv (s, sfPrefix ns, r)
 	| otherwise 		= maybePair (ns, v)
-	where v = sfFind (s, ns |+| r)
+	where
+		v = sfFind (s, ns |+| r)
+		maybePair (a,Nothing) = Nothing
+		maybePair (a,Just b) = Just (a,b)
 
 -- 6.17
 -- this function copies every attribute from the second store to the first store at
 -- the given prefix. return an error if the underlying bind returns an error
 
 sfCopy :: (Store,Store,Reference) -> Result
-
 sfCopy ( s1, Store [], pfx ) = Right s1
-
 sfCopy ( s1, Store ((i,v):s2), pfx ) = do
 	s' <- sfBind( s1, pfx |+| (Reference [i]), v)
 	sfCopy (s',Store s2,pfx)
@@ -300,12 +255,11 @@ sfCopy ( s1, Store ((i,v):s2), pfx ) = do
 -- resolve to locate the corresponding store
 
 sfInherit :: (Store,NameSpace,Reference,Reference) -> Result
-
 sfInherit (s, ns, p, r) =
 	case (sfResolv(s,ns,p)) of
-		Nothing -> Left ( "error 4 (can't resolve prototype): " ++ (showParseItem p) )
-		Just (ns',SubStore s') -> sfCopy(s,s',r)
-		Just (ns',StoreValue v') -> Left ( "error 4 (prototype is not a store): " ++ (showParseItem p) )
+		Nothing -> Left ( "[error 4] can't resolve prototype: " ++ (render p) )
+		Just (_, SubStore s') -> sfCopy(s,s',r)
+		Just (_, StoreValue _) -> Left ( "[error 4] prototype is not a store: " ++ (render p) )
 
 {------------------------------------------------------------------------------
     evaluation functions
@@ -341,7 +295,7 @@ evalValue (BasicValue bv) = \(ns,r,s) -> sfBind(s, r, StoreValue bv)
 
 evalValue (LinkValue lr) = \(ns,r,s) -> do
 	(ns',v') <- case (sfResolv(s, ns, lr)) of
-		Nothing -> Left ( "error 5 (can't resolve link value): " ++ (showParseItem lr) )
+		Nothing -> Left ( "[error 5] can't resolve link value: " ++ (render lr) )
 		Just (n,v) -> Right (n,v)
 	sfBind(s, r, v')
 
@@ -361,8 +315,8 @@ evalAssignment (Assignment r@(Reference [_]) v) = \(ns,s) -> do
 
 evalAssignment (Assignment r v) = \(ns,s) -> do
 	case (sfResolv (s,ns,(sfPrefix r))) of
-		Nothing -> Left ( "error 6 (can't resolve reference): " ++ (showParseItem r) )
-		Just (_, StoreValue _) -> Left ( "error 6 (reference not an object): " ++ (showParseItem r) )
+		Nothing -> Left ( "[error 6] can't resolve reference: " ++ (render r) )
+		Just (_, StoreValue _) -> Left ( "[error 6] reference not an object: " ++ (render r) )
 		Just (ns', _) -> evalValue v $ (ns, ns' |+| r, s)
 
 -- 6.26
@@ -390,8 +344,34 @@ evalSpecification b = do
 	fB <- evalBody b $ (Reference [], Store [])
 	case (sfFind(fB,Reference [Identifier "sfConfig"])) of
 		Nothing -> Left "no sfConfig at top level of specification"
-		Just (StoreValue bv) -> Left ( "sfConfig cannot be a basic value: " ++ (showParseItem bv) )
+		Just (StoreValue bv) -> Left ( "sfConfig cannot be a basic value: " ++ (render bv) )
 		Just (SubStore s) -> return s
+
+{------------------------------------------------------------------------------
+    store rendering
+------------------------------------------------------------------------------}
+
+class StoreItem a where
+	renderJSON :: a -> String 
+	
+instance StoreItem Identifier where
+	renderJSON (Identifier i) = id i
+instance StoreItem Store where
+	renderJSON (Store as) =
+		(intercalate ",\n" (map renderJSONEntry as))
+		where
+			renderJSONEntry (i, StoreValue bv) = (renderJSON i) ++ ": " ++ (renderJSON bv)
+			renderJSONEntry (i, SubStore s) = (renderJSON i) ++ ": {" ++ (indentBlock $ renderJSON s)  ++ "}"
+instance StoreItem BasicValue where
+	renderJSON (BoolValue True) = "true"
+	renderJSON (BoolValue False) = "false"
+	renderJSON (NumValue n) = show n
+	renderJSON (StringValue str) = show str
+	renderJSON (NullValue) = "Null"
+	renderJSON (DataRef ids) = intercalate ":" $ map renderJSON ids
+	renderJSON (Vector bvs) = "[" ++ (intercalate ", " $ map renderJSON bvs) ++ "]"
+	-- this version puts each element on a new line
+	-- renderJSON (Vector bvs) = "[" ++ (indentBlock (intercalate ",\n" (map renderJSON bvs)))  ++ "]"
 
 {------------------------------------------------------------------------------
     main program
@@ -404,7 +384,7 @@ compile sourceFile = do
 		Left err  -> return ( "\n** SF parser failed: " ++ sourceFile ++ "\n" ++ (show err) )
 		Right body -> case (evalSpecification body) of
 			Left errorMessage -> return ( "\n** SF evaluation failed: " ++ sourceFile ++ "\n" ++
-										  errorMessage ++ "\n\n" ++ showParseItem body )
-			Right store -> return ( "\n** SF compiled: " ++ sourceFile ++ "\n\n" ++ showStoreItem store )
+										  errorMessage ++ "\n\n" ++ render body )
+			Right store -> return ( "\n** SF compiled: " ++ sourceFile ++ "\n\n" ++ renderJSON store )
 
 main = getArgs >>= ( mapM compile ) >>= ( mapM putStrLn )

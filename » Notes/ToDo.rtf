@@ -4,28 +4,14 @@
 \paperw11900\paperh16840\margl1440\margr1440\vieww14040\viewh14980\viewkind0
 \pard\tx566\tx1133\tx1700\tx2267\tx2834\tx3401\tx3968\tx4535\tx5102\tx5669\tx6236\tx6803\pardirnatural
 
-\f0\fs28 \cf0 * guards on function patterns when we want to match two vars as equal (p68/69 "nicedrop")\
-* remove \{ ; \} notation & use spaces (p64)\
-* main skeleton (p71)\
-* does `infix` notation make sense anywhere?\
-  especially if we can use it as a section to partially apply first argument (`elem` [0..9])\
-* where we define safe versions of some operators, call them "safeXXXX"\
-* check use of "." for composition: h x = f (g x) --> h = f .g \
-* look at all cases of recursion to se if we ca use map/take/filter (or maybe fold)\
-  rewrite sfPut using fold & write a quickcheck to test equality ...\
-  also .. write it to operate on unwrapped lists & create a vesion with the Store constructor from that?\
+\f0\fs28 \cf0 * main skeleton (p71)\
 * think about creating modules (p113)\
-* think about listing imported functions explicitly\
 \
 * read monadic stuff again\
-* is there a better idiom for ...\
-  do \{ m_reserved "true" ; return (BoolValue True) \}\
-* maybe using >> instead of "do"?\
 \
 * can we carry the line numbers around somehow?\
-- think about unit tests?\
+* think about unit tests?\
 - quickcheck?\
-- are there any horrible inefficiences ?\
 \
 --\
 \
