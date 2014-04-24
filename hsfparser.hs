@@ -356,22 +356,18 @@ evalSpecification b = do
 
 class StoreItem a where
 	renderJSON :: a -> String 
-	renderHerryJSON :: a -> String
+	renderCompactJSON :: a -> String
 	
 instance StoreItem Identifier where
 	renderJSON (Identifier i) = id i
-	renderHerryJSON (Identifier i) = "\"" ++ (id i) ++ "\""
+	renderCompactJSON (Identifier i) = "\"" ++ (id i) ++ "\""
 instance StoreItem Store where
-	renderJSON (Store as) =
-		(intercalate ",\n" (map renderJSONEntry as))
-		where
-			renderJSONEntry (i, StoreValue bv) = (renderJSON i) ++ ": " ++ (renderJSON bv)
-			renderJSONEntry (i, SubStore s) = (renderJSON i) ++ ": {" ++ (indentBlock $ renderJSON s)  ++ "}"
-	renderHerryJSON (Store as) =
-		"{" ++ (intercalate "," (map renderHerryJSONEntry as)) ++ "}"
-		where
-			renderHerryJSONEntry (i, StoreValue bv) = (renderHerryJSON i) ++ ":" ++ (renderHerryJSON bv)
-			renderHerryJSONEntry (i, SubStore s) = (renderHerryJSON i) ++ ":" ++ (renderHerryJSON s)
+	renderJSON (Store as) = (intercalate ",\n" (map renderJSONEntry as)) where
+		renderJSONEntry (i, StoreValue bv) = (renderJSON i) ++ ": " ++ (renderJSON bv)
+		renderJSONEntry (i, SubStore s) = (renderJSON i) ++ ": {" ++ (indentBlock $ renderJSON s)  ++ "}"
+	renderCompactJSON (Store as) = "{" ++ (intercalate "," (map renderCompactJSONEntry as)) ++ "}" where
+		renderCompactJSONEntry (i, StoreValue bv) = (renderCompactJSON i) ++ ":" ++ (renderCompactJSON bv)
+		renderCompactJSONEntry (i, SubStore s) = (renderCompactJSON i) ++ ":" ++ (renderCompactJSON s)
 instance StoreItem BasicValue where
 	renderJSON (BoolValue True) = "true"
 	renderJSON (BoolValue False) = "false"
@@ -382,13 +378,13 @@ instance StoreItem BasicValue where
 	renderJSON (Vector bvs) = "[" ++ (intercalate ", " $ map renderJSON bvs) ++ "]"
 	-- this version puts each element on a new line
 	-- renderJSON (Vector bvs) = "[" ++ (indentBlock (intercalate ",\n" (map renderJSON bvs)))  ++ "]"
-	renderHerryJSON (BoolValue True) = "true"
-	renderHerryJSON (BoolValue False) = "false"
-	renderHerryJSON (NumValue n) = show n
-	renderHerryJSON (StringValue str) = show str
-	renderHerryJSON (NullValue) = "Null"
-	renderHerryJSON (DataRef ids) = intercalate ":" $ map renderJSON ids
-	renderHerryJSON (Vector bvs) = "List(" ++ (intercalate ", " $ map renderJSON bvs) ++ ")"
+	renderCompactJSON (BoolValue True) = "true"
+	renderCompactJSON (BoolValue False) = "false"
+	renderCompactJSON (NumValue n) = show n
+	renderCompactJSON (StringValue str) = show str
+	renderCompactJSON (NullValue) = "Null"
+	renderCompactJSON (DataRef ids) = intercalate ":" $ map renderJSON ids
+	renderCompactJSON (Vector bvs) = "List(" ++ (intercalate ", " $ map renderJSON bvs) ++ ")"
 
 {------------------------------------------------------------------------------
     compile things using paul's compiler or herry's compiler
@@ -399,36 +395,43 @@ outputPath sourcePath who =
 	(replaceFileName (takeDirectory sourcePath) "Tmp") </> who </>
 		(replaceExtension (takeFileName sourcePath) ".json")
 
-scriptPath :: String -> String
-scriptPath sourceFile =
-	(takeDirectory (takeDirectory sourceFile)) </> "herryparser.sh"	
-
-herryCompile :: String -> IO ()
+herryCompile :: String -> IO (String)
 herryCompile sourcePath = do
  	exitCode <- rawSystem (scriptPath sourcePath) [ sourcePath, (outputPath sourcePath "Herry") ]
-	return ()
+	readFile (outputPath sourcePath "Herry")
+	where scriptPath sourceFile =
+		(takeDirectory (takeDirectory sourceFile)) </> "herryparser.sh"	
 
-paulCompile :: String -> IO ()
+paulCompile :: String -> IO (String)
 paulCompile sourcePath = do
 	parseResult <- parseFromFile specification sourcePath
 	writeFile (outputPath sourcePath "Paul") (output parseResult)
+	readFile (outputPath sourcePath "Paul")
 	where output parseResult = case (parseResult) of
 		Left err  -> "** SF parser failed: " ++ sourcePath ++ "\n" ++ (show err)
 		Right body -> case (evalSpecification body) of
 			Left errorMessage -> "** SF evaluation failed: " ++ sourcePath ++ "\n" ++
 										  errorMessage ++ "\n\n" ++ render body
-			Right store -> renderHerryJSON store
+			Right store -> (renderCompactJSON store ++ "\n")
+
+{------------------------------------------------------------------------------
+    comparison
+------------------------------------------------------------------------------}
+
+compareVersions :: String -> IO ()
+compareVersions sourcePath = do
+	herrys <- herryCompile sourcePath
+	pauls <- paulCompile sourcePath
+	if (herrys == pauls)
+		then putStrLn ( "match: " ++ (takeBaseName sourcePath) )
+		else putStrLn ( "no match: " ++ (takeBaseName sourcePath) )	
+	return ()
 
 {------------------------------------------------------------------------------
     main program
 ------------------------------------------------------------------------------}
 
-compile :: String -> IO ()
-compile sourcePath = do
-	herryCompile sourcePath
-	paulCompile sourcePath
-
-main = getArgs >>= ( mapM compile )
+main = getArgs >>= ( mapM compareVersions )
 
 
 
