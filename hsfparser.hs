@@ -5,6 +5,9 @@
 import Data.List (intercalate)
 import Data.List.Split (splitOn)
 import System.Environment (getArgs)
+import System.Cmd(rawSystem)
+import System.FilePath.Posix
+import GHC.IO.Exception
 
 -- Parsec
 import Text.Parsec (sepBy, sepBy1, (<|>), eof)
@@ -353,15 +356,22 @@ evalSpecification b = do
 
 class StoreItem a where
 	renderJSON :: a -> String 
+	renderHerryJSON :: a -> String
 	
 instance StoreItem Identifier where
 	renderJSON (Identifier i) = id i
+	renderHerryJSON (Identifier i) = "\"" ++ (id i) ++ "\""
 instance StoreItem Store where
 	renderJSON (Store as) =
 		(intercalate ",\n" (map renderJSONEntry as))
 		where
 			renderJSONEntry (i, StoreValue bv) = (renderJSON i) ++ ": " ++ (renderJSON bv)
 			renderJSONEntry (i, SubStore s) = (renderJSON i) ++ ": {" ++ (indentBlock $ renderJSON s)  ++ "}"
+	renderHerryJSON (Store as) =
+		"{" ++ (intercalate "," (map renderHerryJSONEntry as)) ++ "}"
+		where
+			renderHerryJSONEntry (i, StoreValue bv) = (renderHerryJSON i) ++ ":" ++ (renderHerryJSON bv)
+			renderHerryJSONEntry (i, SubStore s) = (renderHerryJSON i) ++ ":" ++ (renderHerryJSON s)
 instance StoreItem BasicValue where
 	renderJSON (BoolValue True) = "true"
 	renderJSON (BoolValue False) = "false"
@@ -372,19 +382,65 @@ instance StoreItem BasicValue where
 	renderJSON (Vector bvs) = "[" ++ (intercalate ", " $ map renderJSON bvs) ++ "]"
 	-- this version puts each element on a new line
 	-- renderJSON (Vector bvs) = "[" ++ (indentBlock (intercalate ",\n" (map renderJSON bvs)))  ++ "]"
+	renderHerryJSON (BoolValue True) = "true"
+	renderHerryJSON (BoolValue False) = "false"
+	renderHerryJSON (NumValue n) = show n
+	renderHerryJSON (StringValue str) = show str
+	renderHerryJSON (NullValue) = "Null"
+	renderHerryJSON (DataRef ids) = intercalate ":" $ map renderJSON ids
+	renderHerryJSON (Vector bvs) = "List(" ++ (intercalate ", " $ map renderJSON bvs) ++ ")"
+
+{------------------------------------------------------------------------------
+    compile things using paul's compiler or herry's compiler
+------------------------------------------------------------------------------}
+
+outputPath :: String -> String -> String
+outputPath sourcePath who =
+	(replaceFileName (takeDirectory sourcePath) "Tmp") </> who </>
+		(replaceExtension (takeFileName sourcePath) ".json")
+
+scriptPath :: String -> String
+scriptPath sourceFile =
+	(takeDirectory (takeDirectory sourceFile)) </> "herryparser.sh"	
+
+herryCompile :: String -> IO ()
+herryCompile sourcePath = do
+ 	exitCode <- rawSystem (scriptPath sourcePath) [ sourcePath, (outputPath sourcePath "Herry") ]
+	return ()
+
+paulCompile :: String -> IO ()
+paulCompile sourcePath = do
+	parseResult <- parseFromFile specification sourcePath
+	writeFile (outputPath sourcePath "Paul") (output parseResult)
+	where output parseResult = case (parseResult) of
+		Left err  -> "** SF parser failed: " ++ sourcePath ++ "\n" ++ (show err)
+		Right body -> case (evalSpecification body) of
+			Left errorMessage -> "** SF evaluation failed: " ++ sourcePath ++ "\n" ++
+										  errorMessage ++ "\n\n" ++ render body
+			Right store -> renderHerryJSON store
 
 {------------------------------------------------------------------------------
     main program
 ------------------------------------------------------------------------------}
 
-compile :: String -> IO String
-compile sourceFile = do
-	parseResult <- parseFromFile specification sourceFile ;
-	case (parseResult) of
-		Left err  -> return ( "\n** SF parser failed: " ++ sourceFile ++ "\n" ++ (show err) )
-		Right body -> case (evalSpecification body) of
-			Left errorMessage -> return ( "\n** SF evaluation failed: " ++ sourceFile ++ "\n" ++
-										  errorMessage ++ "\n\n" ++ render body )
-			Right store -> return ( "\n** SF compiled: " ++ sourceFile ++ "\n\n" ++ renderJSON store )
+compile :: String -> IO ()
+compile sourcePath = do
+	herryCompile sourcePath
+	paulCompile sourcePath
 
-main = getArgs >>= ( mapM compile ) >>= ( mapM putStrLn )
+main = getArgs >>= ( mapM compile )
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
