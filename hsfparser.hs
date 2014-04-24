@@ -107,7 +107,7 @@ specification :: Parser Body
 specification = do { m_whiteSpace; b <- body ; eof ; return b }
 
 {------------------------------------------------------------------------------
-    parse tree rendering
+    parse tree rendering (pretty printing)
 ------------------------------------------------------------------------------}
 
 tabString :: Int -> String
@@ -383,37 +383,48 @@ instance StoreItem BasicValue where
 	renderCompactJSON (NumValue n) = show n
 	renderCompactJSON (StringValue str) = show str
 	renderCompactJSON (NullValue) = "Null"
-	renderCompactJSON (DataRef ids) = intercalate ":" $ map renderJSON ids
-	renderCompactJSON (Vector bvs) = "List(" ++ (intercalate ", " $ map renderJSON bvs) ++ ")"
+	renderCompactJSON (DataRef ids) = intercalate ":" $ map renderCompactJSON ids
+	renderCompactJSON (Vector bvs) = "List(" ++ (intercalate ", " $ map renderCompactJSON bvs) ++ ")"
 
 {------------------------------------------------------------------------------
     compile things using paul's compiler or herry's compiler
 ------------------------------------------------------------------------------}
 
-outputPath :: String -> String -> String
-outputPath sourcePath who =
+tmpDir :: String -> String -> String -> String
+tmpDir who ext sourcePath =
 	(replaceFileName (takeDirectory sourcePath) "Tmp") </> who </>
-		(replaceExtension (takeFileName sourcePath) ".json")
+		(replaceExtension (takeFileName sourcePath) ext)
 
 herryCompile :: String -> IO (String)
 herryCompile sourcePath = do
- 	exitCode <- rawSystem (scriptPath sourcePath) [ sourcePath, (outputPath sourcePath "Herry") ]
-	readFile (outputPath sourcePath "Herry")
-	where scriptPath sourceFile =
-		(takeDirectory (takeDirectory sourceFile)) </> "herryparser.sh"	
+	let destPath = tmpDir "Herry" ".json" sourcePath
+	let scriptPath = (takeDirectory (takeDirectory sourcePath)) </> "herryparser.sh"
+ 	exitCode <- rawSystem scriptPath [ sourcePath, destPath ]
+	readFile destPath
 
 paulCompile :: String -> IO (String)
 paulCompile sourcePath = do
+	let destPath = tmpDir "Paul" ".json" sourcePath
 	parseResult <- parseFromFile specification sourcePath
-	writeFile (outputPath sourcePath "Paul") (output parseResult)
-	readFile (outputPath sourcePath "Paul")
-	where output parseResult = case (parseResult) of
+	let result = case (parseResult) of
 		Left err  -> "** SF parser failed: " ++ sourcePath ++ "\n" ++ (show err)
 		Right body -> case (evalSpecification body) of
 			Left errorMessage -> "** SF evaluation failed: " ++ sourcePath ++ "\n" ++
-										  errorMessage ++ "\n\n" ++ render body
+											  errorMessage ++ "\n\n" ++ render body
 			Right store -> (renderCompactJSON store ++ "\n")
+	writeFile destPath result
+	readFile destPath
 
+prettyPrint :: String -> IO (String)
+prettyPrint sourcePath = do
+	let destPath = tmpDir "Pretty" ".sf" sourcePath
+	parseResult <- parseFromFile specification sourcePath
+	let result = case (parseResult) of
+		Left err  -> "** SF parser failed: " ++ sourcePath ++ "\n" ++ (show err)
+		Right body -> (render body)
+	writeFile destPath result	
+	readFile destPath
+	
 {------------------------------------------------------------------------------
     comparison
 ------------------------------------------------------------------------------}
@@ -422,6 +433,7 @@ compareVersions :: String -> IO ()
 compareVersions sourcePath = do
 	herrys <- herryCompile sourcePath
 	pauls <- paulCompile sourcePath
+	pretty <- prettyPrint sourcePath
 	if (herrys == pauls)
 		then putStrLn ( "match: " ++ (takeBaseName sourcePath) )
 		else putStrLn ( "no match: " ++ (takeBaseName sourcePath) )	
