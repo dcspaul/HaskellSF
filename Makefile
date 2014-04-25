@@ -3,7 +3,7 @@
 build: hsfparser
 
 test: build
-	@./hsfparser -co ../Out `pwd`/Test/*.sf
+	@./hsfparser -o ../Out `pwd`/Test/*.sf
 
 hsfparser: hsfparser.hs
 	@ghc -package parsec -o hsfparser hsfparser.hs

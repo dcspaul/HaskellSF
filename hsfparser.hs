@@ -405,8 +405,7 @@ evalSpecification b = do
 ------------------------------------------------------------------------------}
 
 -- two versions of the store rendering ...
--- the compact one is, well, "compact" and suitable for direct comparison with
--- the output from Herry's compiler
+-- the compact one is compatible with the scala compiler (so we can compare them)
 -- the other one is more suitable for human consumption
 
 class StoreItem a where
@@ -464,38 +463,8 @@ compile fmt sourcePath destPath = do
 	return result
 
 {------------------------------------------------------------------------------
-    main program
+    option handling
 ------------------------------------------------------------------------------}
-
-main = do
-    (args, files) <- getArgs >>= parseOptions
-    mapM_ (process args) files
-
-outputDir [] = ""
-outputDir ((Output d):_) = d
-outputDir (_:rest) = outputDir rest
-
-jsonPath srcPath relativeDir ext =
-	((takeDirectory srcPath) </> relativeDir </>
-		(addExtension ((dropExtension (takeFileName srcPath)) ++ ext) ".json"))
-
-process :: [Flag] -> String -> IO ()
-process opts srcPath = do
-	let dstPath = jsonPath srcPath (outputDir opts) ""
-	let scalaDstPath = jsonPath srcPath (outputDir opts) "-s"
-	haskellResult <- if (Compare `elem` opts)
-		then compile Format1 srcPath dstPath
-		else compile Format2 srcPath dstPath
-	scalaResult <- if (Compare `elem` opts)
-		then scalaCompile Format1 srcPath scalaDstPath
-		else return ""
-	if (Compare `elem` opts)
-		then if (haskellResult == scalaResult)
-			then putStrLn ( "\n>> match: " ++ (takeBaseName srcPath) )
-			else putStr ( "\n** match failed: " ++ (takeBaseName srcPath) ++ "\n"
-				++ "Haskell: " ++ haskellResult ++ "Scala:   " ++ scalaResult )
-		else return ()
-	return ()
 
 -- output directory arg:
 -- with no slash, it is treated as a subdirectory of the source directory
@@ -520,12 +489,35 @@ parseOptions argv = case getOpt RequireOrder options argv of
 		exitWith (ExitFailure 1)
 	where usage = "Usage: options file .."
 
+outputDir :: [Flag] -> String
+outputDir [] = ""
+outputDir ((Output d):_) = d
+outputDir (_:rest) = outputDir rest
 
+jsonPath :: String -> String -> String -> String 
+jsonPath srcPath relativeDir ext =
+	((takeDirectory srcPath) </> relativeDir </>
+		(addExtension ((dropExtension (takeFileName srcPath)) ++ ext) ".json"))
 
+{------------------------------------------------------------------------------
+    main program
+------------------------------------------------------------------------------}
 
+main = do
+    (args, files) <- getArgs >>= parseOptions
+    mapM_ (process args) files
 
-
-
-
-
-
+process :: [Flag] -> String -> IO ()
+process opts srcPath = do
+	let dstPath = jsonPath srcPath (outputDir opts)
+	if (Compare `elem` opts) then do
+		haskellResult <- compile Format1 srcPath (dstPath "-1")
+		scalaResult <- scalaCompile Format1 srcPath (dstPath "-2")
+		if (haskellResult == scalaResult)
+			then putStrLn ( ">> match: " ++ (takeBaseName srcPath) )
+			else putStr ( "** match failed: " ++ (takeBaseName srcPath) ++ "\n"
+				++ "Haskell: " ++ haskellResult ++ "Scala:   " ++ scalaResult )
+	else do
+		compile Format2 srcPath (dstPath "")
+		return ()
+	return ()
