@@ -4,10 +4,11 @@
 \paperw11900\paperh16840\margl1440\margr1440\vieww14040\viewh14980\viewkind0
 \pard\tx566\tx1133\tx1700\tx2267\tx2834\tx3401\tx3968\tx4535\tx5102\tx5669\tx6236\tx6803\pardirnatural
 
-\f0\fs28 \cf0 * we are generating record fields in the wrong order (sfPut or sfBind?)\
+\f0\fs28 \cf0 * we are generating record fields in the wrong order (sfPut or sfBind?) or maybe Herry is ... ?\
 * think about creating modules (p113)\
 * think about unit tests?\
 \
+* the error message in "parse failed" has too much formatting!!\
 * can we then generate random example using quickcheck?\
 * command lines arguments? (for output format, for example?)\
 \
@@ -16,31 +17,16 @@
 \
 * how would we handle an include?\
   we'd have to go inside the I/IO monad?\
-* similarly handling "verbose" or "non-verbose" error messages\
 \
 * monads again\
 * how does a list of functions in a "do" list work when they return\
   different types - eg. IO () vs IO (String) ?\
 \
---\
-\
 useful IO stuff here:\
 http://www.haskell.org/haskellwiki/Tutorials/Programming_Haskell/Argument_handling\
 \
+PAPER\
+- ordering is interesting - it needs to be deterministic\
+- we found errors in implementation (my ordering? herrys ordering)\
 \
-\
-\
-\
-\
-\
-herry4\
-a c b is right\
-H: \{"a":\{"a":1\},"c":\{"b":2\},"b":\{"a":1,"c":3,"b":2\}\}\
-P: \{"a":\{"a":1\},"c":\{"b":2\},"b":\{"a":1,"b":2,"c":3\}\}\
-\
-\
-paul2\
-H: \{"a":\{"a":1,"v":List(true, 95, List(1, 2), "foo")\},"c":\{"blob":"a string","b":2,"z":"a string"\},"b":\{"a":1,"v":List(true, 95, List(1, 2), "foo"),"c":3,"blob":"a string","b":2,"z":"a string"\}\}\
-\
-P: \{"a":\{"a":1,"v":List(true, 95, List(1, 2), "foo")\},"c":\{"blob":"a string","b":2,"z":"a string"\},"b":\{"a":1,"v":List(true, 95, List(1, 2), "foo"),"blob":"a string","b":2,"z":"a string","c":3\}\}\
 }

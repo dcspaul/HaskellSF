@@ -23,36 +23,40 @@ import Data.String.Utils (join,replace)
 import Safe (initSafe)
 
 {------------------------------------------------------------------------------
-    error messages etc.
+    error messages
 ------------------------------------------------------------------------------}
 
--- the non-verbose versions of the error messages are intended to match
--- exactly the output from Herry's Scala compiler
+-- we support different formats for the error messages, so that ...
+-- one format is exactly compatible with Herry's compiler & we can compare them
+-- the other format is a bit chattier and provides more information
 
-verbose = False
+data MessageFormat = HerryFormat | PaulFormat deriving(Eq)
 
-renderStore s = ((if verbose then renderJSON else renderCompactJSON) s ) ++ "\n"
+-- errorFn returns a function which gives the appropriate version of the message
+-- when supplied with the format as an argument
 
-error0a sf err = if verbose
-	then "[error 0a] parse failed: " ++ sf ++ "\n" ++ (show err) ++ "\n"
-	else (show err) ++ "\n"
-error0b sf msg body = if verbose
-	then "[error0b] evaluation failed: " ++ sf ++ "\n" ++ msg ++ "\n\n" ++ (render body)
-	else msg ++ "\n"
-error1 ref = "[error 1] parent not a store: " ++ (render ref)
-error2 ref = "[error 2] reference has no parent: " ++ (render ref)
-error3 = "[error 3] attempt to replace root store"
-error4a proto = "[error 4] can't resolve prototype: " ++ (render proto)
-error4b proto = "[error 4] prototype is not a store: " ++ (render proto)
-error5 ref = if verbose
-	then "[error 5] can't resolve link value: " ++ (render ref)
-	else "cannot find link reference " ++ (render ref)
-error6a ref = if verbose
-	then "[error 6] can't resolve reference: " ++ (render ref)
-	else "prefix of " ++ (render ref) ++ " is not a component"
-error6b ref = "[error 6] reference not an object: " ++ (render ref)
-error7a = "[error 7] no sfConfig at top level of specification"
-error7b bv = "[error 7] sfConfig cannot be a basic value: " ++ (render bv)
+data ErrorCode = EPARSEFAIL | EPARENTNOTSTORE | ENOPARENT | EREPLACEROOTSTORE |
+	ENOPROTO | EPROTONOTSTORE | ENOLR | EASSIGN | EREFNOTOBJ | ENOSPEC | ESPEC
+
+errorFn code args = \fmt -> case (code) of
+	EPARSEFAIL	-> case (fmt) of
+		HerryFormat -> (show (args!!1)) ++ "\n"
+		PaulFormat -> "parse failed: " ++ a ++ "\n" ++ (show (args!!1)) ++ "\n"
+	EPARENTNOTSTORE -> "parent not a store [error 1]: " ++ a
+	ENOPARENT -> "reference has no parent [error 2]: " ++ a
+	EREPLACEROOTSTORE -> "attempt to replace root store [error 3]"
+	ENOPROTO -> "can't resolve prototype [error 4]: " ++ a
+	EPROTONOTSTORE -> "prototype is not a store [error 4]: " ++ a
+	ENOLR -> case (fmt) of
+		HerryFormat -> "cannot find link reference " ++ a
+		PaulFormat -> "can't resolve link value [error 5]: " ++ a
+	EASSIGN -> case (fmt) of
+		HerryFormat -> "prefix of " ++ a ++ " is not a component"
+		PaulFormat -> "can't resolve reference [error 6]: " ++ a
+	EREFNOTOBJ -> "reference not an object [error 6]: " ++ a
+	ENOSPEC -> "no sfConfig at top level of specification [error 7]"
+	ESPEC -> "sfConfig cannot be a basic value [error 7]: " ++ a
+	where a = args!!0
 
 {------------------------------------------------------------------------------
     abstract syntax
@@ -199,8 +203,8 @@ data Store = Store [(Identifier,StoreValue)] deriving(Eq)
 ------------------------------------------------------------------------------}
 
 type NameSpace = Reference
-type ErrorMessage = String
-type StoreOrErrror = Either ErrorMessage Store
+type ErrorFn = MessageFormat -> String
+type StoreOrErrror = Either ErrorFn Store
 
 -- the Data.List.Utils version of addToAL adds new items at the start of the alist
 -- this version follows the strict semantics by adding them at the end
@@ -241,12 +245,12 @@ sfPut ( Store s, i, v ) = Store ( addToAL' s i v )
 
 sfBind :: (Store,Reference,StoreValue) -> StoreOrErrror
 sfBind ( Store ivs, Reference is, v ) = sfBind' ivs is v where
-	sfBind' _   []  _    = Left error3
+	sfBind' _   []  _    = Left ( errorFn EREPLACEROOTSTORE [] )
 	sfBind' ivs [i] v    = Right (sfPut (Store ivs,i,v))
 	sfBind' ivs (i:is) v =
 		case (lookup i ivs) of
-			Nothing -> Left ( error2 (Reference (i:is)) )
-			Just (StoreValue _) -> Left ( error1 (Reference (i:is)) )
+			Nothing -> Left ( errorFn ENOPARENT [ render (Reference (i:is)) ] )
+			Just (StoreValue _) -> Left ( errorFn EPARENTNOTSTORE [ render (Reference (i:is)) ] )
 			Just (SubStore (Store ivs')) -> do
 				s' <- sfBind' ivs' is v
 				return (Store (addToAL' ivs i (SubStore s'))) where
@@ -300,9 +304,9 @@ sfCopy ( s1, Store ((i,v):s2), pfx ) = do
 sfInherit :: (Store,NameSpace,Reference,Reference) -> StoreOrErrror
 sfInherit (s, ns, p, r) =
 	case (sfResolv(s,ns,p)) of
-		Nothing -> Left ( error4a p )
+		Nothing -> Left ( errorFn ENOPROTO [render p] )
 		Just (_, SubStore s') -> sfCopy(s,s',r)
-		Just (_, StoreValue _) -> Left ( error4b p )
+		Just (_, StoreValue _) -> Left ( errorFn EPROTONOTSTORE [render p] )
 
 {------------------------------------------------------------------------------
     evaluation functions
@@ -338,7 +342,7 @@ evalValue (BasicValue bv) = \(ns,r,s) -> sfBind(s, r, StoreValue bv)
 
 evalValue (LinkValue lr) = \(ns,r,s) -> do
 	(ns',v') <- case (sfResolv(s, ns, lr)) of
-		Nothing -> Left ( error5 lr )
+		Nothing -> Left ( errorFn ENOLR [render lr] )
 		Just (n,v) -> Right (n,v)
 	sfBind(s, r, v')
 
@@ -358,8 +362,8 @@ evalAssignment (Assignment r@(Reference [_]) v) = \(ns,s) -> do
 
 evalAssignment (Assignment r v) = \(ns,s) -> do
 	case (sfResolv (s,ns,(sfPrefix r))) of
-		Nothing -> Left ( error6a r )
-		Just (_, StoreValue _) -> Left ( error6b r )
+		Nothing -> Left ( errorFn EASSIGN [render r] )
+		Just (_, StoreValue _) -> Left ( errorFn EREFNOTOBJ [render r] )
 		Just (ns', _) -> evalValue v $ (ns, ns' |+| r, s)
 
 -- 6.26
@@ -386,13 +390,18 @@ evalSpecification :: Body -> StoreOrErrror
 evalSpecification b = do
 	fB <- evalBody b $ (Reference [], Store [])
 	case (sfFind(fB,Reference [Identifier "sfConfig"])) of
-		Nothing -> Left error7a
-		Just (StoreValue bv) -> Left ( error7b bv )
+		Nothing -> Left ( errorFn ENOSPEC [] )
+		Just (StoreValue bv) -> Left ( errorFn ESPEC [render bv] )
 		Just (SubStore s) -> return s
 
 {------------------------------------------------------------------------------
     store rendering
 ------------------------------------------------------------------------------}
+
+-- two versions of the store rendering ...
+-- the compact one is, well, "compact" and suitable for direct comparison with
+-- the output from Herry's compiler
+-- the other one is more suitable for human consumption
 
 class StoreItem a where
 	renderJSON :: a -> String 
@@ -427,7 +436,7 @@ instance StoreItem BasicValue where
 	renderCompactJSON (Vector bvs) = "List(" ++ (intercalate ", " $ map renderCompactJSON bvs) ++ ")"
 
 {------------------------------------------------------------------------------
-    compile things using paul's compiler or herry's compiler (also prettyprint)
+    compile things using paul's compiler or herry's compiler
 ------------------------------------------------------------------------------}
 
 tmpDir :: String -> String -> String -> String
@@ -435,31 +444,36 @@ tmpDir who ext sourcePath =
 	(replaceFileName (takeDirectory sourcePath) "Tmp") </> who </>
 		(replaceExtension (takeFileName sourcePath) ext)
 
-herryCompile :: String -> IO (String)
-herryCompile sourcePath = do
+herryCompile :: MessageFormat -> String -> IO (String)
+herryCompile fmt sourcePath = do
 	let destPath = tmpDir "Herry" ".json" sourcePath
 	let scriptPath = (takeDirectory (takeDirectory sourcePath)) </> "herryparser.sh"
  	exitCode <- rawSystem scriptPath [ sourcePath, destPath ]
 	readFile destPath
 
-paulCompile :: String -> IO (String)
-paulCompile sourcePath = do
+paulCompile :: MessageFormat -> String -> IO (String)
+paulCompile fmt sourcePath = do
 	let destPath = tmpDir "Paul" ".json" sourcePath
 	storeOrError <- parseFromFile specification sourcePath
 	let result = case (storeOrError) of
-		Left err  -> error0a sourcePath err
+		Left err  -> errorFn EPARSEFAIL [ sourcePath, (show err) ] $ fmt
 		Right body -> case (evalSpecification body) of
-			Left errorMessage -> error0b sourcePath errorMessage body
-			Right store -> renderStore store
+			Left error -> ( error $ fmt ) ++ "\n"
+			Right store -> ( renderStore store ) ++ "\n" where
+				renderStore = if (fmt==HerryFormat) then renderCompactJSON else renderJSON
 	writeFile destPath result
 	return result
 
-prettyPrint :: String -> IO (String)
-prettyPrint sourcePath = do
+{------------------------------------------------------------------------------
+    human-readable output
+------------------------------------------------------------------------------}
+
+prettyPrint :: MessageFormat -> String -> IO (String)
+prettyPrint fmt sourcePath = do
 	let destPath = tmpDir "Pretty" ".sf" sourcePath
 	storeOrError <- parseFromFile specification sourcePath
 	let result = case (storeOrError) of
-		Left err  -> error0a sourcePath err
+		Left err  -> errorFn EPARSEFAIL [ sourcePath, (show err) ] $ fmt
 		Right body -> (render body)
 	writeFile destPath result	
 	return result
@@ -470,9 +484,9 @@ prettyPrint sourcePath = do
 
 compareVersions :: String -> IO ()
 compareVersions sourcePath = do
-	herrys <- herryCompile sourcePath
-	pauls <- paulCompile sourcePath
-	pretty <- prettyPrint sourcePath
+	herrys <- herryCompile HerryFormat sourcePath
+	pauls <- paulCompile HerryFormat sourcePath
+	pretty <- prettyPrint PaulFormat sourcePath
 	if (herrys == pauls)
 		then putStrLn ( "\n>> match: " ++ (takeBaseName sourcePath) )
 		else putStr ( "\n** match failed: " ++ (takeBaseName sourcePath) ++ "\n"
