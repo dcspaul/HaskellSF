@@ -168,7 +168,15 @@ data Store = Store [(Identifier,StoreValue)] deriving(Eq)
 
 type NameSpace = Reference
 type ErrorMessage = String
-type Result = Either ErrorMessage Store
+type StoreOrErrror = Either ErrorMessage Store
+
+-- the Data.List.Utils version of addToAL adds items at the start of the alist
+-- this version follows the strict semantics by adding at the end
+
+addToAL' [] i v = [(i,v)]
+addToAL' ((i',v'):s') i v
+	| (i'==i)	= (i,v):s'
+	| otherwise = (i',v'):(addToAL' s' i v)
 
 -- 6.7
 -- this operator concatenates two references
@@ -192,14 +200,14 @@ sfPrefix (Reference r) = (Reference (initSafe r))
 -- the following function (bind) extends this to support hierarchical references
 
 sfPut :: (Store,Identifier,StoreValue) -> Store
-sfPut ( Store s, i, v ) = Store ( addToAL s i v )
+sfPut ( Store s, i, v ) = Store ( addToAL' s i v )
 
 -- 6.13
 -- this function updates the value of a reference in a store
 -- return an error if an attempt is made to update a reference whose parent does not exist,
 -- or whose parent is not itself a store, or if we are attempting to replace the root store
 
-sfBind :: (Store,Reference,StoreValue) -> Result
+sfBind :: (Store,Reference,StoreValue) -> StoreOrErrror
 sfBind ( Store ivs, Reference is, v ) = sfBind' ivs is v where
 	sfBind' _   []  _    = Left "[error 3] attempt to replace root store"
 	sfBind' ivs [i] v    = Right (sfPut (Store ivs,i,v))
@@ -209,7 +217,7 @@ sfBind ( Store ivs, Reference is, v ) = sfBind' ivs is v where
 			Just (StoreValue _) -> Left ( "[error 1] parent not a store: " ++ (render (Reference (i:is))))
 			Just (SubStore (Store ivs')) -> do
 				s' <- sfBind' ivs' is v
-				return (Store (addToAL ivs i (SubStore s')))
+				return (Store (addToAL' ivs i (SubStore s'))) where
 
 -- 6.14
 -- this function looks up the value of a reference in a store
@@ -246,7 +254,7 @@ sfResolv (s, ns@(Reference is), r)
 -- this function copies every attribute from the second store to the first store at
 -- the given prefix. return an error if the underlying bind returns an error
 
-sfCopy :: (Store,Store,Reference) -> Result
+sfCopy :: (Store,Store,Reference) -> StoreOrErrror
 sfCopy ( s1, Store [], pfx ) = Right s1
 sfCopy ( s1, Store ((i,v):s2), pfx ) = do
 	s' <- sfBind( s1, pfx |+| (Reference [i]), v)
@@ -257,7 +265,7 @@ sfCopy ( s1, Store ((i,v):s2), pfx ) = do
 -- the prototype may be located in a higher-level namespace, hence the use of
 -- resolve to locate the corresponding store
 
-sfInherit :: (Store,NameSpace,Reference,Reference) -> Result
+sfInherit :: (Store,NameSpace,Reference,Reference) -> StoreOrErrror
 sfInherit (s, ns, p, r) =
 	case (sfResolv(s,ns,p)) of
 		Nothing -> Left ( "[error 4] can't resolve prototype: " ++ (render p) )
@@ -275,7 +283,7 @@ sfInherit (s, ns, p, r) =
 -- Composition proceeds right-to-left (since defined values override
 -- any corresponding values in an extended prototype).
 
-evalProtoList :: [Prototype] -> (NameSpace,Reference,Store) -> Result
+evalProtoList :: [Prototype] -> (NameSpace,Reference,Store) -> StoreOrErrror
 
 evalProtoList ((BodyProto bp):ps) = \(ns,r,s) -> do
 	fB <- evalBody bp $ (r,s)
@@ -292,7 +300,7 @@ evalProtoList ([]) = \(ns,r,s) -> (Right s)
 -- Basic values are entered directly in the store.
 -- Prototypes are first evaluated, and link references are first resolved.
 
-evalValue :: Value -> (NameSpace,Reference,Store) -> Result
+evalValue :: Value -> (NameSpace,Reference,Store) -> StoreOrErrror
 
 evalValue (BasicValue bv) = \(ns,r,s) -> sfBind(s, r, StoreValue bv)
 
@@ -311,7 +319,7 @@ evalValue (ProtoValue ps) = \(ns,r,s) -> do
 -- reference is updated to contain the value.
 -- Error 6 occurs if the prefix of the target reference is not an object.
 
-evalAssignment :: Assignment -> (NameSpace,Store) -> Result
+evalAssignment :: Assignment -> (NameSpace,Store) -> StoreOrErrror
 
 evalAssignment (Assignment r@(Reference [_]) v) = \(ns,s) -> do
 	evalValue v $ (ns, (ns |+| r), s)
@@ -327,7 +335,7 @@ evalAssignment (Assignment r v) = \(ns,s) -> do
 -- These are recursively evaluated left-to-right with the store resulting
 -- from one assignment being used as input to the next assignment.
 
-evalBody :: Body -> (NameSpace,Store) -> Result
+evalBody :: Body -> (NameSpace,Store) -> StoreOrErrror
 
 evalBody (Body (a:b)) = \(ns,s) -> do
 	fA <- evalAssignment a $ (ns,s)
@@ -341,7 +349,7 @@ evalBody (Body []) = \(ns,s) -> (Right s)
 -- The evaluation of the main sfConfig component is returned & other components are ignored.
 -- It is an error if the main sfConfig element is not a store (eg., if it is a basic value).
 	
-evalSpecification :: Body -> Result
+evalSpecification :: Body -> StoreOrErrror
 
 evalSpecification b = do
 	fB <- evalBody b $ (Reference [], Store [])
@@ -383,7 +391,7 @@ instance StoreItem BasicValue where
 	renderCompactJSON (NumValue n) = show n
 	renderCompactJSON (StringValue str) = show str
 	renderCompactJSON (NullValue) = "Null"
-	renderCompactJSON (DataRef ids) = intercalate ":" $ map renderCompactJSON ids
+	renderCompactJSON (DataRef ids) = "\"$." ++ ( intercalate ":" $ map renderJSON ids ) ++ "\""
 	renderCompactJSON (Vector bvs) = "List(" ++ (intercalate ", " $ map renderCompactJSON bvs) ++ ")"
 
 {------------------------------------------------------------------------------
@@ -405,21 +413,34 @@ herryCompile sourcePath = do
 paulCompile :: String -> IO (String)
 paulCompile sourcePath = do
 	let destPath = tmpDir "Paul" ".json" sourcePath
-	parseResult <- parseFromFile specification sourcePath
-	let result = case (parseResult) of
+	storeOrError <- parseFromFile specification sourcePath
+	let result = case (storeOrError) of
+		Left err  -> (show err) ++ "\n"
+		Right body -> case (evalSpecification body) of
+			Left errorMessage -> ( errorMessage ++ "\n" )
+			Right store -> (renderCompactJSON store ++ "\n")
+	writeFile destPath result
+	readFile destPath
+
+-- more verbose error messages & JSON
+paulCompile' :: String -> IO (String)
+paulCompile' sourcePath = do
+	let destPath = tmpDir "Paul" ".json" sourcePath
+	storeOrError <- parseFromFile specification sourcePath
+	let result = case (storeOrError) of
 		Left err  -> "** SF parser failed: " ++ sourcePath ++ "\n" ++ (show err)
 		Right body -> case (evalSpecification body) of
 			Left errorMessage -> "** SF evaluation failed: " ++ sourcePath ++ "\n" ++
 											  errorMessage ++ "\n\n" ++ render body
-			Right store -> (renderCompactJSON store ++ "\n")
+			Right store -> (renderJSON store ++ "\n")
 	writeFile destPath result
 	readFile destPath
 
 prettyPrint :: String -> IO (String)
 prettyPrint sourcePath = do
 	let destPath = tmpDir "Pretty" ".sf" sourcePath
-	parseResult <- parseFromFile specification sourcePath
-	let result = case (parseResult) of
+	storeOrError <- parseFromFile specification sourcePath
+	let result = case (storeOrError) of
 		Left err  -> "** SF parser failed: " ++ sourcePath ++ "\n" ++ (show err)
 		Right body -> (render body)
 	writeFile destPath result	
@@ -435,8 +456,9 @@ compareVersions sourcePath = do
 	pauls <- paulCompile sourcePath
 	pretty <- prettyPrint sourcePath
 	if (herrys == pauls)
-		then putStrLn ( "match: " ++ (takeBaseName sourcePath) )
-		else putStrLn ( "no match: " ++ (takeBaseName sourcePath) )	
+		then putStrLn ( "\n>> match: " ++ (takeBaseName sourcePath) )
+		else putStr ( "\n** match failed: " ++ (takeBaseName sourcePath) ++ "\n"
+			++ "Paul:  " ++ pauls ++ "Herry: " ++ herrys )	
 	return ()
 
 {------------------------------------------------------------------------------
