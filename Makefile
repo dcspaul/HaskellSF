@@ -1,6 +1,8 @@
-.PHONY: test
+.PHONY: test build
 
-test: hsfparser
+build: hsfparser
+
+test: build
 	@./hsfparser `pwd`/Test/*.sf
 
 hsfparser:	hsfparser.hs

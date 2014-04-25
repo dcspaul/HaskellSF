@@ -1,0 +1,8 @@
+projectDirectory	= "$CWD"
+windowTitle			= "Haskell SF: $TM_DISPLAYNAME"
+
+TOPDIR					= "$CWD"
+TM_PROJECT_DIRECTORY	= "$CWD"
+TM_MAKE_FILE			= "$CWD/Makefile"
+TM_MAKE_RUN_TARGET		= "test"
+TM_MAKE_TARGET			= "build"
