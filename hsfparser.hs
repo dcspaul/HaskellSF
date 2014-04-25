@@ -48,10 +48,10 @@ errorFn code args = \fmt -> case (code) of
 	ENOPROTO -> "can't resolve prototype [error 4]: " ++ a
 	EPROTONOTSTORE -> "prototype is not a store [error 4]: " ++ a
 	ENOLR -> case (fmt) of
-		HerryFormat -> "cannot find link reference " ++ a
+		HerryFormat -> "[err5] cannot find link reference " ++ a
 		PaulFormat -> "can't resolve link value [error 5]: " ++ a
 	EASSIGN -> case (fmt) of
-		HerryFormat -> "prefix of " ++ a ++ " is not a component"
+		HerryFormat -> "[err6] prefix of " ++ a ++ " is not a component"
 		PaulFormat -> "can't resolve reference [error 6]: " ++ a
 	EREFNOTOBJ -> "reference not an object [error 6]: " ++ a
 	ENOSPEC -> "no sfConfig at top level of specification [error 7]"
@@ -433,7 +433,7 @@ instance StoreItem BasicValue where
 	renderCompactJSON (StringValue str) = show str
 	renderCompactJSON (NullValue) = "Null"
 	renderCompactJSON (DataRef ids) = "\"$." ++ ( intercalate ":" $ map renderJSON ids ) ++ "\""
-	renderCompactJSON (Vector bvs) = "List(" ++ (intercalate ", " $ map renderCompactJSON bvs) ++ ")"
+	renderCompactJSON (Vector bvs) = "[" ++ (intercalate "," $ map renderCompactJSON bvs) ++ "]"
 
 {------------------------------------------------------------------------------
     compile things using paul's compiler or herry's compiler
