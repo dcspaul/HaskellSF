@@ -23,6 +23,38 @@ import Data.String.Utils (join,replace)
 import Safe (initSafe)
 
 {------------------------------------------------------------------------------
+    error messages etc.
+------------------------------------------------------------------------------}
+
+-- the non-verbose versions of the error messages are intended to match
+-- exactly the output from Herry's Scala compiler
+
+verbose = False
+
+renderStore s = ((if verbose then renderJSON else renderCompactJSON) s ) ++ "\n"
+
+error0a sf err = if verbose
+	then "[error 0a] parse failed: " ++ sf ++ "\n" ++ (show err) ++ "\n"
+	else (show err) ++ "\n"
+error0b sf msg body = if verbose
+	then "[error0b] evaluation failed: " ++ sf ++ "\n" ++ msg ++ "\n\n" ++ (render body)
+	else msg ++ "\n"
+error1 ref = "[error 1] parent not a store: " ++ (render ref)
+error2 ref = "[error 2] reference has no parent: " ++ (render ref)
+error3 = "[error 3] attempt to replace root store"
+error4a proto = "[error 4] can't resolve prototype: " ++ (render proto)
+error4b proto = "[error 4] prototype is not a store: " ++ (render proto)
+error5 ref = if verbose
+	then "[error 5] can't resolve link value: " ++ (render ref)
+	else "cannot find link reference " ++ (render ref)
+error6a ref = if verbose
+	then "[error 6] can't resolve reference: " ++ (render ref)
+	else "prefix of " ++ (render ref) ++ " is not a component"
+error6b ref = "[error 6] reference not an object: " ++ (render ref)
+error7a = "[error 7] no sfConfig at top level of specification"
+error7b bv = "[error 7] sfConfig cannot be a basic value: " ++ (render bv)
+
+{------------------------------------------------------------------------------
     abstract syntax
 ------------------------------------------------------------------------------}
 
@@ -170,8 +202,8 @@ type NameSpace = Reference
 type ErrorMessage = String
 type StoreOrErrror = Either ErrorMessage Store
 
--- the Data.List.Utils version of addToAL adds items at the start of the alist
--- this version follows the strict semantics by adding at the end
+-- the Data.List.Utils version of addToAL adds new items at the start of the alist
+-- this version follows the strict semantics by adding them at the end
 
 addToAL' [] i v = [(i,v)]
 addToAL' ((i',v'):s') i v
@@ -209,12 +241,12 @@ sfPut ( Store s, i, v ) = Store ( addToAL' s i v )
 
 sfBind :: (Store,Reference,StoreValue) -> StoreOrErrror
 sfBind ( Store ivs, Reference is, v ) = sfBind' ivs is v where
-	sfBind' _   []  _    = Left "[error 3] attempt to replace root store"
+	sfBind' _   []  _    = Left error3
 	sfBind' ivs [i] v    = Right (sfPut (Store ivs,i,v))
 	sfBind' ivs (i:is) v =
 		case (lookup i ivs) of
-			Nothing -> Left ( "[error 2] reference has no parent: " ++ (render (Reference (i:is))))
-			Just (StoreValue _) -> Left ( "[error 1] parent not a store: " ++ (render (Reference (i:is))))
+			Nothing -> Left ( error2 (Reference (i:is)) )
+			Just (StoreValue _) -> Left ( error1 (Reference (i:is)) )
 			Just (SubStore (Store ivs')) -> do
 				s' <- sfBind' ivs' is v
 				return (Store (addToAL' ivs i (SubStore s'))) where
@@ -268,9 +300,9 @@ sfCopy ( s1, Store ((i,v):s2), pfx ) = do
 sfInherit :: (Store,NameSpace,Reference,Reference) -> StoreOrErrror
 sfInherit (s, ns, p, r) =
 	case (sfResolv(s,ns,p)) of
-		Nothing -> Left ( "[error 4] can't resolve prototype: " ++ (render p) )
+		Nothing -> Left ( error4a p )
 		Just (_, SubStore s') -> sfCopy(s,s',r)
-		Just (_, StoreValue _) -> Left ( "[error 4] prototype is not a store: " ++ (render p) )
+		Just (_, StoreValue _) -> Left ( error4b p )
 
 {------------------------------------------------------------------------------
     evaluation functions
@@ -306,7 +338,7 @@ evalValue (BasicValue bv) = \(ns,r,s) -> sfBind(s, r, StoreValue bv)
 
 evalValue (LinkValue lr) = \(ns,r,s) -> do
 	(ns',v') <- case (sfResolv(s, ns, lr)) of
-		Nothing -> Left ( "[error 5] can't resolve link value: " ++ (render lr) )
+		Nothing -> Left ( error5 lr )
 		Just (n,v) -> Right (n,v)
 	sfBind(s, r, v')
 
@@ -326,8 +358,8 @@ evalAssignment (Assignment r@(Reference [_]) v) = \(ns,s) -> do
 
 evalAssignment (Assignment r v) = \(ns,s) -> do
 	case (sfResolv (s,ns,(sfPrefix r))) of
-		Nothing -> Left ( "[error 6] can't resolve reference: " ++ (render r) )
-		Just (_, StoreValue _) -> Left ( "[error 6] reference not an object: " ++ (render r) )
+		Nothing -> Left ( error6a r )
+		Just (_, StoreValue _) -> Left ( error6b r )
 		Just (ns', _) -> evalValue v $ (ns, ns' |+| r, s)
 
 -- 6.26
@@ -354,8 +386,8 @@ evalSpecification :: Body -> StoreOrErrror
 evalSpecification b = do
 	fB <- evalBody b $ (Reference [], Store [])
 	case (sfFind(fB,Reference [Identifier "sfConfig"])) of
-		Nothing -> Left "no sfConfig at top level of specification"
-		Just (StoreValue bv) -> Left ( "sfConfig cannot be a basic value: " ++ (render bv) )
+		Nothing -> Left error7a
+		Just (StoreValue bv) -> Left ( error7b bv )
 		Just (SubStore s) -> return s
 
 {------------------------------------------------------------------------------
@@ -395,7 +427,7 @@ instance StoreItem BasicValue where
 	renderCompactJSON (Vector bvs) = "List(" ++ (intercalate ", " $ map renderCompactJSON bvs) ++ ")"
 
 {------------------------------------------------------------------------------
-    compile things using paul's compiler or herry's compiler
+    compile things using paul's compiler or herry's compiler (also prettyprint)
 ------------------------------------------------------------------------------}
 
 tmpDir :: String -> String -> String -> String
@@ -415,39 +447,25 @@ paulCompile sourcePath = do
 	let destPath = tmpDir "Paul" ".json" sourcePath
 	storeOrError <- parseFromFile specification sourcePath
 	let result = case (storeOrError) of
-		Left err  -> (show err) ++ "\n"
+		Left err  -> error0a sourcePath err
 		Right body -> case (evalSpecification body) of
-			Left errorMessage -> ( errorMessage ++ "\n" )
-			Right store -> (renderCompactJSON store ++ "\n")
+			Left errorMessage -> error0b sourcePath errorMessage body
+			Right store -> renderStore store
 	writeFile destPath result
-	readFile destPath
-
--- more verbose error messages & JSON
-paulCompile' :: String -> IO (String)
-paulCompile' sourcePath = do
-	let destPath = tmpDir "Paul" ".json" sourcePath
-	storeOrError <- parseFromFile specification sourcePath
-	let result = case (storeOrError) of
-		Left err  -> "** SF parser failed: " ++ sourcePath ++ "\n" ++ (show err)
-		Right body -> case (evalSpecification body) of
-			Left errorMessage -> "** SF evaluation failed: " ++ sourcePath ++ "\n" ++
-											  errorMessage ++ "\n\n" ++ render body
-			Right store -> (renderJSON store ++ "\n")
-	writeFile destPath result
-	readFile destPath
+	return result
 
 prettyPrint :: String -> IO (String)
 prettyPrint sourcePath = do
 	let destPath = tmpDir "Pretty" ".sf" sourcePath
 	storeOrError <- parseFromFile specification sourcePath
 	let result = case (storeOrError) of
-		Left err  -> "** SF parser failed: " ++ sourcePath ++ "\n" ++ (show err)
+		Left err  -> error0a sourcePath err
 		Right body -> (render body)
 	writeFile destPath result	
-	readFile destPath
+	return result
 	
 {------------------------------------------------------------------------------
-    comparison
+    comparison (also save the pretty-printed files)
 ------------------------------------------------------------------------------}
 
 compareVersions :: String -> IO ()
