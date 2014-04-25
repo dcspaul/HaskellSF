@@ -6,8 +6,12 @@ import Data.List (intercalate)
 import Data.List.Split (splitOn)
 import System.Environment (getArgs)
 import System.Cmd(rawSystem)
+import System.IO (hPutStrLn, stderr)
+import System.Exit (exitWith,ExitCode(..))
+import System.Environment (getArgs)
 import System.FilePath.Posix
 import GHC.IO.Exception
+import System.Console.GetOpt
 
 -- Parsec
 import Text.Parsec (sepBy, sepBy1, (<|>), eof)
@@ -26,11 +30,13 @@ import Safe (initSafe)
     error messages
 ------------------------------------------------------------------------------}
 
--- we support different formats for the error messages, so that ...
--- one format is exactly compatible with Herry's compiler & we can compare them
--- the other format is a bit chattier and provides more information
+-- we support different formats for the error messages ...
+-- Format1 is exactly compatible with the scala's compiler
+-- this is used when we are doing a comparison of the output (-c)
+-- Format2 is used when we are not doing a comparison
+-- we can change this or be more chatty without breaking the comparison
 
-data MessageFormat = HerryFormat | PaulFormat deriving(Eq)
+data MessageFormat = Format1 | Format2 deriving(Eq)
 
 -- errorFn returns a function which gives the appropriate version of the message
 -- when supplied with the format as an argument
@@ -40,19 +46,19 @@ data ErrorCode = EPARSEFAIL | EPARENTNOTSTORE | ENOPARENT | EREPLACEROOTSTORE |
 
 errorFn code args = \fmt -> case (code) of
 	EPARSEFAIL	-> case (fmt) of
-		HerryFormat -> (show (args!!1)) ++ "\n"
-		PaulFormat -> "parse failed: " ++ a ++ "\n" ++ (show (args!!1)) ++ "\n"
+		Format1 -> (show (args!!1)) ++ "\n"
+		Format2 -> "parse failed: " ++ a ++ "\n" ++ (show (args!!1)) ++ "\n"
 	EPARENTNOTSTORE -> "parent not a store [error 1]: " ++ a
 	ENOPARENT -> "reference has no parent [error 2]: " ++ a
 	EREPLACEROOTSTORE -> "attempt to replace root store [error 3]"
 	ENOPROTO -> "can't resolve prototype [error 4]: " ++ a
 	EPROTONOTSTORE -> "prototype is not a store [error 4]: " ++ a
 	ENOLR -> case (fmt) of
-		HerryFormat -> "[err5] cannot find link reference " ++ a
-		PaulFormat -> "can't resolve link value [error 5]: " ++ a
+		Format1 -> "[err5] cannot find link reference " ++ a
+		Format2 -> "can't resolve link value [error 5]: " ++ a
 	EASSIGN -> case (fmt) of
-		HerryFormat -> "[err6] prefix of " ++ a ++ " is not a component"
-		PaulFormat -> "can't resolve reference [error 6]: " ++ a
+		Format1 -> "[err6] prefix of " ++ a ++ " is not a component"
+		Format2 -> "can't resolve reference [error 6]: " ++ a
 	EREFNOTOBJ -> "reference not an object [error 6]: " ++ a
 	ENOSPEC -> "no sfConfig at top level of specification [error 7]"
 	ESPEC -> "sfConfig cannot be a basic value [error 7]: " ++ a
@@ -436,73 +442,83 @@ instance StoreItem BasicValue where
 	renderCompactJSON (Vector bvs) = "[" ++ (intercalate "," $ map renderCompactJSON bvs) ++ "]"
 
 {------------------------------------------------------------------------------
-    compile things using paul's compiler or herry's compiler
+    compile using the scala or haskell compiler
 ------------------------------------------------------------------------------}
 
-tmpDir :: String -> String -> String -> String
-tmpDir who ext sourcePath =
-	(replaceFileName (takeDirectory sourcePath) "Tmp") </> who </>
-		(replaceExtension (takeFileName sourcePath) ext)
-
-herryCompile :: MessageFormat -> String -> IO (String)
-herryCompile fmt sourcePath = do
-	let destPath = tmpDir "Herry" ".json" sourcePath
+scalaCompile :: MessageFormat -> String -> String -> IO (String)
+scalaCompile fmt sourcePath destPath = do
 	let scriptPath = (takeDirectory (takeDirectory sourcePath)) </> "herryparser.sh"
  	exitCode <- rawSystem scriptPath [ sourcePath, destPath ]
 	readFile destPath
 
-paulCompile :: MessageFormat -> String -> IO (String)
-paulCompile fmt sourcePath = do
-	let destPath = tmpDir "Paul" ".json" sourcePath
+compile :: MessageFormat -> String -> String -> IO (String)
+compile fmt sourcePath destPath = do
 	storeOrError <- parseFromFile specification sourcePath
 	let result = case (storeOrError) of
 		Left err  -> errorFn EPARSEFAIL [ sourcePath, (show err) ] $ fmt
 		Right body -> case (evalSpecification body) of
 			Left error -> ( error $ fmt ) ++ "\n"
 			Right store -> ( renderStore store ) ++ "\n" where
-				renderStore = if (fmt==HerryFormat) then renderCompactJSON else renderJSON
+				renderStore = if (fmt==Format1) then renderCompactJSON else renderJSON
 	writeFile destPath result
 	return result
-
-{------------------------------------------------------------------------------
-    human-readable output
-------------------------------------------------------------------------------}
-
-prettyPrint :: MessageFormat -> String -> IO (String)
-prettyPrint fmt sourcePath = do
-	let destPath = tmpDir "Pretty" ".sf" sourcePath
-	storeOrError <- parseFromFile specification sourcePath
-	let result = case (storeOrError) of
-		Left err  -> errorFn EPARSEFAIL [ sourcePath, (show err) ] $ fmt
-		Right body -> (render body)
-	writeFile destPath result	
-	return result
-	
-{------------------------------------------------------------------------------
-    comparison (also save the pretty-printed files)
-------------------------------------------------------------------------------}
-
-compareVersions :: String -> IO ()
-compareVersions sourcePath = do
-	herrys <- herryCompile HerryFormat sourcePath
-	pauls <- paulCompile HerryFormat sourcePath
-	pretty <- prettyPrint PaulFormat sourcePath
-	if (herrys == pauls)
-		then putStrLn ( "\n>> match: " ++ (takeBaseName sourcePath) )
-		else putStr ( "\n** match failed: " ++ (takeBaseName sourcePath) ++ "\n"
-			++ "Paul:  " ++ pauls ++ "Herry: " ++ herrys )	
-	return ()
 
 {------------------------------------------------------------------------------
     main program
 ------------------------------------------------------------------------------}
 
-main = getArgs >>= ( mapM compareVersions )
+main = do
+    (args, files) <- getArgs >>= parseOptions
+    mapM_ (process args) files
 
+outputDir [] = ""
+outputDir ((Output d):_) = d
+outputDir (_:rest) = outputDir rest
 
+jsonPath srcPath relativeDir ext =
+	((takeDirectory srcPath) </> relativeDir </>
+		(addExtension ((dropExtension (takeFileName srcPath)) ++ ext) ".json"))
 
+process :: [Flag] -> String -> IO ()
+process opts srcPath = do
+	let dstPath = jsonPath srcPath (outputDir opts) ""
+	let scalaDstPath = jsonPath srcPath (outputDir opts) "-s"
+	haskellResult <- if (Compare `elem` opts)
+		then compile Format1 srcPath dstPath
+		else compile Format2 srcPath dstPath
+	scalaResult <- if (Compare `elem` opts)
+		then scalaCompile Format1 srcPath scalaDstPath
+		else return ""
+	if (Compare `elem` opts)
+		then if (haskellResult == scalaResult)
+			then putStrLn ( "\n>> match: " ++ (takeBaseName srcPath) )
+			else putStr ( "\n** match failed: " ++ (takeBaseName srcPath) ++ "\n"
+				++ "Haskell: " ++ haskellResult ++ "Scala:   " ++ scalaResult )
+		else return ()
+	return ()
 
+-- output directory arg:
+-- with no slash, it is treated as a subdirectory of the source directory
+-- you can use ".." in this to refer to directories above the source
+-- with a slash it is treated as an absolute pathname
+-- the default is "" which is the same directory as the source
 
+data Flag = Output String | Compare deriving(Show,Eq)
+
+options :: [OptDescr Flag]
+options =
+	[ Option ['o'] ["output"]	(ReqArg Output "DIR")	"directory for json output"
+	, Option ['c'] ["compare"]	(NoArg Compare)			"compare with output of Scala compiler"
+	]
+ 
+parseOptions :: [String] -> IO ([Flag], [String])
+parseOptions argv = case getOpt RequireOrder options argv of
+	(args,fs,[]) -> do
+		return (args,fs)
+	(_,_,errs) -> do
+		hPutStrLn stderr (concat errs ++ usageInfo usage options)
+		exitWith (ExitFailure 1)
+	where usage = "Usage: options file .."
 
 
 
