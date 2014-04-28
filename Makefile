@@ -11,10 +11,10 @@ Build/hsf: hsf.hs
 	ghc -package parsec -o hsf hsf.hs
 
 compare: build
-	@Build/hsf -c -o ../Out `pwd`/Test/*.sf
+	@Build/hsf -c -o ../Scratch `pwd`/Test/*.sf
 
 compile: build
-	@Build/hsf -o ../Out `pwd`/Test/*.sf
+	@Build/hsf -o ../Scratch `pwd`/Test/*.sf
 
 clean:
 	@rm -rf Build/*

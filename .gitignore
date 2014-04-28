@@ -1,23 +1,11 @@
 .DS_Store
 
-/hsfparser.o
+/Scratch/
 
-/hsfparser.hi
-
-/hsfparser
-
-/Tmp/
-
-/Out/
-
-/hsfparser2.o
-
-/hsfparser2.hi
+/Build/hsf.o
 
 /Build/hsf.hi
 
 /Build/hsf.hs
-
-/Build/hsf.o
 
 /Build/runSfParser.sh
