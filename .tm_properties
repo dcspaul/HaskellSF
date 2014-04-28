@@ -6,3 +6,6 @@ TM_PROJECT_DIRECTORY	= "$CWD"
 TM_MAKE_FILE			= "$CWD/Makefile"
 TM_MAKE_RUN_TARGET		= "test"
 TM_MAKE_TARGET			= "build"
+
+# you can use the Preferences/Static Variables in TextMate to add an
+# SFPARSER environment variable giving the location of the sfparser

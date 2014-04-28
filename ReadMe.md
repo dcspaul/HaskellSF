@@ -6,21 +6,25 @@ The current version does not support #include or ``placement''.
 
 ### Compiling SmartFrog files
 
-A list of SmartForg source files can be compiled into corresponding JSON output:
+A list of SmartForg source files can be  compiled into corresponding JSON output:
 
 	hsf file1.sf file2.sf ...
 	
 The output files can be generated in a different directory (relative to the source files):
 
-	hsf -o ../output file1.sf file2.sf ...
+	hsf -o ../output-dir file1.sf file2.sf ...
 
 ### Comparing output
 
-The -c option compiles each source file using the Scala compiler sfParser, and compares the result with the hsf output. The output files are named *-1.json (for the hsf version) and *-2.json (for the sfParser version). Differences are displayed on the stdout.
+The -c option compiles each source file using the Scala SF compiler sfparser, and compares the result with the hsf output. The output files are named *-1.json (for the hsf version) and *-2.json (for the sfparser version). Differences are displayed on the stdout.
 
-	hsf -c path-to-sfparser file1.sf file2.sf ...
+	hsf -c file1.sf file2.sf ...
 
 In this mode, any error messages are placed in the output file allowing them to be compared with the corresponding messages from sfParser. The compiler also generates slightly different error messages and JSON formatting which are compatible with sfParser. 
+
+The script runSfParser.sh is used to run sfparser must be in the same directory as the hsf binary. If sfparser is not in the path, the location can be specified with the SFPARSER environment variable, or with the -s option:
+
+	hsf -s path-to-sfparser -c file1.sf file2.sf ...
 
 ### Building hsf
 

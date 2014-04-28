@@ -8,7 +8,7 @@ import System.Environment (getArgs)
 import System.Cmd(rawSystem)
 import System.IO (hPutStrLn, stderr)
 import System.Exit (exitWith,ExitCode(..))
-import System.Environment (getArgs)
+import System.Environment (getArgs,getExecutablePath,lookupEnv)
 import System.FilePath.Posix
 import GHC.IO.Exception
 import System.Console.GetOpt
@@ -444,11 +444,15 @@ instance StoreItem BasicValue where
     compile using the scala or haskell compiler
 ------------------------------------------------------------------------------}
 
-scalaCompile :: MessageFormat -> String -> String -> IO (String)
-scalaCompile fmt sourcePath destPath = do
-	let scriptPath = (takeDirectory (takeDirectory sourcePath)) </> "herryparser.sh"
- 	exitCode <- rawSystem scriptPath [ sourcePath, destPath ]
-	readFile destPath
+scalaCompile :: MessageFormat -> String -> String -> String -> IO (String)
+scalaCompile fmt sourcePath destPath sfParserPath = do
+	execPath <- getExecutablePath
+	let scriptPath = (takeDirectory execPath) </> "runSfParser.sh"
+ 	exitCode <- rawSystem scriptPath [ sourcePath, destPath, sfParserPath  ]
+	case (exitCode) of
+		ExitSuccess -> readFile destPath
+		ExitFailure code -> fail ("script failed: " ++ scriptPath ++
+			 " " ++ sourcePath ++ " " ++ destPath ++ " " ++ sfParserPath )
 
 compile :: MessageFormat -> String -> String -> IO (String)
 compile fmt sourcePath destPath = do
@@ -472,12 +476,13 @@ compile fmt sourcePath destPath = do
 -- with a slash it is treated as an absolute pathname
 -- the default is "" which is the same directory as the source
 
-data Flag = Output String | Compare deriving(Show,Eq)
+data Flag = Output String | Compare | SfParser String deriving(Show,Eq)
 
 options :: [OptDescr Flag]
 options =
-	[ Option ['o'] ["output"]	(ReqArg Output "DIR")	"directory for json output"
-	, Option ['c'] ["compare"]	(NoArg Compare)			"compare with output of Scala compiler"
+	[ Option ['o'] ["output"]	(ReqArg Output "DIR")		"directory for json output"
+	, Option ['c'] ["compare"]	(NoArg Compare)				"compare with output of Scala compiler"
+	, Option ['s'] ["sfparser"]	(ReqArg SfParser "FILE")	"location of sfparser"
 	]
  
 parseOptions :: [String] -> IO ([Flag], [String])
@@ -493,6 +498,21 @@ outputDir :: [Flag] -> String
 outputDir [] = ""
 outputDir ((Output d):_) = d
 outputDir (_:rest) = outputDir rest
+
+findSfParserPath :: [Flag] -> IO (String)
+findSfParserPath fs = do
+	let arg = sfParserArg fs
+	sfParserEnv <- lookupEnv "SFPARSER"
+	case (arg) of
+		Just f -> return f
+		Nothing -> case (sfParserEnv) of
+			Just s -> return s
+			Nothing -> return "sfparser"
+
+sfParserArg :: [Flag] -> Maybe String
+sfParserArg [] = Nothing
+sfParserArg ((SfParser f):_) = Just f
+sfParserArg (_:rest) = sfParserArg rest
 
 jsonPath :: String -> String -> String -> String 
 jsonPath srcPath relativeDir ext =
@@ -511,8 +531,9 @@ process :: [Flag] -> String -> IO ()
 process opts srcPath = do
 	let dstPath = jsonPath srcPath (outputDir opts)
 	if (Compare `elem` opts) then do
+		sfParserPath <- (findSfParserPath opts)
 		haskellResult <- compile Format1 srcPath (dstPath "-1")
-		scalaResult <- scalaCompile Format1 srcPath (dstPath "-2")
+		scalaResult <- scalaCompile Format1 srcPath (dstPath "-2") sfParserPath
 		if (haskellResult == scalaResult)
 			then putStrLn ( ">> match: " ++ (takeBaseName srcPath) )
 			else putStr ( "** match failed: " ++ (takeBaseName srcPath) ++ "\n"
