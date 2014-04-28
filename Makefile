@@ -1,16 +1,11 @@
-.PHONY: test build test2 build2
+.PHONY: test build
 
-build: hsfparser
+build: Build/hsf
 
 test: build
-	@./hsfparser -o ../Out `pwd`/Test/*.sf
+	@Build/hsf -c -o ../Out `pwd`/Test/*.sf
 
-hsfparser: hsfparser.hs
-	@ghc -package parsec -o hsfparser hsfparser.hs
-
-test2: build2
-	./hsfparser2 -vch some-dir hello world
-	
-build2:	hsfparser2.hs
-	@ghc -package parsec -o hsfparser2 hsfparser2.hs || exit 1
-
+Build/hsf: hsf.hs
+	@cd Build; \
+	test -f hsf.hs || ln -s ../hsf.hs hsf.hs; \
+	ghc -package parsec -o hsf hsf.hs

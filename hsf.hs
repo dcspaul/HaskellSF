@@ -31,7 +31,7 @@ import Safe (initSafe)
 ------------------------------------------------------------------------------}
 
 -- we support different formats for the error messages ...
--- Format1 is exactly compatible with the scala's compiler
+-- Format1 is exactly compatible with the scala compiler
 -- this is used when we are doing a comparison of the output (-c)
 -- Format2 is used when we are not doing a comparison
 -- we can change this or be more chatty without breaking the comparison
