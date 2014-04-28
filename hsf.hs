@@ -27,44 +27,6 @@ import Data.String.Utils (join,replace)
 import Safe (initSafe)
 
 {------------------------------------------------------------------------------
-    error messages
-------------------------------------------------------------------------------}
-
--- we support different formats for the error messages ...
--- Format1 is exactly compatible with the scala compiler
--- this is used when we are doing a comparison of the output (-c)
--- Format2 is used when we are not doing a comparison
--- we can change this or be more chatty without breaking the comparison
-
-data MessageFormat = Format1 | Format2 deriving(Eq)
-
--- errorFn returns a function which gives the appropriate version of the message
--- when supplied with the format as an argument
-
-data ErrorCode = EPARSEFAIL | EPARENTNOTSTORE | ENOPARENT | EREPLACEROOTSTORE |
-	ENOPROTO | EPROTONOTSTORE | ENOLR | EASSIGN | EREFNOTOBJ | ENOSPEC | ESPEC
-
-errorFn code args = \fmt -> case (code) of
-	EPARSEFAIL	-> case (fmt) of
-		Format1 -> (show (args!!1)) ++ "\n"
-		Format2 -> "parse failed: " ++ a ++ "\n" ++ (show (args!!1)) ++ "\n"
-	EPARENTNOTSTORE -> "parent not a store [error 1]: " ++ a
-	ENOPARENT -> "reference has no parent [error 2]: " ++ a
-	EREPLACEROOTSTORE -> "attempt to replace root store [error 3]"
-	ENOPROTO -> "can't resolve prototype [error 4]: " ++ a
-	EPROTONOTSTORE -> "prototype is not a store [error 4]: " ++ a
-	ENOLR -> case (fmt) of
-		Format1 -> "[err5] cannot find link reference " ++ a
-		Format2 -> "can't resolve link value [error 5]: " ++ a
-	EASSIGN -> case (fmt) of
-		Format1 -> "[err6] prefix of " ++ a ++ " is not a component"
-		Format2 -> "can't resolve reference [error 6]: " ++ a
-	EREFNOTOBJ -> "reference not an object [error 6]: " ++ a
-	ENOSPEC -> "no sfConfig at top level of specification [error 7]"
-	ESPEC -> "sfConfig cannot be a basic value [error 7]: " ++ a
-	where a = args!!0
-
-{------------------------------------------------------------------------------
     abstract syntax
 ------------------------------------------------------------------------------}
 
@@ -209,8 +171,8 @@ data Store = Store [(Identifier,StoreValue)] deriving(Eq)
 ------------------------------------------------------------------------------}
 
 type NameSpace = Reference
-type ErrorFn = MessageFormat -> String
-type StoreOrErrror = Either ErrorFn Store
+type ErrorFn = Bool -> String
+type StoreOrError = Either ErrorFn Store
 
 -- the Data.List.Utils version of addToAL adds new items at the start of the alist
 -- this version follows the strict semantics by adding them at the end
@@ -249,14 +211,14 @@ sfPut ( Store s, i, v ) = Store ( addToAL' s i v )
 -- return an error if an attempt is made to update a reference whose parent does not exist,
 -- or whose parent is not itself a store, or if we are attempting to replace the root store
 
-sfBind :: (Store,Reference,StoreValue) -> StoreOrErrror
+sfBind :: (Store,Reference,StoreValue) -> StoreOrError
 sfBind ( Store ivs, Reference is, v ) = sfBind' ivs is v where
-	sfBind' _   []  _    = Left ( errorFn EREPLACEROOTSTORE [] )
+	sfBind' _   []  _    = Left ( err EREPLACEROOTSTORE [] )
 	sfBind' ivs [i] v    = Right (sfPut (Store ivs,i,v))
 	sfBind' ivs (i:is) v =
 		case (lookup i ivs) of
-			Nothing -> Left ( errorFn ENOPARENT [ render (Reference (i:is)) ] )
-			Just (StoreValue _) -> Left ( errorFn EPARENTNOTSTORE [ render (Reference (i:is)) ] )
+			Nothing -> Left ( err ENOPARENT [ render (Reference (i:is)) ] )
+			Just (StoreValue _) -> Left ( err EPARENTNOTSTORE [ render (Reference (i:is)) ] )
 			Just (SubStore (Store ivs')) -> do
 				s' <- sfBind' ivs' is v
 				return (Store (addToAL' ivs i (SubStore s'))) where
@@ -296,7 +258,7 @@ sfResolv (s, ns@(Reference is), r)
 -- this function copies every attribute from the second store to the first store at
 -- the given prefix. return an error if the underlying bind returns an error
 
-sfCopy :: (Store,Store,Reference) -> StoreOrErrror
+sfCopy :: (Store,Store,Reference) -> StoreOrError
 sfCopy ( s1, Store [], pfx ) = Right s1
 sfCopy ( s1, Store ((i,v):s2), pfx ) = do
 	s' <- sfBind( s1, pfx |+| (Reference [i]), v)
@@ -307,12 +269,12 @@ sfCopy ( s1, Store ((i,v):s2), pfx ) = do
 -- the prototype may be located in a higher-level namespace, hence the use of
 -- resolve to locate the corresponding store
 
-sfInherit :: (Store,NameSpace,Reference,Reference) -> StoreOrErrror
+sfInherit :: (Store,NameSpace,Reference,Reference) -> StoreOrError
 sfInherit (s, ns, p, r) =
 	case (sfResolv(s,ns,p)) of
-		Nothing -> Left ( errorFn ENOPROTO [render p] )
+		Nothing -> Left ( err ENOPROTO [render p] )
 		Just (_, SubStore s') -> sfCopy(s,s',r)
-		Just (_, StoreValue _) -> Left ( errorFn EPROTONOTSTORE [render p] )
+		Just (_, StoreValue _) -> Left ( err EPROTONOTSTORE [render p] )
 
 {------------------------------------------------------------------------------
     evaluation functions
@@ -325,7 +287,7 @@ sfInherit (s, ns, p, r) =
 -- Composition proceeds right-to-left (since defined values override
 -- any corresponding values in an extended prototype).
 
-evalProtoList :: [Prototype] -> (NameSpace,Reference,Store) -> StoreOrErrror
+evalProtoList :: [Prototype] -> (NameSpace,Reference,Store) -> StoreOrError
 
 evalProtoList ((BodyProto bp):ps) = \(ns,r,s) -> do
 	fB <- evalBody bp $ (r,s)
@@ -342,13 +304,13 @@ evalProtoList ([]) = \(ns,r,s) -> (Right s)
 -- Basic values are entered directly in the store.
 -- Prototypes are first evaluated, and link references are first resolved.
 
-evalValue :: Value -> (NameSpace,Reference,Store) -> StoreOrErrror
+evalValue :: Value -> (NameSpace,Reference,Store) -> StoreOrError
 
 evalValue (BasicValue bv) = \(ns,r,s) -> sfBind(s, r, StoreValue bv)
 
 evalValue (LinkValue lr) = \(ns,r,s) -> do
 	(ns',v') <- case (sfResolv(s, ns, lr)) of
-		Nothing -> Left ( errorFn ENOLR [render lr] )
+		Nothing -> Left ( err ENOLR [render lr] )
 		Just (n,v) -> Right (n,v)
 	sfBind(s, r, v')
 
@@ -361,15 +323,15 @@ evalValue (ProtoValue ps) = \(ns,r,s) -> do
 -- reference is updated to contain the value.
 -- Error 6 occurs if the prefix of the target reference is not an object.
 
-evalAssignment :: Assignment -> (NameSpace,Store) -> StoreOrErrror
+evalAssignment :: Assignment -> (NameSpace,Store) -> StoreOrError
 
 evalAssignment (Assignment r@(Reference [_]) v) = \(ns,s) -> do
 	evalValue v $ (ns, (ns |+| r), s)
 
 evalAssignment (Assignment r v) = \(ns,s) -> do
 	case (sfResolv (s,ns,(sfPrefix r))) of
-		Nothing -> Left ( errorFn EASSIGN [render r] )
-		Just (_, StoreValue _) -> Left ( errorFn EREFNOTOBJ [render r] )
+		Nothing -> Left ( err EASSIGN [render r] )
+		Just (_, StoreValue _) -> Left ( err EREFNOTOBJ [render r] )
 		Just (ns', _) -> evalValue v $ (ns, ns' |+| r, s)
 
 -- 6.26
@@ -377,7 +339,7 @@ evalAssignment (Assignment r v) = \(ns,s) -> do
 -- These are recursively evaluated left-to-right with the store resulting
 -- from one assignment being used as input to the next assignment.
 
-evalBody :: Body -> (NameSpace,Store) -> StoreOrErrror
+evalBody :: Body -> (NameSpace,Store) -> StoreOrError
 
 evalBody (Body (a:b)) = \(ns,s) -> do
 	fA <- evalAssignment a $ (ns,s)
@@ -391,13 +353,13 @@ evalBody (Body []) = \(ns,s) -> (Right s)
 -- The evaluation of the main sfConfig component is returned & other components are ignored.
 -- It is an error if the main sfConfig element is not a store (eg., if it is a basic value).
 	
-evalSpecification :: Body -> StoreOrErrror
+evalSpecification :: Body -> StoreOrError
 
 evalSpecification b = do
 	fB <- evalBody b $ (Reference [], Store [])
 	case (sfFind(fB,Reference [Identifier "sfConfig"])) of
-		Nothing -> Left ( errorFn ENOSPEC [] )
-		Just (StoreValue bv) -> Left ( errorFn ESPEC [render bv] )
+		Nothing -> Left ( err ENOSPEC [] )
+		Just (StoreValue bv) -> Left ( err ESPEC [render bv] )
 		Just (SubStore s) -> return s
 
 {------------------------------------------------------------------------------
@@ -444,8 +406,8 @@ instance StoreItem BasicValue where
     compile using the scala or haskell compiler
 ------------------------------------------------------------------------------}
 
-scalaCompile :: MessageFormat -> String -> String -> String -> IO (String)
-scalaCompile fmt sourcePath destPath sfParserPath = do
+sfParser :: String -> String -> String -> IO (String)
+sfParser sourcePath destPath sfParserPath = do
 	execPath <- getExecutablePath
 	let scriptPath = (takeDirectory execPath) </> "runSfParser.sh"
  	exitCode <- rawSystem scriptPath [ sourcePath, destPath, sfParserPath  ]
@@ -454,17 +416,58 @@ scalaCompile fmt sourcePath destPath sfParserPath = do
 		ExitFailure code -> fail ("script failed: " ++ scriptPath ++
 			 " " ++ sourcePath ++ " " ++ destPath ++ " " ++ sfParserPath )
 
-compile :: MessageFormat -> String -> String -> IO (String)
-compile fmt sourcePath destPath = do
+compile :: Bool -> String -> String -> IO (String)
+compile isComparing sourcePath destPath = do
+	-- parse it & evaluate if the parse succeeds
 	storeOrError <- parseFromFile specification sourcePath
 	let result = case (storeOrError) of
-		Left err  -> errorFn EPARSEFAIL [ sourcePath, (show err) ] $ fmt
+		Left e -> Left $ err EPARSEFAIL [ (show e) ] $ isComparing
 		Right body -> case (evalSpecification body) of
-			Left error -> ( error $ fmt ) ++ "\n"
-			Right store -> ( renderStore store ) ++ "\n" where
-				renderStore = if (fmt==Format1) then renderCompactJSON else renderJSON
-	writeFile destPath result
-	return result
+			Left error -> Left $ ( error $ isComparing ) ++ "\n"
+			Right store -> Right $ ( renderStore store ) ++ "\n" where
+				renderStore = if (isComparing) then renderCompactJSON else renderJSON
+	-- of we are comparing outputs, put the error message in the file
+	-- otherwise, print it to the stderr
+	case (result) of
+		Left e -> if (isComparing)
+			then writeFile destPath e
+			else hPutStrLn stderr ( "** " ++ sourcePath ++ "\n" ++ e )
+		Right json -> writeFile destPath json
+	-- return the results or the error message
+	case (result) of
+		Left e -> return e
+		Right json -> return json
+
+{------------------------------------------------------------------------------
+    error messages
+------------------------------------------------------------------------------}
+
+-- err returns a function which gives the appropriate version of the message
+-- depending on whether we are doing a comparison with sfparser or not
+
+data ErrorCode = EPARSEFAIL | EPARENTNOTSTORE | ENOPARENT | EREPLACEROOTSTORE |
+	ENOPROTO | EPROTONOTSTORE | ENOLR | EASSIGN | EREFNOTOBJ | ENOSPEC | ESPEC
+
+err :: ErrorCode -> [String] -> Bool -> String
+err code args = \isComparing -> case (code) of
+	EPARSEFAIL	-> if (isComparing)
+		then (show a) ++ "\n"
+		else "parse failed: " ++ (show a) ++ "\n"
+	EPARENTNOTSTORE -> "parent not a store [error 1]: " ++ a
+	ENOPARENT -> "reference has no parent [error 2]: " ++ a
+	EREPLACEROOTSTORE -> "attempt to replace root store [error 3]"
+	ENOPROTO -> "can't resolve prototype [error 4]: " ++ a
+	EPROTONOTSTORE -> "prototype is not a store [error 4]: " ++ a
+	ENOLR -> if (isComparing)
+		then "[err5] cannot find link reference " ++ a
+		else "can't resolve link value [error 5]: " ++ a
+	EASSIGN -> if (isComparing)
+		then "[err6] prefix of " ++ a ++ " is not a component"
+		else "can't resolve reference [error 6]: " ++ a
+	EREFNOTOBJ -> "reference not an object [error 6]: " ++ a
+	ENOSPEC -> "no sfConfig at top level of specification [error 7]"
+	ESPEC -> "sfConfig cannot be a basic value [error 7]: " ++ a
+	where a = args!!0
 
 {------------------------------------------------------------------------------
     option handling
@@ -532,13 +535,13 @@ process opts srcPath = do
 	let dstPath = jsonPath srcPath (outputDir opts)
 	if (Compare `elem` opts) then do
 		sfParserPath <- (findSfParserPath opts)
-		haskellResult <- compile Format1 srcPath (dstPath "-1")
-		scalaResult <- scalaCompile Format1 srcPath (dstPath "-2") sfParserPath
+		haskellResult <- compile True srcPath (dstPath "-1")
+		scalaResult <- sfParser srcPath (dstPath "-2") sfParserPath
 		if (haskellResult == scalaResult)
-			then putStrLn ( ">> match: " ++ (takeBaseName srcPath) )
+			then putStrLn ( ">> match ok: " ++ (takeBaseName srcPath) )
 			else putStr ( "** match failed: " ++ (takeBaseName srcPath) ++ "\n"
 				++ "Haskell: " ++ haskellResult ++ "Scala:   " ++ scalaResult )
 	else do
-		compile Format2 srcPath (dstPath "")
+		compile False srcPath (dstPath "")
 		return ()
 	return ()

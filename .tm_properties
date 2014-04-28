@@ -1,3 +1,5 @@
+# TextMate configuration
+
 projectDirectory	= "$CWD"
 windowTitle			= "Haskell SF: $TM_DISPLAYNAME"
 

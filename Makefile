@@ -1,6 +1,8 @@
-.PHONY: test build
+.PHONY: build test compare compile
 
 build: Build/hsf
+
+test: compare
 
 Build/hsf: hsf.hs
 	@cd Build; \
@@ -8,8 +10,11 @@ Build/hsf: hsf.hs
 	test -f runSfParser.sh || ln -s ../runSfParser.sh runSfParser.sh; \
 	ghc -package parsec -o hsf hsf.hs
 
-test: build
+compare: build
 	@Build/hsf -c -o ../Out `pwd`/Test/*.sf
+
+compile: build
+	@Build/hsf -o ../Out `pwd`/Test/*.sf
 
 clean:
 	@rm -rf Build/*

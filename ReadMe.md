@@ -32,3 +32,6 @@ hsf requires some additional Haskell modules to build. These can be installed wi
 
 	cabal install MissingH
 	cabal install Safe
+
+Paul Anderson
+<dcspaul@ed.ac.uk>
