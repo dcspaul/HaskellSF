@@ -19,3 +19,5 @@
 /Build/hsf.hs
 
 /Build/hsf.o
+
+/Build/runSfParser.sh
