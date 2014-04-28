@@ -18,4 +18,4 @@ compile: build
 
 clean:
 	@rm -rf Build/*
-	@rm -rf Out/*
+	@rm -rf Scratch/*
