@@ -9,3 +9,7 @@
 /Build/hsf.hs
 
 /Build/runSfParser.sh
+
+/Build/hsf-Darwin-i386.hi
+/Build/hsf-Darwin-i386.hs
+/Build/hsf-Darwin-i386.o
