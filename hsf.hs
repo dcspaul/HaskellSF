@@ -465,7 +465,9 @@ err code args = \isComparing -> case (code) of
 		then "[err6] prefix of " ++ a ++ " is not a component"
 		else "can't resolve reference [error 6]: " ++ a
 	EREFNOTOBJ -> "reference not an object [error 6]: " ++ a
-	ENOSPEC -> "no sfConfig at top level of specification [error 7]"
+	ENOSPEC -> if (isComparing)
+		then "[err7] sfConfig is not exist or a component"
+		else "no sfConfig at top level of specification [error 7]"
 	ESPEC -> "sfConfig cannot be a basic value [error 7]: " ++ a
 	where a = args!!0
 
