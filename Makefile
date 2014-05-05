@@ -13,7 +13,7 @@ compile: build
 	@Build/hsf-$(PLATFORM) -o ../Scratch `pwd`/Test/*.sf
 
 clean:
-	@rm -rf Build/*
+	@rm -rf Build??/*
 	@rm -rf Scratch/*
 
 # this target does a build using the old version of the Haskell compiler (7.6)
@@ -70,4 +70,5 @@ remote:
 		--exclude '.DS*' \
 		--exclude '..DS*' \
 		$(HSF_REMOTE)/Build$(REMOTE_VERSION)/* ../../HaskellSF/Git/Build$(REMOTE_VERSION) || exit 1 ;\
-	
+	cd Build$(REMOTE_VERSION) || exit 1; \
+	rm -f hsf || exit 1; test -f hsf-$(PLATFORM) && ln hsf-$(PLATFORM) hsf
