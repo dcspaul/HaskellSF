@@ -30,10 +30,23 @@ The script runSfParser.sh is used to run sfparser and must be in the same direct
 
 hsf requires some additional Haskell modules to build. These can be installed with cabal:
 
+	cabal install Parsec (depending on the Haskell version)
 	cabal install MissingH
 	cabal install Safe
 
-I built this with ghc 7.6.3. Earlier versions may not support some of the library functions needed.
+There are multiple Build directories for the different versions of Haskell (eg. 7.6 and 7.8).
+The default Makefile build target currently uses version 7.6.
+
+The files in the Build directories have the "platform" appended to the names to support builds
+on multiple platforms. Eg. "hsf-Linux-x86_64.hs". The file "hsf" is linked to the binary for the
+most recently build platform.
+
+The default target builds on the current platform. The "remote" target can do a build on a remote
+machine (and retrieve the result). 
 
 Paul Anderson
 <dcspaul@ed.ac.uk>
+
+
+
+

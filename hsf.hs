@@ -13,7 +13,7 @@ import System.FilePath.Posix
 import GHC.IO.Exception
 import System.Console.GetOpt
 
--- Parsec
+-- cabal install Parsec
 import Text.Parsec (sepBy, sepBy1, (<|>), eof)
 import Text.Parsec.String (Parser, parseFromFile)
 import Text.Parsec.Language (emptyDef)
