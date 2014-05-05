@@ -15,6 +15,8 @@ import System.Console.GetOpt
 
 -- cabal install Parsec
 import Text.Parsec (sepBy, sepBy1, (<|>), eof)
+import Text.Parsec.Prim (parserFail,getPosition)
+import Text.Parsec.Pos (sourceColumn,SourcePos)
 import Text.Parsec.String (Parser, parseFromFile)
 import Text.Parsec.Language (emptyDef)
 import qualified Text.Parsec.Token as P
@@ -63,6 +65,7 @@ m_comma = P.comma lexer
 m_commaSep = P.commaSep lexer
 m_braces = P.braces lexer
 m_brackets = P.brackets lexer
+m_symbol = P.symbol lexer
 
 {------------------------------------------------------------------------------
     parser
@@ -97,9 +100,13 @@ value = do { bv <- basicValue ; m_semi ; return (BasicValue bv) }
 assignment :: Parser Assignment
 assignment = do { lhs <- reference ; rhs <- value ; return (Assignment lhs rhs) }
 
--- B ::= [A]
+-- S ::== A | INC
+statement :: Parser Assignment
+statement = do { as <- assignment; return as } <|> do { inc <- include ; return inc }
+
+-- B ::= [S]
 body :: Parser Body
-body = do { as <- assignment `sepBy` m_whiteSpace ; return (Body as) }
+body = do { s <- statement `sepBy` m_whiteSpace ; return (Body s) }
 
 -- P ::= R | { B }
 prototype :: Parser Prototype
@@ -109,6 +116,21 @@ prototype = do { ref <- reference ; return (RefProto ref) }
 -- SF ::= B <eof>
 specification :: Parser Body
 specification = do { m_whiteSpace; b <- body ; eof ; return b }
+
+{------------------------------------------------------------------------------
+    include file handling (not part of core syntax)
+------------------------------------------------------------------------------}
+
+handleInclude :: SourcePos -> String -> (Parser Assignment)
+handleInclude pos path = 
+	if ((sourceColumn pos) /= 1) then fail ("#include must appear in column 1")
+	else fail ("#include not supported")
+
+-- INC ::= #include "file"
+include :: Parser Assignment
+include = do { pos <- getPosition;
+			   m_symbol "#include"; path <- m_stringLiteral; m_semi;
+			   handleInclude pos path }
 
 {------------------------------------------------------------------------------
     parse tree rendering (pretty printing)
