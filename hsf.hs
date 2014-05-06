@@ -4,7 +4,6 @@
 
 import Data.List (intercalate)
 import Data.List.Split (splitOn)
-import Data.Maybe (catMaybes)
 import System.Environment (getArgs)
 import System.Cmd(rawSystem)
 import System.IO (hPutStrLn, stderr)
@@ -119,14 +118,20 @@ value = do { bv <- basicValue ; m_semi ; return (BasicValue bv) }
 assignment :: ParserIO Assignment
 assignment = do { lhs <- reference ; rhs <- value ; return (Assignment lhs rhs) }
 
--- S ::== A | #include "file"
+-- these "statements" are not part of the core syntax
+-- they are inserted here to handle #include
+-- a Body is redefined to be a list of assignments or included files
+
 statement :: ParserIO [Assignment]
 statement = do { as <- assignment; return [as] }
-	<|> do { enterInclude; ass <- statement `sepBy` m_whiteSpace; leaveInclude; return (concat ass) }
+	<|> do { enterInclude; as <- statements; leaveInclude; return as }
+
+statements :: ParserIO [Assignment]
+statements = do { ass <- statement `sepBy` m_whiteSpace; return (concat ass) }
 
 -- B ::= [S]
 body :: ParserIO Body
-body = do { ass <- statement `sepBy` m_whiteSpace ; return (Body (concat ass)) }
+body = do { as <- statements ; return (Body as) }
 
 -- P ::= R | { B }
 prototype :: ParserIO Prototype
@@ -141,12 +146,18 @@ specification = do { m_whiteSpace; b <- body ; eof; return b }
     include file handling (not part of core syntax)
 ------------------------------------------------------------------------------}
 
+-- TODO: **** what about the type of the first thing here?
+-- **** I just put in "String" as a placeholder
+-- **** I'm sure it isn't really a String - why is there no error?
+
 data ParserState = ParserState
-	{ includes :: [String]
+	{ includes :: [(String,SourcePos)]
 	}
 
-initialState = ParserState { includes = [] }
+-- TODO: **** all of this #include code needs tidying now that it is working
+-- TODO: *** it also needs testing on multiple depth includes
 
+initialState = ParserState { includes = [] }
 
 pushInclude state i = state { includes = i:(includes state) }
 
@@ -160,8 +171,9 @@ enterInclude = do
 	m_symbol "#include"; path <- m_stringLiteral; m_semi
 	state <- getState
 	currentInput <- getInput
-	setState (pushInclude state currentInput)
-	included <- liftIO (readFile path)
+	currentPos <- getPosition
+	setState (pushInclude state (currentInput,currentPos))
+	included <- liftIO (readFile (includePath (sourceName currentPos) path))
 	currentPos <- getPosition
 	setPosition ((setSourceLine (setSourceColumn (setSourceName currentPos path) 1)) 1)
 	setInput included
@@ -173,13 +185,22 @@ leaveInclude :: ParserIO ()
 leaveInclude = do
 	eof
 	state <- getState
-	let (oldInput,newState) = popInclude state
-	case oldInput of
+	let (oldState,newState) = popInclude state
+	setState newState
+	case oldState of
 		Nothing -> fail "foo"
-		Just i -> setInput i
+		Just (i,p) -> setInput i
+	case oldState of
+		Nothing -> fail "foo"
+		Just (i,p) -> setPosition p
 	return ()	
-	
-	
+
+-- TODO: at least document this
+-- it takes the include file from the same directory as the parent if it is relative
+-- we should probably implement the C-like "" and <> with a system path ....
+
+includePath :: String -> String -> String
+includePath parentPath filePath = combine (takeDirectory parentPath) filePath
 
 {------------------------------------------------------------------------------
     parse tree rendering (pretty printing)
@@ -487,6 +508,8 @@ sfParser sourcePath destPath sfParserPath = do
 		ExitFailure code -> fail ("script failed: " ++ scriptPath ++
 			 " " ++ sourcePath ++ " " ++ destPath ++ " " ++ sfParserPath )
 
+-- TODO: **** split this function into smaller ones
+
 compile :: Bool -> String -> String -> IO (String)
 compile isComparing sourcePath destPath = do
 	-- parse it & evaluate if the parse succeeds
@@ -502,6 +525,8 @@ compile isComparing sourcePath destPath = do
 				renderStore = if (isComparing) then renderCompactJSON else renderJSON
 	-- of we are comparing outputs, put the error message in the file
 	-- otherwise, print it to the stderr
+	-- TODO: *** the sourcepath here is the top-level file 
+	-- *** if we are inside a #include, we really want to print the included file ?
 	case (result) of
 		Left e -> if (isComparing)
 			then writeFile destPath e
@@ -595,6 +620,8 @@ sfParserArg :: [Flag] -> Maybe String
 sfParserArg [] = Nothing
 sfParserArg ((SfParser f):_) = Just f
 sfParserArg (_:rest) = sfParserArg rest
+
+-- TODO: *** document this!
 
 jsonPath :: String -> String -> String -> String 
 jsonPath srcPath relativeDir ext =

@@ -1,9 +1,8 @@
 // #include
 
-#include "/Users/paul/Work/Playground/HaskellSF/Git/Test/t1-ref2.sf";
+#include "t1-ref2.sf";
 
 sfConfig extends {
-	test "ok";
-	&
-	more A:B:x;
+    test "ok";
+    more A:B:x;
 }

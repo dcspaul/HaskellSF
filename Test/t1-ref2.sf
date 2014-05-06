@@ -1,4 +1,6 @@
-A extends { B extends { x 5; } }
+// references
+
+A extends { B extends { x 99; } }
 
 P extends { y 6; }
 
