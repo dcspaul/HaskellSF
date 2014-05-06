@@ -10,7 +10,6 @@ import System.IO (hPutStrLn, stderr)
 import System.Exit (exitWith,ExitCode(..))
 import System.Environment (getArgs,getExecutablePath,lookupEnv)
 import Control.Monad.IO.Class (liftIO)
-import Control.Monad.Identity (Identity)
 import System.FilePath.Posix
 import GHC.IO.Exception
 import System.Console.GetOpt
@@ -18,7 +17,6 @@ import System.Console.GetOpt
 -- cabal install Parsec
 import Text.Parsec
 import Text.Parsec.String (Parser, parseFromFile)
-import Text.Parsec.Language
 import Text.Parsec.Language (emptyDef)
 import qualified Text.Parsec.Token as P
 
@@ -28,7 +26,6 @@ import Data.String.Utils (join,replace)
 
 -- cabal install Safe
 import Safe (initSafe)
-
 
 {------------------------------------------------------------------------------
     abstract syntax
@@ -47,43 +44,13 @@ data Prototype = RefProto Reference | BodyProto Body
     lexer
 ------------------------------------------------------------------------------}
 
---myLanguageDef :: P.LanguageDef st
---myLanguageDef st = P.LanguageDef "SmartFrog" st IO ()
-
-{-
--- if we use emptyDef as the basis for this, we get the wrong type:
--- ie. we get an Identity monad instead of the IO monad that we need
--- there must be soem way round this ?
-sfDef :: LanguageDef st
-sfDef = emptyDef {
+lexer = P.makeTokenParser emptyDef {
 	P.reservedNames = ["true", "false","NULL","DATA","extends"],
 	P.reservedOpNames = ["{","}","[","]"],
 	P.commentStart = "/*",
 	P.commentEnd = "*/",
 	P.commentLine = "//"
 	}
--}
-
-type SfLanguageDef st = GenLanguageDef String st IO
-
-sfDef   :: SfLanguageDef st
-sfDef    = P.LanguageDef
-               { P.commentStart   = "/*"
-               , P.commentEnd     = "*/"
-               , P.commentLine    = "//"
-               , P.nestedComments = True
-               , P.identStart     = letter <|> char '_'
-               , P.identLetter    = alphaNum <|> oneOf "_'"
-               , P.opStart        = P.opLetter sfDef
-               , P.opLetter       = oneOf ":!#$%&*+./<=>?@\\^|-~"
-               , P.reservedOpNames= ["{","}","[","]"]
-               , P.reservedNames  = ["true", "false","NULL","DATA","extends"]
-               , P.caseSensitive  = True
-               }
-
-
-
-lexer = P.makeTokenParser sfDef
 
 m_identifier = P.identifier lexer
 m_reserved = P.reserved lexer
@@ -103,24 +70,15 @@ m_symbol = P.symbol lexer
     parser
 ------------------------------------------------------------------------------}
 
--- stream type = [Char]
--- user state = ()
--- underlying monad = Identity
--- return type t
---
--- could just be written as: type MyParser t = Parser t
--- type MyParser t = ParsecT [Char] () Identity t
-type MyParser t = ParsecT [Char] () IO t
-
-ident :: MyParser Identifier
+ident :: Parser Identifier
 ident = do { i <- m_identifier ; return (Identifier i) }
 
 -- R :: = I(:I)*
-reference :: MyParser Reference
+reference :: Parser Reference
 reference = do { ref <- ident `sepBy1` m_colon; return (Reference ref) }
 
 -- BV ::= Bool | Num | Str | DATA R | Null | Vector [BV]
-basicValue :: MyParser BasicValue
+basicValue :: Parser BasicValue
 basicValue = do { s <- m_stringLiteral ; return (StringValue s) }
 	<|> do { n <- m_integer ; return (NumValue n) }
 	<|> do { m_reserved "true" ; return (BoolValue True) }
@@ -131,39 +89,39 @@ basicValue = do { s <- m_stringLiteral ; return (StringValue s) }
 	where bvList = do { bvs <- m_commaSep basicValue; return (bvs) }
 
 -- V ::= BV ; | LR ; | extends [PS]
-value :: MyParser Value
+value :: Parser Value
 value = do { bv <- basicValue ; m_semi ; return (BasicValue bv) }
 	<|> do { lr <- reference ; m_semi ; return (LinkValue lr) }
 	<|> do { m_reserved "extends"; ps <- protoList; return (ProtoValue ps) }
 	where protoList = do { ps <- prototype `sepBy1` m_comma; return (ps) }
 
 -- A ::= R V
-assignment :: MyParser Assignment
+assignment :: Parser Assignment
 assignment = do { lhs <- reference ; rhs <- value ; return (Assignment lhs rhs) }
 
 -- S ::== A | INC
-statement :: MyParser Assignment
+statement :: Parser Assignment
 -- statement = do { as <- assignment; return as } <|> do { inc <- include ; return inc }
 statement = do { as <- assignment; return as }
 
 -- B ::= [S]
-body :: MyParser Body
+body :: Parser Body
 body = do { s <- statement `sepBy` m_whiteSpace ; return (Body s) }
 
 -- P ::= R | { B }
-prototype :: MyParser Prototype
+prototype :: Parser Prototype
 prototype = do { ref <- reference ; return (RefProto ref) }
 	<|> do { b <- m_braces body ; return (BodyProto b) }
 
 -- SF ::= B <eof>
-specification :: MyParser Body
+specification :: Parser Body
 specification = do { m_whiteSpace; b <- body ; eof ; return b }
 
 {------------------------------------------------------------------------------
     include file handling (not part of core syntax)
 ------------------------------------------------------------------------------}
 
-handleInclude :: SourcePos -> String -> (MyParser ())
+handleInclude :: SourcePos -> String -> (Parser ())
 handleInclude pos path = 
 	if ((sourceColumn pos) /= 1) then fail ("directive not in column 1 (line " ++
 		(show (sourceLine pos)) ++ ", column " ++ (show (sourceColumn pos)) ++ ")" )
@@ -174,7 +132,7 @@ handleInclude pos path =
 -- useful stuff here: http://www.vex.net/~trebla/haskell/parsec-generally.xhtml
 
 -- INC ::= #include "file"
-include :: MyParser ()
+include :: Parser ()
 include = do
 	-- pos <- getPosition
 	--m_symbol "#include"
@@ -185,6 +143,12 @@ include = do
 	included <- liftIO (readFile "foo")
 	setInput included
 	-- handleInclude pos path
+
+
+
+--setinput s (inside a "do")
+--s is a stream
+--how do I get a stream ?
 
 
 {------------------------------------------------------------------------------
@@ -479,6 +443,43 @@ instance StoreItem BasicValue where
 	renderCompactJSON (DataRef ids) = "\"$." ++ ( intercalate ":" $ map renderJSON ids ) ++ "\""
 	renderCompactJSON (Vector bvs) = "[" ++ (intercalate "," $ map renderCompactJSON bvs) ++ "]"
 
+{------------------------------------------------------------------------------
+    compile using the scala or haskell compiler
+------------------------------------------------------------------------------}
+
+sfParser :: String -> String -> String -> IO (String)
+sfParser sourcePath destPath sfParserPath = do
+	execPath <- getExecutablePath
+	let scriptPath = (takeDirectory execPath) </> "runSfParser.sh"
+ 	exitCode <- rawSystem scriptPath [ sourcePath, destPath, sfParserPath  ]
+	case (exitCode) of
+		ExitSuccess -> readFile destPath
+		ExitFailure code -> fail ("script failed: " ++ scriptPath ++
+			 " " ++ sourcePath ++ " " ++ destPath ++ " " ++ sfParserPath )
+
+compile :: Bool -> String -> String -> IO (String)
+compile isComparing sourcePath destPath = do
+	-- parse it & evaluate if the parse succeeds
+	storeOrError <- parseFromFile specification sourcePath
+	let result = case (storeOrError) of
+		Left e -> Left $ err EPARSEFAIL [ (show e) ] $ isComparing
+		Right body -> case (evalSpecification body) of
+			Left error -> Left $ ( error $ isComparing ) ++ "\n"
+			Right store -> Right $ ( renderStore store ) ++ "\n" where
+				renderStore = if (isComparing) then renderCompactJSON else renderJSON
+	-- of we are comparing outputs, put the error message in the file
+	-- otherwise, print it to the stderr
+	case (result) of
+		Left e -> if (isComparing)
+			then writeFile destPath e
+			else hPutStrLn stderr ( "** " ++ sourcePath ++ "\n" ++ e )
+		Right json -> if (destPath == "-")
+			then putStr json
+			else writeFile destPath json
+	-- return the results or the error message
+	case (result) of
+		Left e -> return e
+		Right json -> return json
 
 {------------------------------------------------------------------------------
     error messages
@@ -512,54 +513,6 @@ err code args = \isComparing -> case (code) of
 		else "no sfConfig at top level of specification [error 7]"
 	ESPEC -> "sfConfig cannot be a basic value [error 7]: " ++ a
 	where a = args!!0
-
-
-
-{------------------------------------------------------------------------------
-    compile using the scala or haskell compiler
-------------------------------------------------------------------------------}
-
-sfParser :: String -> String -> String -> IO (String)
-sfParser sourcePath destPath sfParserPath = do
-	execPath <- getExecutablePath
-	let scriptPath = (takeDirectory execPath) </> "runSfParser.sh"
- 	exitCode <- rawSystem scriptPath [ sourcePath, destPath, sfParserPath  ]
-	case (exitCode) of
-		ExitSuccess -> readFile destPath
-		ExitFailure code -> fail ("script failed: " ++ scriptPath ++
-			 " " ++ sourcePath ++ " " ++ destPath ++ " " ++ sfParserPath )
-
-compile :: Bool -> String -> String -> IO (String)
-compile isComparing sourcePath destPath = do
-
-	-- parse it & evaluate if the parse succeeds
-	-- storeOrError <- parseFromFile specification sourcePath
-	source <- readFile sourcePath
-	-- the () here is the initial state ...  
-	-- notice the runParserT !!!!!!!                    
-	storeOrError <- runParserT specification () sourcePath source
-
-
-	let result = case (storeOrError) of
-		Left e -> Left $ err EPARSEFAIL [ (show e) ] $ isComparing
-		Right body -> case (evalSpecification body) of
-			Left error -> Left $ ( error $ isComparing ) ++ "\n"
-			Right store -> Right $ ( renderStore store ) ++ "\n" where
-				renderStore = if (isComparing) then renderCompactJSON else renderJSON
-	-- of we are comparing outputs, put the error message in the file
-	-- otherwise, print it to the stderr
-	case (result) of
-		Left e -> if (isComparing)
-			then writeFile destPath e
-			else hPutStrLn stderr ( "** " ++ sourcePath ++ "\n" ++ e )
-		Right json -> if (destPath == "-")
-			then putStr json
-			else writeFile destPath json
-	-- return the results or the error message
-	case (result) of
-		Left e -> return e
-		Right json -> return json
-
 
 {------------------------------------------------------------------------------
     option handling
@@ -622,7 +575,7 @@ jsonPath srcPath relativeDir ext =
 main = do
     (args, files) <- getArgs >>= parseOptions
     mapM_ (process args) files
-	
+
 process :: [Flag] -> String -> IO ()
 process opts srcPath = do
 	let dstPath = if ((outputDir opts) == "-")
