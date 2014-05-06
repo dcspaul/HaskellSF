@@ -4,6 +4,7 @@
 
 import Data.List (intercalate)
 import Data.List.Split (splitOn)
+import Data.Maybe (catMaybes)
 import System.Environment (getArgs)
 import System.Cmd(rawSystem)
 import System.IO (hPutStrLn, stderr)
@@ -45,24 +46,24 @@ data Prototype = RefProto Reference | BodyProto Body
 ------------------------------------------------------------------------------}
 
 -- normally, we would base our definition on "emptyDef"
--- but that doesn't seem to work with ParsecT
+-- but that doesn't seem to be possible with ParsecT (?)
 
 type SfLanguageDef st = GenLanguageDef String st IO
 
-sfDef   :: SfLanguageDef st
-sfDef    = P.LanguageDef
-               { P.commentStart   = "/*"
-               , P.commentEnd     = "*/"
-               , P.commentLine    = "//"
-               , P.nestedComments = True
-               , P.identStart     = letter <|> char '_'
-               , P.identLetter    = alphaNum <|> oneOf "_'"
-               , P.opStart        = P.opLetter sfDef
-               , P.opLetter       = oneOf ":!#$%&*+./<=>?@\\^|-~"
-               , P.reservedOpNames= ["{","}","[","]"]
-               , P.reservedNames  = ["true", "false","NULL","DATA","extends"]
-               , P.caseSensitive  = True
-               }
+sfDef :: SfLanguageDef st
+sfDef = P.LanguageDef
+	{ P.commentStart   = "/*"
+	, P.commentEnd     = "*/"
+	, P.commentLine    = "//"
+	, P.nestedComments = True
+	, P.identStart     = letter <|> char '_'
+	, P.identLetter    = alphaNum <|> oneOf "_'"
+	, P.opStart        = P.opLetter sfDef
+	, P.opLetter       = oneOf ":!#$%&*+./<=>?@\\^|-~"
+	, P.reservedOpNames= ["{","}","[","]"]
+	, P.reservedNames  = ["true", "false","NULL","DATA","extends"]
+	, P.caseSensitive  = True
+	}
 
 lexer = P.makeTokenParser sfDef
 
@@ -87,7 +88,7 @@ m_symbol = P.symbol lexer
 -- our parser uses the IO monad with ParsecT
 -- this is necessary to support the #include
 
-type ParserIO t = ParsecT [Char] () IO t
+type ParserIO t = ParsecT [Char] ParserState IO t
 
 ident :: ParserIO Identifier
 ident = do { i <- m_identifier ; return (Identifier i) }
@@ -118,14 +119,14 @@ value = do { bv <- basicValue ; m_semi ; return (BasicValue bv) }
 assignment :: ParserIO Assignment
 assignment = do { lhs <- reference ; rhs <- value ; return (Assignment lhs rhs) }
 
--- S ::== A | INC
-statement :: ParserIO Assignment
--- statement = do { as <- assignment; return as } <|> do { inc <- include ; return inc }
-statement = do { as <- assignment; return as }
+-- S ::== A | #include "file"
+statement :: ParserIO [Assignment]
+statement = do { as <- assignment; return [as] }
+	<|> do { enterInclude; ass <- statement `sepBy` m_whiteSpace; leaveInclude; return (concat ass) }
 
 -- B ::= [S]
 body :: ParserIO Body
-body = do { s <- statement `sepBy` m_whiteSpace ; return (Body s) }
+body = do { ass <- statement `sepBy` m_whiteSpace ; return (Body (concat ass)) }
 
 -- P ::= R | { B }
 prototype :: ParserIO Prototype
@@ -134,34 +135,51 @@ prototype = do { ref <- reference ; return (RefProto ref) }
 
 -- SF ::= B <eof>
 specification :: ParserIO Body
-specification = do { m_whiteSpace; b <- body ; eof ; return b }
+specification = do { m_whiteSpace; b <- body ; eof; return b }
 
 {------------------------------------------------------------------------------
     include file handling (not part of core syntax)
 ------------------------------------------------------------------------------}
 
-handleInclude :: SourcePos -> String -> (ParserIO ())
-handleInclude pos path = 
-	if ((sourceColumn pos) /= 1) then fail ("directive not in column 1 (line " ++
-		(show (sourceLine pos)) ++ ", column " ++ (show (sourceColumn pos)) ++ ")" )
-	else fail ("#include not supported")
+data ParserState = ParserState
+	{ includes :: [String]
+	}
 
--- from: https://www.mail-archive.com/haskell-cafe@haskell.org/msg61202.html
--- and: http://www.haskell.org/pipermail/haskell-cafe/2010-March/074732.html
--- useful stuff here: http://www.vex.net/~trebla/haskell/parsec-generally.xhtml
+initialState = ParserState { includes = [] }
+
+
+pushInclude state i = state { includes = i:(includes state) }
+
+popInclude state = case (includes state) of
+	[] -> (Nothing,state)
+	(i:is) -> (Just i, state { includes = is } )
 
 -- INC ::= #include "file"
-include :: ParserIO ()
-include = do
-	-- pos <- getPosition
-	--m_symbol "#include"
-	--path <- m_stringLiteral
-	--m_semi
-	i <- getInput
-	--included <- liftIO (readFile path)
-	included <- liftIO (readFile "foo")
+enterInclude :: ParserIO ()
+enterInclude = do
+	m_symbol "#include"; path <- m_stringLiteral; m_semi
+	state <- getState
+	currentInput <- getInput
+	setState (pushInclude state currentInput)
+	included <- liftIO (readFile path)
+	currentPos <- getPosition
+	setPosition ((setSourceLine (setSourceColumn (setSourceName currentPos path) 1)) 1)
 	setInput included
-	-- handleInclude pos path
+	m_whiteSpace
+	return ()
+
+-- end of included file
+leaveInclude :: ParserIO ()
+leaveInclude = do
+	eof
+	state <- getState
+	let (oldInput,newState) = popInclude state
+	case oldInput of
+		Nothing -> fail "foo"
+		Just i -> setInput i
+	return ()	
+	
+	
 
 {------------------------------------------------------------------------------
     parse tree rendering (pretty printing)
@@ -475,7 +493,7 @@ compile isComparing sourcePath destPath = do
 	source <- readFile sourcePath
 	-- the () here is the initial state  
 	-- notice the runParserT                 
-	storeOrError <- runParserT specification () sourcePath source
+	storeOrError <- runParserT specification initialState sourcePath source
 	let result = case (storeOrError) of
 		Left e -> Left $ err EPARSEFAIL [ (show e) ] $ isComparing
 		Right body -> case (evalSpecification body) of
