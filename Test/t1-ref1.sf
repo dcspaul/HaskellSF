@@ -1,0 +1,10 @@
+// references
+
+A extends { B extends { x 5; } }
+
+P extends { y 6; }
+
+sfConfig extends {
+	P:z A:B:x;
+	Q extends P
+}

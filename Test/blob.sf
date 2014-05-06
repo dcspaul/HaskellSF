@@ -1,0 +1,9 @@
+// error 6
+
+top extends { x "foo"; }
+
+sfConfig extends {
+	C 2;
+	D top:x; +
+	
+}
