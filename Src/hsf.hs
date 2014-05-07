@@ -13,6 +13,7 @@ import Control.Monad.IO.Class (liftIO)
 import System.FilePath.Posix
 import GHC.IO.Exception
 import System.Console.GetOpt
+import HSF.Include
 
 -- cabal install Parsec
 import Text.Parsec

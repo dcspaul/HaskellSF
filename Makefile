@@ -4,47 +4,59 @@ PLATFORM := $(shell echo `uname`-`arch`)
 VERSION := 76
 REMOTE_VERSION := 78
 
+TOP_DIR := $(shell pwd)
+SRC_DIR := $(TOP_DIR)/Src
+BUILD_DIR := $(TOP_DIR)/Build$(VERSION)/$(PLATFORM)
+SCRATCH_DIR := $(TOP_DIR)/Scratch
+TEST_DIR := $(TOP_DIR)/Test
+
 # this target builds the binary for the current platform
 # using the given VERSION of the Haskell compiler
 
-build: Build$(VERSION)/hsf-$(PLATFORM)
+build: $(BUILD_DIR)/hsf
 
-Build$(VERSION)/hsf-$(PLATFORM): \
-		Build$(VERSION)/hsf-$(PLATFORM).hs \
-		Build$(VERSION)/runSfParser.sh  \
+$(BUILD_DIR)/hsf: \
+		$(BUILD_DIR)/hsf.hs \
+		$(BUILD_DIR)/HSF/Include.hs \
+		$(BUILD_DIR)/runSfParser.sh  \
 		Makefile
-	@cd Build$(VERSION) || exit 1; \
+	@cd $(BUILD_DIR) || exit 1; \
 	export PATH=/opt/ghc$(VERSION)/bin:$$PATH || exit 1 ;\
 	ghc --version || exit 1 ;\
-	ghc -o hsf-$(PLATFORM) hsf-$(PLATFORM).hs || exit 1; \
-	rm -f hsf || exit 1; ln hsf-$(PLATFORM) hsf || exit 1
+	ghc -o hsf --make hsf.hs || exit 1; \
+	rm -f ../hsf || exit 1; ln hsf ../hsf || exit 1
 
-Build$(VERSION)/hsf-$(PLATFORM).hs: Src/hsf.hs Makefile
-	@mkdir -p Build$(VERSION) || exit 1
+$(BUILD_DIR)/hsf.hs: $(SRC_DIR)/hsf.hs Makefile
+	@mkdir -p $(BUILD_DIR) || exit
 	@if test "$(VERSION)" = "78" ; then \
-		grep -v 'import Data.List.Split' Src/hsf.hs >Build$(VERSION)/hsf-$(PLATFORM).hs || exit 1 ;\
+		grep -v 'import Data.List.Split' $(SRC_DIR)/hsf.hs >$(BUILD_DIR)/hsf.hs || exit 1 ;\
 	else \
-		cp Src/hsf.hs Build$(VERSION)/hsf-$(PLATFORM).hs || exit 1 ;\
+		cp $(SRC_DIR)/hsf.hs $(BUILD_DIR)/hsf.hs || exit 1 ;\
 	fi
 
-Build$(VERSION)/runSfParser.sh: Src/runSfParser.sh Makefile
-	@mkdir -p Build$(VERSION) || exit 1
-	@cp Src/runSfParser.sh Build$(VERSION)/runSfParser.sh || exit 1
+$(BUILD_DIR)/HSF/%.hs: $(SRC_DIR)/HSF/%.hs Makefile
+	@mkdir -p $(BUILD_DIR)/HSF || exit 1
+	@rm -f $@ || exit 1
+	@cp $< $@ 
+
+$(BUILD_DIR)/runSfParser.sh: $(SRC_DIR)/runSfParser.sh Makefile
+	@mkdir -p $(BUILD_DIR) || exit
+	@cp $(SRC_DIR)/runSfParser.sh $(BUILD_DIR)/runSfParser.sh || exit 1
 
 # this target compiles all of the test files
 
 compile-tests: build
 	@echo compiling all tests ...
-	@mkdir -p Scratch || exit 1
-	@Build$(VERSION)/hsf-$(PLATFORM) -o ../Scratch `pwd`/Test/*.sf
+	@mkdir -p $(SCRATCH_DIR) || exit 1
+	@Build$(VERSION)/hsf-$(PLATFORM) -o $(SCRATCH_DIR) $(TEST_DIR)/*.sf
 
 # this target runs all of the tests, comparing the output with sfParser
 # you need to define: SFPARSER=location-of-sfparser (unless it is in your PATH)
 
 test: build
 	@echo comparing output ...
-	@mkdir -p Scratch || exit 1
-	@Build$(VERSION)/hsf-$(PLATFORM) -c -o ../Scratch `pwd`/Test/*.sf
+	@mkdir -p $(SCRATCH_DIR) || exit 1
+	@Build$(VERSION)/hsf-$(PLATFORM) -c -o $(SCRATCH_DIR) $(TEST_DIR)/*.sf
 
 # this target does a build on a remote machine
 # using the given REMOTE_VERSION of the Haskell compiler
@@ -76,5 +88,14 @@ remote:
 # clean out the binaries & the test results
 
 clean:
-	@rm -rf Build??/*
-	@rm -rf Scratch/*
+	@echo cleaning ...
+	@rm -rf $(TOP_DIR)/Build??/* $(SCRATCH_DIR)/*
+
+# where is everything
+
+where:
+	@echo TOP = $(TOP_DIR)
+	@echo SRC = $(SRC_DIR)
+	@echo SCRATCH = $(SCRATCH_DIR)
+	@echo BUILD = $(BUILD_DIR)
+	@echo TEST = $(TEST_DIR)
