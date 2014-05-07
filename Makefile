@@ -13,18 +13,18 @@ TEST_DIR := $(TOP_DIR)/Test
 # this target builds the binary for the current platform
 # using the given VERSION of the Haskell compiler
 
-build: $(BUILD_DIR)/hsf
+build: $(BUILD_DIR)/hsf-$(PLATFORM)
 
-$(BUILD_DIR)/hsf: \
+$(BUILD_DIR)/hsf-$(PLATFORM): \
 		$(BUILD_DIR)/hsf.hs \
 		$(BUILD_DIR)/HSF/Include.hs \
-		$(BUILD_DIR)/runSfParser.sh  \
+		$(BUILD_DIR)/runSfParser.sh \
 		Makefile
 	@cd $(BUILD_DIR) || exit 1; \
 	export PATH=/opt/ghc$(VERSION)/bin:$$PATH || exit 1 ;\
 	ghc --version || exit 1 ;\
-	ghc -o hsf --make hsf.hs || exit 1; \
-	rm -f ../hsf || exit 1; ln hsf ../hsf || exit 1
+	ghc -o hsf-$(PLATFORM) --make hsf.hs || exit 1; \
+	rm -f ../hsf || exit 1; ln hsf-$(PLATFORM) ../hsf || exit 1
 
 $(BUILD_DIR)/hsf.hs: $(SRC_DIR)/hsf.hs Makefile
 	@mkdir -p $(BUILD_DIR) || exit
@@ -45,18 +45,18 @@ $(BUILD_DIR)/runSfParser.sh: $(SRC_DIR)/runSfParser.sh Makefile
 
 # this target compiles all of the test files
 
-compile-tests: build
+compile-tests: $(BUILD_DIR)/hsf-$(PLATFORM)
 	@echo compiling all tests ...
 	@mkdir -p $(SCRATCH_DIR) || exit 1
-	@Build$(VERSION)/hsf-$(PLATFORM) -o $(SCRATCH_DIR) $(TEST_DIR)/*.sf
+	@$(BUILD_DIR)/hsf-$(PLATFORM) -o $(SCRATCH_DIR) $(TEST_DIR)/*.sf
 
 # this target runs all of the tests, comparing the output with sfParser
 # you need to define: SFPARSER=location-of-sfparser (unless it is in your PATH)
 
-test: build
+test: $(BUILD_DIR)/hsf-$(PLATFORM)
 	@echo comparing output ...
 	@mkdir -p $(SCRATCH_DIR) || exit 1
-	@Build$(VERSION)/hsf-$(PLATFORM) -c -o $(SCRATCH_DIR) $(TEST_DIR)/*.sf
+	@$(BUILD_DIR)/hsf-$(PLATFORM) -c -o $(SCRATCH_DIR) $(TEST_DIR)/*.sf
 
 # this target does a build on a remote machine
 # using the given REMOTE_VERSION of the Haskell compiler
@@ -73,17 +73,17 @@ remote:
 	rsync -rlptSxzC -e ssh --delete \
 		--exclude '.DS*' \
 		--exclude '..DS*' \
-		../../HaskellSF/Git/ $(HSF_REMOTE) || exit 1 ;\
+		$(TOP_DIR)/ $(HSF_REMOTE) || exit 1 ;\
 	echo building ... ;\
 	ssh $$SERVER_ACCOUNT "make -C $$UPLOAD_DIR VERSION=$(REMOTE_VERSION)" || exit 1 ;\
 	echo downloading result ... ;\
 	rsync -rlptSxzC -e ssh \
 		--exclude '.DS*' \
 		--exclude '..DS*' \
-		$(HSF_REMOTE)/Build$(REMOTE_VERSION)/* ../../HaskellSF/Git/Build$(REMOTE_VERSION) || exit 1 ;\
-	cd Build$(REMOTE_VERSION) || exit 1; \
-	rm -f hsf || exit 1; \
-	test -f hsf-$(PLATFORM) && ln hsf-$(PLATFORM) hsf || exit 0
+		$(HSF_REMOTE)/Build$(REMOTE_VERSION)/* $(TOP_DIR)/Build$(REMOTE_VERSION) || exit 1 ;\
+	cd $(BUILD_DIR) || exit 1; \
+	rm -f ../hsf || exit 1; \
+	test -f hsf-$(PLATFORM) && ln hsf-$(PLATFORM) ../hsf || exit 0
 
 # clean out the binaries & the test results
 

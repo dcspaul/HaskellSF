@@ -2,7 +2,7 @@
     Include implementation
 ------------------------------------------------------------------------------}
 
-module HSF.Include
+module HSF.Include (Foo) where
 
 data Foo = Bar
 
