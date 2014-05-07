@@ -2,7 +2,7 @@
 
 hsf is compiler which implements the formal semantics of the core [SmartFrog](http://smartfrog.org) configuration language. hsf is a Haskell implementation which is intended to be compatible with the [Scala implementation](https://github.com/herry13/smartfrog-lang/blob/master/README.md) sfparser. The output can be compared with the output of sfparser to validate the semantics and the implementations.
 
-The current version does not support #include or ``placement''.
+The current version does not support ``placement''.
 
 ### Compiling SmartFrog files
 
@@ -46,7 +46,3 @@ machine (and retrieve the result).
 
 Paul Anderson
 <dcspaul@ed.ac.uk>
-
-
-
-

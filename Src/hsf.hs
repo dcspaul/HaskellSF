@@ -146,6 +146,17 @@ specification = do { m_whiteSpace; b <- body ; eof; return b }
     include file handling (not part of core syntax)
 ------------------------------------------------------------------------------}
 
+-- this extension to the core semantics implements #include
+-- there is no attempt to maintain strict compatibility with the production SF compiler
+-- (I'm not even sure of the exact semantics of #include in the production compiler)
+-- in particular ...
+-- (*) #include does not need to start in the first column
+-- (*) it is integrated with the language syntax, so it is only valid where an "assignment"
+--     would be valid. unlike cpp, this makes it illegal to have include files which do not
+--     nest properly with the language blocks -- this is good (I think)
+-- (*) relative pathnames are interpreted relative the directory of the including file
+-- (*) It does not implement <filename> for locating files in a system search path
+
 -- TODO: **** what about the type of the first thing here?
 -- **** I just put in "String" as a placeholder
 -- **** I'm sure it isn't really a String - why is there no error?
@@ -196,10 +207,6 @@ leaveInclude = do
 		Nothing -> fail "foo"
 		Just (i,p) -> setPosition p
 	return ()	
-
--- TODO: at least document this
--- it takes the include file from the same directory as the parent if it is relative
--- we should probably implement the C-like "" and <> with a system path ....
 
 includePath :: String -> String -> String
 includePath parentPath filePath = combine (takeDirectory parentPath) filePath
