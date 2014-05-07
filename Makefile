@@ -33,6 +33,8 @@ $(BUILD_DIR)/hsf-$(PLATFORM): \
 		$(BUILD_DIR)/HSF/Parser.hs \
 		$(BUILD_DIR)/HSF/Eval.hs \
 		$(BUILD_DIR)/HSF/Utils.hs \
+		$(BUILD_DIR)/HSF/Options.hs \
+		$(BUILD_DIR)/HSF/RunScalaVersion.hs \
 		Makefile
 	@cd $(BUILD_DIR) || exit 1; \
 	export PATH=/opt/ghc$(VERSION)/bin:$$PATH || exit 1 ;\
