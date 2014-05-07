@@ -1,56 +1,55 @@
-.PHONY: build build-76 build-78 test compile clean remote
+.PHONY: build remote test compile-tests clean
 
 PLATFORM := $(shell echo `uname`-`arch`)
+VERSION := 76
+REMOTE_VERSION := 78
 
-build: build-76
+# this target builds the binary for the current platform
+# using the given VERSION of the Haskell compiler
+
+build: Build$(VERSION)/hsf-$(PLATFORM)
+
+Build$(VERSION)/hsf-$(PLATFORM): \
+		Build$(VERSION)/hsf-$(PLATFORM).hs \
+		Build$(VERSION)/runSfParser.sh  \
+		Makefile
+	@cd Build$(VERSION) || exit 1; \
+	export PATH=/opt/ghc$(VERSION)/bin:$$PATH || exit 1 ;\
+	ghc --version || exit 1 ;\
+	ghc -o hsf-$(PLATFORM) hsf-$(PLATFORM).hs || exit 1; \
+	rm -f hsf || exit 1; ln hsf-$(PLATFORM) hsf || exit 1
+
+Build$(VERSION)/hsf-$(PLATFORM).hs: Src/hsf.hs Makefile
+	@mkdir -p Build$(VERSION) || exit 1
+	@if test "$(VERSION)" = "78" ; then \
+		grep -v 'import Data.List.Split' Src/hsf.hs >Build$(VERSION)/hsf-$(PLATFORM).hs || exit 1 ;\
+	else \
+		cp Src/hsf.hs Build$(VERSION)/hsf-$(PLATFORM).hs || exit 1 ;\
+	fi
+
+Build$(VERSION)/runSfParser.sh: Src/runSfParser.sh Makefile
+	@mkdir -p Build$(VERSION) || exit 1
+	@cp Src/runSfParser.sh Build$(VERSION)/runSfParser.sh || exit 1
+
+# this target compiles all of the test files
+
+compile-tests: build
+	@echo compiling all tests ...
+	@mkdir -p Scratch || exit 1
+	@Build$(VERSION)/hsf-$(PLATFORM) -o ../Scratch `pwd`/Test/*.sf
+
+# this target runs all of the tests, comparing the output with sfParser
+# you need to define: SFPARSER=location-of-sfparser (unless it is in your PATH)
 
 test: build
 	@echo comparing output ...
-	@Build/hsf-$(PLATFORM) -c -o ../Scratch `pwd`/Test/*.sf
-
-compile: build
-	@echo compiling all tests ...
-	@Build/hsf-$(PLATFORM) -o ../Scratch `pwd`/Test/*.sf
-
-clean:
-	@rm -rf Build??/*
-	@rm -rf Scratch/*
-
-# this target does a build using the old version of the Haskell compiler (7.6)
-
-build-76: Build76/hsf-$(PLATFORM)
-
-Build76/hsf-$(PLATFORM): hsf.hs Makefile
-	@cd Build76 || exit 1; \
-	rm -f hsf-$(PLATFORM).hs || exit 1 ;\
-	cp ../hsf.hs hsf-$(PLATFORM).hs || exit 1 ;\
-	rm -f runSfParser.sh || exit 1 ;\
-	cp ../runSfParser.sh runSfParser.sh || exit 1 ;\
-	export PATH=/opt/ghc76/bin:$$PATH || exit 1 ;\
-	ghc --version || exit 1 ;\
-	ghc -o hsf-$(PLATFORM) hsf-$(PLATFORM).hs || exit 1; \
-	rm -f hsf || exit 1; ln hsf-$(PLATFORM) hsf || exit 1
-
-# this target does a build using the new version of the Haskell compiler (7.8)
-
-build-78: Build78/hsf-$(PLATFORM)
-
-Build78/hsf-$(PLATFORM): hsf.hs Makefile
-	@cd Build78 || exit 1; \
-	rm -f hsf-$(PLATFORM).hs || exit 1 ;\
-	grep -v 'import Data.List.Split' ../hsf.hs >hsf-$(PLATFORM).hs || exit 1 ;\
-	rm -f runSfParser.sh || exit 1 ;\
-	cp ../runSfParser.sh runSfParser.sh || exit 1 ;\
-	export PATH=/opt/ghc78/bin:$$PATH ;\
-	ghc --version || exit 1 ;\
-	ghc -o hsf-$(PLATFORM) hsf-$(PLATFORM).hs || exit 1; \
-	rm -f hsf || exit 1; ln hsf-$(PLATFORM) hsf || exit 1
+	@mkdir -p Scratch || exit 1
+	@Build$(VERSION)/hsf-$(PLATFORM) -c -o ../Scratch `pwd`/Test/*.sf
 
 # this target does a build on a remote machine
+# using the given REMOTE_VERSION of the Haskell compiler
 # eg. for testing a different architecture or compiler version
 # you need to define: HSF_REMOTE=USER@HOST:PATH
-
-REMOTE_VERSION=78
 
 remote:
 	@export UPLOAD_DIR=`echo $(HSF_REMOTE) | sed 's/.*://'` ;\
@@ -64,11 +63,18 @@ remote:
 		--exclude '..DS*' \
 		../../HaskellSF/Git/ $(HSF_REMOTE) || exit 1 ;\
 	echo building ... ;\
-	ssh $$SERVER_ACCOUNT "make -C $$UPLOAD_DIR build-$(REMOTE_VERSION)" || exit 1 ;\
+	ssh $$SERVER_ACCOUNT "make -C $$UPLOAD_DIR VERSION=$(REMOTE_VERSION)" || exit 1 ;\
 	echo downloading result ... ;\
 	rsync -rlptSxzC -e ssh \
 		--exclude '.DS*' \
 		--exclude '..DS*' \
 		$(HSF_REMOTE)/Build$(REMOTE_VERSION)/* ../../HaskellSF/Git/Build$(REMOTE_VERSION) || exit 1 ;\
 	cd Build$(REMOTE_VERSION) || exit 1; \
-	rm -f hsf || exit 1; test -f hsf-$(PLATFORM) && ln hsf-$(PLATFORM) hsf
+	rm -f hsf || exit 1; \
+	test -f hsf-$(PLATFORM) && ln hsf-$(PLATFORM) hsf || exit 0
+
+# clean out the binaries & the test results
+
+clean:
+	@rm -rf Build??/*
+	@rm -rf Scratch/*

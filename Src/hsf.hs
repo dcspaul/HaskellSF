@@ -173,6 +173,8 @@ enterInclude = do
 	currentInput <- getInput
 	currentPos <- getPosition
 	setState (pushInclude state (currentInput,currentPos))
+	-- TODO: **** if this readfile fails, we should return a graceful compiler
+	-- error, rather than crashing out
 	included <- liftIO (readFile (includePath (sourceName currentPos) path))
 	currentPos <- getPosition
 	setPosition ((setSourceLine (setSourceColumn (setSourceName currentPos path) 1)) 1)
