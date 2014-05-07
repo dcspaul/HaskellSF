@@ -18,10 +18,10 @@ install: $(BIN_DIR)/hsf$(VERSION)-$(PLATFORM)
 	
 $(BIN_DIR)/hsf$(VERSION)-$(PLATFORM) $(BIN_DIR)/hsf: $(BUILD_DIR)/hsf-$(PLATFORM)
 	@echo installing hsf$(VERSION)-$(PLATFORM)
-	@mkdir -p $(BIN_DIR)
-	@install $(BUILD_DIR)/hsf-$(PLATFORM) $(BIN_DIR)/hsf$(VERSION)-$(PLATFORM)
-	@rm -f $(BIN_DIR)/hsf
-	@ln $(BIN_DIR)/hsf$(VERSION)-$(PLATFORM) $(BIN_DIR)/hsf
+	@mkdir -p $(BIN_DIR) || exit 1
+	@install -C $(BUILD_DIR)/hsf-$(PLATFORM) $(BIN_DIR)/hsf$(VERSION)-$(PLATFORM) || exit 1
+	@install -C $(BUILD_DIR)/hsf-$(PLATFORM) $(BIN_DIR)/hsf || exit 1
+	@install -C $(SRC_DIR)/runSfParser.sh $(BIN_DIR)/runSfParser.sh || exit 1
 
 # build a binary for the current platform
 # using the given VERSION of the Haskell compiler
@@ -31,7 +31,6 @@ build: $(BUILD_DIR)/hsf-$(PLATFORM)
 $(BUILD_DIR)/hsf-$(PLATFORM): \
 		$(BUILD_DIR)/hsf.hs \
 		$(BUILD_DIR)/HSF/Include.hs \
-		$(BUILD_DIR)/runSfParser.sh \
 		Makefile
 	@cd $(BUILD_DIR) || exit 1; \
 	export PATH=/opt/ghc$(VERSION)/bin:$$PATH || exit 1 ;\
@@ -50,10 +49,6 @@ $(BUILD_DIR)/HSF/%.hs: $(SRC_DIR)/HSF/%.hs Makefile
 	@mkdir -p $(BUILD_DIR)/HSF || exit 1
 	@rm -f $@ || exit 1
 	@cp $< $@ 
-
-$(BUILD_DIR)/runSfParser.sh: $(SRC_DIR)/runSfParser.sh Makefile
-	@mkdir -p $(BUILD_DIR) || exit
-	@cp $(SRC_DIR)/runSfParser.sh $(BUILD_DIR)/runSfParser.sh || exit 1
 
 # this target compiles all of the test files
 
@@ -95,7 +90,7 @@ remote:
 		$(HSF_REMOTE)/Build$(REMOTE_VERSION)/* $(TOP_DIR)/Build$(REMOTE_VERSION) || exit 1 ;\
 	echo installing hsf$(REMOTE_VERSION)-$$REMOTE_PLATFORM ;\
 	mkdir -p $(BIN_DIR) ;\
-	install $(TOP_DIR)/Build$(REMOTE_VERSION)/$$REMOTE_PLATFORM/hsf-$$REMOTE_PLATFORM \
+	install -C $(TOP_DIR)/Build$(REMOTE_VERSION)/$$REMOTE_PLATFORM/hsf-$$REMOTE_PLATFORM \
 		$(BIN_DIR)/hsf$(REMOTE_VERSION)-$$REMOTE_PLATFORM
 
 # clean out the binaries & the test results
