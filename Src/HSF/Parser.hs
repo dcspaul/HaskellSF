@@ -139,12 +139,12 @@ specification :: ParserIO Body
 specification = do { m_whiteSpace; b <- body ; eof; return b }
 
 {------------------------------------------------------------------------------
-    include file handling (not part of core syntax)
+    include file handling (not part of core language)
 ------------------------------------------------------------------------------}
 
--- this extension to the core semantics implements #include
+-- this extension to the core language implements #include
 -- there is no attempt to maintain strict compatibility with the production SF compiler
--- (I'm not even sure of the exact semantics of #include in the production compiler)
+-- (I'm not even sure of the exact syntax/semantics of #include in the production compiler)
 -- in particular ...
 -- (*) #include does not need to start in the first column
 -- (*) it is integrated with the language syntax, so it is only valid where an "assignment"

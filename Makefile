@@ -43,11 +43,7 @@ $(BUILD_DIR)/hsf-$(PLATFORM): \
 
 $(BUILD_DIR)/hsf.hs: $(SRC_DIR)/hsf.hs Makefile
 	@mkdir -p $(BUILD_DIR) || exit
-	@if test "$(VERSION)" = "78" ; then \
-		grep -v 'import Data.List.Split' $(SRC_DIR)/hsf.hs >$(BUILD_DIR)/hsf.hs || exit 1 ;\
-	else \
-		cp $(SRC_DIR)/hsf.hs $(BUILD_DIR)/hsf.hs || exit 1 ;\
-	fi
+	@cp $(SRC_DIR)/hsf.hs $(BUILD_DIR)/hsf.hs || exit 1
 
 $(BUILD_DIR)/HSF/%.hs: $(SRC_DIR)/HSF/%.hs Makefile
 	@mkdir -p $(BUILD_DIR)/HSF || exit 1

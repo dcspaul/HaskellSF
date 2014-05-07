@@ -12,7 +12,7 @@ import HSF.Options
 import System.FilePath.Posix (takeDirectory, (</>))
 import System.Environment (getExecutablePath)
 import GHC.IO.Exception (ExitCode(..))
-import System.Cmd(rawSystem)
+import System.Process (runProcess, waitForProcess)
 import System.Environment (lookupEnv)
 
 {------------------------------------------------------------------------------
@@ -28,7 +28,9 @@ runSfParser sourcePath destPath opts = do
 	execPath <- getExecutablePath
 	parserPath <- getSfParserPath opts
 	let scriptPath = (takeDirectory execPath) </> "runSfParser.sh"
- 	exitCode <- rawSystem scriptPath [ sourcePath, destPath, parserPath  ]
+	ph <- runProcess scriptPath [ sourcePath, destPath, parserPath  ]
+		Nothing Nothing Nothing Nothing Nothing
+	exitCode <- waitForProcess ph
 	case (exitCode) of
 		ExitSuccess -> readFile destPath
 		ExitFailure code -> fail ("runSfParser failed: " ++ scriptPath ++
