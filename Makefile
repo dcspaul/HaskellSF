@@ -30,7 +30,9 @@ build: $(BUILD_DIR)/hsf-$(PLATFORM)
 
 $(BUILD_DIR)/hsf-$(PLATFORM): \
 		$(BUILD_DIR)/hsf.hs \
-		$(BUILD_DIR)/HSF/Include.hs \
+		$(BUILD_DIR)/HSF/Parser.hs \
+		$(BUILD_DIR)/HSF/Eval.hs \
+		$(BUILD_DIR)/HSF/Utils.hs \
 		Makefile
 	@cd $(BUILD_DIR) || exit 1; \
 	export PATH=/opt/ghc$(VERSION)/bin:$$PATH || exit 1 ;\
