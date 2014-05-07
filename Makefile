@@ -1,4 +1,4 @@
-.PHONY: build remote test compile-tests clean
+.PHONY: install remote build test compile-tests clean
 
 PLATFORM := $(shell echo `uname`-`arch`)
 VERSION := 76
@@ -9,8 +9,21 @@ SRC_DIR := $(TOP_DIR)/Src
 BUILD_DIR := $(TOP_DIR)/Build$(VERSION)/$(PLATFORM)
 SCRATCH_DIR := $(TOP_DIR)/Scratch
 TEST_DIR := $(TOP_DIR)/Test
+BIN_DIR := $(TOP_DIR)/Bin
 
-# this target builds the binary for the current platform
+# build a binary for the current platform
+# put it in the bin directory with a platform/version specific name
+
+install: $(BIN_DIR)/hsf$(VERSION)-$(PLATFORM)
+	
+$(BIN_DIR)/hsf$(VERSION)-$(PLATFORM) $(BIN_DIR)/hsf: $(BUILD_DIR)/hsf-$(PLATFORM)
+	@echo installing hsf$(VERSION)-$(PLATFORM)
+	@mkdir -p $(BIN_DIR)
+	@install $(BUILD_DIR)/hsf-$(PLATFORM) $(BIN_DIR)/hsf$(VERSION)-$(PLATFORM)
+	@rm -f $(BIN_DIR)/hsf
+	@ln $(BIN_DIR)/hsf$(VERSION)-$(PLATFORM) $(BIN_DIR)/hsf
+
+# build a binary for the current platform
 # using the given VERSION of the Haskell compiler
 
 build: $(BUILD_DIR)/hsf-$(PLATFORM)
@@ -44,18 +57,18 @@ $(BUILD_DIR)/runSfParser.sh: $(SRC_DIR)/runSfParser.sh Makefile
 
 # this target compiles all of the test files
 
-compile-tests: $(BUILD_DIR)/hsf-$(PLATFORM)
+compile-tests: build
 	@echo compiling all tests ...
 	@mkdir -p $(SCRATCH_DIR) || exit 1
-	@$(BUILD_DIR)/hsf-$(PLATFORM) -o $(SCRATCH_DIR) $(TEST_DIR)/*.sf
+	@$(BIN_DIR)/hsf$(VERSION)-$(PLATFORM) -o $(SCRATCH_DIR) $(TEST_DIR)/*.sf
 
 # this target runs all of the tests, comparing the output with sfParser
 # you need to define: SFPARSER=location-of-sfparser (unless it is in your PATH)
 
-test: $(BUILD_DIR)/hsf-$(PLATFORM)
+test: build
 	@echo comparing output ...
 	@mkdir -p $(SCRATCH_DIR) || exit 1
-	@$(BUILD_DIR)/hsf-$(PLATFORM) -c -o $(SCRATCH_DIR) $(TEST_DIR)/*.sf
+	@$(BIN_DIR)/hsf$(VERSION)-$(PLATFORM) -c -o $(SCRATCH_DIR) $(TEST_DIR)/*.sf
 
 # this target does a build on a remote machine
 # using the given REMOTE_VERSION of the Haskell compiler
@@ -74,24 +87,29 @@ remote:
 		--exclude '..DS*' \
 		$(TOP_DIR)/ $(HSF_REMOTE) || exit 1 ;\
 	echo building ... ;\
-	ssh $$SERVER_ACCOUNT "make -C $$UPLOAD_DIR VERSION=$(REMOTE_VERSION)" || exit 1 ;\
+	ssh $$SERVER_ACCOUNT "make -C $$UPLOAD_DIR VERSION=$(REMOTE_VERSION) build" || exit 1 ;\
 	echo downloading result ... ;\
 	rsync -rlptSxzC -e ssh \
 		--exclude '.DS*' \
 		--exclude '..DS*' \
-		$(HSF_REMOTE)/Build$(REMOTE_VERSION)/* $(TOP_DIR)/Build$(REMOTE_VERSION) || exit 1
+		$(HSF_REMOTE)/Build$(REMOTE_VERSION)/* $(TOP_DIR)/Build$(REMOTE_VERSION) || exit 1 ;\
+	echo installing hsf$(REMOTE_VERSION)-$$REMOTE_PLATFORM ;\
+	mkdir -p $(BIN_DIR) ;\
+	install $(TOP_DIR)/Build$(REMOTE_VERSION)/$$REMOTE_PLATFORM/hsf-$$REMOTE_PLATFORM \
+		$(BIN_DIR)/hsf$(REMOTE_VERSION)-$$REMOTE_PLATFORM
 
 # clean out the binaries & the test results
 
 clean:
 	@echo cleaning ...
-	@rm -rf $(TOP_DIR)/Build??/* $(SCRATCH_DIR)/*
+	@rm -rf $(TOP_DIR)/Build?? $(SCRATCH_DIR)
 
 # where is everything
 
 where:
 	@echo TOP = $(TOP_DIR)
 	@echo SRC = $(SRC_DIR)
+	@echo BIN = $(BIN_DIR)
 	@echo SCRATCH = $(SCRATCH_DIR)
 	@echo BUILD = $(BUILD_DIR)
 	@echo TEST = $(TEST_DIR)
