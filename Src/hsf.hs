@@ -14,7 +14,7 @@ import HSF.Options
 import HSF.RunScalaVersion
 
 {------------------------------------------------------------------------------
-    compile using the scala or haskell compiler
+    compile SF source
 ------------------------------------------------------------------------------}
 
 -- TODO: **** split this function into smaller ones
@@ -23,8 +23,6 @@ compile :: Bool -> String -> String -> IO (String)
 compile isComparing sourcePath destPath = do
 	-- parse it & evaluate if the parse succeeds
 	source <- readFile sourcePath
-	-- the () here is the initial state  
-	-- notice the runParserT                 
 	storeOrError <- parseSF sourcePath source
 	let result = case (storeOrError) of
 		Left e -> Left $ err EPARSEFAIL [ (show e) ] $ isComparing
@@ -59,9 +57,9 @@ main = do
 
 process :: [OptionFlag] -> String -> IO ()
 process opts srcPath = do
-	let dstPath = if ((getOutputPath opts) == "-")
+	let dstPath = if ((outputPath opts) == "-")
 		then (++) "-"
-		else getJsonPath srcPath opts
+		else jsonPath srcPath opts
 	if (compareOptionPresent opts) then do
 		haskellResult <- compile True srcPath (dstPath "-1")
 		scalaResult <- runSfParser srcPath (dstPath "-2") opts

@@ -5,7 +5,8 @@
 
 module HSF.Parser
 	( Identifier(..), Reference(..) , Body(..) , BasicValue(..)
-	, Value(..), Assignment(..), Prototype(..), ParserIO
+	, Value(..), Assignment(..), Prototype(..)
+	, ParserIO
 	, parseSF
 	, render
 	) where

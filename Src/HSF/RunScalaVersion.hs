@@ -13,18 +13,38 @@ import System.FilePath.Posix (takeDirectory, (</>))
 import System.Environment (getExecutablePath)
 import GHC.IO.Exception (ExitCode(..))
 import System.Cmd(rawSystem)
+import System.Environment (lookupEnv)
 
 {------------------------------------------------------------------------------
-    compile using the scala or haskell compiler
+    compile source using the scala version of the SF compiler
 ------------------------------------------------------------------------------}
+
+-- run the script runSfParser.sh
+-- (assumed to be in same directory as the hsf binary)
+-- return the output
 
 runSfParser :: String -> String -> [OptionFlag] -> IO (String)
 runSfParser sourcePath destPath opts = do
 	execPath <- getExecutablePath
-	sfParserPath <- getSfParserPath opts
+	parserPath <- getSfParserPath opts
 	let scriptPath = (takeDirectory execPath) </> "runSfParser.sh"
- 	exitCode <- rawSystem scriptPath [ sourcePath, destPath, sfParserPath  ]
+ 	exitCode <- rawSystem scriptPath [ sourcePath, destPath, parserPath  ]
 	case (exitCode) of
 		ExitSuccess -> readFile destPath
-		ExitFailure code -> fail ("script failed: " ++ scriptPath ++
-			 " " ++ sourcePath ++ " " ++ destPath ++ " " ++ sfParserPath )
+		ExitFailure code -> fail ("runSfParser failed: " ++ scriptPath ++
+			 " " ++ sourcePath ++ " " ++ destPath ++ " " ++ parserPath )
+
+-- get the path to the sfParser compiler
+-- try the command line arguments (-s PATHNAME) first
+-- then try the environment (SFPARSER)
+-- otherwise return the default (sfparser)
+
+getSfParserPath :: [OptionFlag] -> IO (String)
+getSfParserPath fs = do
+	let arg = sfParserPath fs
+	sfParserEnv <- lookupEnv "SFPARSER"
+	case (arg) of
+		[] -> case (sfParserEnv) of
+			Just s -> return s
+			Nothing -> return "sfparser"
+		f -> return f

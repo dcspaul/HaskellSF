@@ -6,9 +6,9 @@
 module HSF.Options
 	( OptionFlag
 	, parseOptions
-	, getOutputPath
-	, getJsonPath
-	, getSfParserPath
+	, outputPath
+	, jsonPath
+	, sfParserPath
 	, compareOptionPresent
 	) where
 
@@ -17,7 +17,6 @@ import System.IO (hPutStrLn, stderr)
 import System.Console.GetOpt(getOpt,OptDescr(..),ArgDescr(..),ArgOrder(..),usageInfo)
 import System.FilePath.Posix (takeDirectory, addExtension, dropExtension, takeFileName, (</>))
 import System.Exit (exitWith,ExitCode(..))
-import System.Environment (lookupEnv)
 
 {------------------------------------------------------------------------------
     option handling
@@ -48,32 +47,22 @@ parseOptions argv = case getOpt RequireOrder options argv of
 		exitWith (ExitFailure 1)
 	where usage = "Usage: options file .."
 
-getOutputPath :: [OptionFlag] -> String
-getOutputPath [] = ""
-getOutputPath ((Output d):_) = d
-getOutputPath (_:rest) = getOutputPath rest
+outputPath :: [OptionFlag] -> String
+outputPath [] = ""
+outputPath ((Output d):_) = d
+outputPath (_:rest) = outputPath rest
 
-getSfParserPath :: [OptionFlag] -> IO (String)
-getSfParserPath fs = do
-	let arg = sfParserArg fs
-	sfParserEnv <- lookupEnv "SFPARSER"
-	case (arg) of
-		Just f -> return f
-		Nothing -> case (sfParserEnv) of
-			Just s -> return s
-			Nothing -> return "sfparser"
-
-sfParserArg :: [OptionFlag] -> Maybe String
-sfParserArg [] = Nothing
-sfParserArg ((SfParser f):_) = Just f
-sfParserArg (_:rest) = sfParserArg rest
+sfParserPath :: [OptionFlag] -> String
+sfParserPath [] = ""
+sfParserPath ((SfParser f):_) = f
+sfParserPath (_:rest) = sfParserPath rest
 
 compareOptionPresent :: [OptionFlag] -> Bool
 compareOptionPresent opts = (Compare `elem` opts)
 
 -- TODO: *** document this!
 
-getJsonPath :: String -> [OptionFlag] -> String -> String
-getJsonPath srcPath opts ext =
-	((takeDirectory srcPath) </> (getOutputPath opts) </>
+jsonPath :: String -> [OptionFlag] -> String -> String
+jsonPath srcPath opts ext =
+	((takeDirectory srcPath) </> (outputPath opts) </>
 		(addExtension ((dropExtension (takeFileName srcPath)) ++ ext) ".json"))

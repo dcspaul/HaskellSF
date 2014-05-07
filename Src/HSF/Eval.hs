@@ -9,13 +9,13 @@ module HSF.Eval
 	, renderCompactJSON
 	) where
 
+import HSF.Parser
+import HSF.Utils
+
 import Data.List (intercalate)
 
 -- cabal install Safe
 import Safe (initSafe)
-
-import HSF.Parser
-import HSF.Utils
 
 {------------------------------------------------------------------------------
     store
