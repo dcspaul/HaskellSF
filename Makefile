@@ -23,8 +23,7 @@ $(BUILD_DIR)/hsf-$(PLATFORM): \
 	@cd $(BUILD_DIR) || exit 1; \
 	export PATH=/opt/ghc$(VERSION)/bin:$$PATH || exit 1 ;\
 	ghc --version || exit 1 ;\
-	ghc -o hsf-$(PLATFORM) --make hsf.hs || exit 1; \
-	rm -f ../hsf || exit 1; ln hsf-$(PLATFORM) ../hsf || exit 1
+	ghc -o hsf-$(PLATFORM) --make hsf.hs || exit 1
 
 $(BUILD_DIR)/hsf.hs: $(SRC_DIR)/hsf.hs Makefile
 	@mkdir -p $(BUILD_DIR) || exit
@@ -80,10 +79,7 @@ remote:
 	rsync -rlptSxzC -e ssh \
 		--exclude '.DS*' \
 		--exclude '..DS*' \
-		$(HSF_REMOTE)/Build$(REMOTE_VERSION)/* $(TOP_DIR)/Build$(REMOTE_VERSION) || exit 1 ;\
-	cd $(BUILD_DIR) || exit 1; \
-	rm -f ../hsf || exit 1; \
-	test -f hsf-$(PLATFORM) && ln hsf-$(PLATFORM) ../hsf || exit 0
+		$(HSF_REMOTE)/Build$(REMOTE_VERSION)/* $(TOP_DIR)/Build$(REMOTE_VERSION) || exit 1
 
 # clean out the binaries & the test results
 
