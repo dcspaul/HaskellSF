@@ -17,31 +17,53 @@ import HSF.RunScalaVersion
     compile SF source
 ------------------------------------------------------------------------------}
 
+{--
+
+* make some of these functions local to "compile"
+* the two fail functions have a lot in common ?
+* we need to import some types so that we can add the type signatures ?
+
+--}
+
+
 compile :: Bool -> String -> String -> IO (String)
 compile isComparing sourcePath destPath = do
 	let fmt = if (isComparing) then SFpFormat else NativeFormat
 	-- parse it & evaluate if the parse succeeds
 	source <- readFile sourcePath
 	storeOrError <- parseSF sourcePath source
-	let result = case (storeOrError) of
-		Left e -> Left $ err (EPARSEFAIL e) $ fmt
-		Right body -> case (evalSF body) of
-			Left error -> Left $ ( error $ fmt ) ++ "\n"
-			Right store -> Right $ ( renderStore store ) ++ "\n" where
-				renderStore = if (isComparing) then renderCompactJSON else renderJSON
-	-- of we are comparing outputs, put the error message in the file
-	-- otherwise, print it to the stderr
-	case (result) of
-		Left e -> if (isComparing)
-			then writeFile destPath e
-			else hPutStrLn stderr ( "** " ++ sourcePath ++ "\n" ++ e )
-		Right json -> if (destPath == "-")
-			then putStr json
-			else writeFile destPath json
-	-- return the results or the error message
-	case (result) of
-		Left e -> return e
-		Right json -> return json
+	case (storeOrError) of
+		Left e -> parseFail isComparing e fmt destPath sourcePath
+		Right body -> parseOK isComparing body fmt destPath sourcePath
+
+-- parseFail :: Bool -> (ErrorFormat -> String) -> ErrorFormat -> String -> String -> String
+parseFail isComparing e fmt destPath sourcePath = do
+		let msg = (err (EPARSEFAIL e) $ fmt)
+		if (isComparing)
+			then writeFile destPath msg
+			else hPutStrLn stderr ( "** " ++ sourcePath ++ "\n" ++ msg )
+		return msg
+
+parseOK :: Bool -> Body -> ErrorFormat -> String -> String -> IO String
+parseOK isComparing parseTree fmt destPath sourcePath =
+	case (evalSF parseTree) of
+		Left e -> evalFail isComparing e fmt destPath sourcePath
+		Right store -> evalOK isComparing store fmt destPath sourcePath
+
+evalFail :: Bool -> (ErrorFormat -> String) -> ErrorFormat -> String -> String -> IO String
+evalFail isComparing e fmt destPath sourcePath = do
+		let msg = ( e $ fmt ) ++ "\n"
+		if (isComparing)
+			then writeFile destPath msg
+			else hPutStrLn stderr ( "** " ++ sourcePath ++ "\n" ++ msg )
+		return msg
+
+-- evalOK :: Bool -> String -> ErrorFormat -> String -> String -> IO String
+evalOK isComparing store fmt destPath sourcePath = do
+	let renderStore = if (isComparing) then renderCompactJSON else renderJSON
+	let result = ( renderStore store ) ++ "\n"
+	if (destPath == "-") then putStr result else writeFile destPath result
+	return result
 
 {------------------------------------------------------------------------------
     main program
