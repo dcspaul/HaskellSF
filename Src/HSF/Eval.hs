@@ -35,7 +35,7 @@ data Store = Store [(Identifier,StoreValue)] deriving(Eq)
 ------------------------------------------------------------------------------}
 
 type NameSpace = Reference
-type ErrorFn = Bool -> String
+type ErrorFn = ErrorFormat -> String
 type StoreOrError = Either ErrorFn Store
 
 -- the Data.List.Utils version of addToAL adds new items at the start of the alist
@@ -77,12 +77,12 @@ sfPut ( Store s, i, v ) = Store ( addToAL' s i v )
 
 sfBind :: (Store,Reference,StoreValue) -> StoreOrError
 sfBind ( Store ivs, Reference is, v ) = sfBind' ivs is v where
-	sfBind' _   []  _    = Left ( err EREPLACEROOTSTORE [] )
+	sfBind' _   []  _    = Left (err EREPLACEROOTSTORE)
 	sfBind' ivs [i] v    = Right (sfPut (Store ivs,i,v))
 	sfBind' ivs (i:is) v =
 		case (lookup i ivs) of
-			Nothing -> Left ( err ENOPARENT [ render (Reference (i:is)) ] )
-			Just (StoreValue _) -> Left ( err EPARENTNOTSTORE [ render (Reference (i:is)) ] )
+			Nothing -> Left ( err (ENOPARENT (render (Reference (i:is)))) )
+			Just (StoreValue _) -> Left ( err (EPARENTNOTSTORE (render (Reference (i:is)))) )
 			Just (SubStore (Store ivs')) -> do
 				s' <- sfBind' ivs' is v
 				return (Store (addToAL' ivs i (SubStore s'))) where
@@ -136,9 +136,9 @@ sfCopy ( s1, Store ((i,v):s2), pfx ) = do
 sfInherit :: (Store,NameSpace,Reference,Reference) -> StoreOrError
 sfInherit (s, ns, p, r) =
 	case (sfResolv(s,ns,p)) of
-		Nothing -> Left ( err ENOPROTO [render p] )
+		Nothing -> Left ( err (ENOPROTO (render p)) )
 		Just (_, SubStore s') -> sfCopy(s,s',r)
-		Just (_, StoreValue _) -> Left ( err EPROTONOTSTORE [render p] )
+		Just (_, StoreValue _) -> Left ( err (EPROTONOTSTORE (render p)) )
 
 {------------------------------------------------------------------------------
     evaluation functions
@@ -174,7 +174,7 @@ evalValue (BasicValue bv) = \(ns,r,s) -> sfBind(s, r, StoreValue bv)
 
 evalValue (LinkValue lr) = \(ns,r,s) -> do
 	(ns',v') <- case (sfResolv(s, ns, lr)) of
-		Nothing -> Left ( err ENOLR [render lr] )
+		Nothing -> Left ( err (ENOLR (render lr)) )
 		Just (n,v) -> Right (n,v)
 	sfBind(s, r, v')
 
@@ -194,8 +194,8 @@ evalAssignment (Assignment r@(Reference [_]) v) = \(ns,s) -> do
 
 evalAssignment (Assignment r v) = \(ns,s) -> do
 	case (sfResolv (s,ns,(sfPrefix r))) of
-		Nothing -> Left ( err EASSIGN [render r] )
-		Just (_, StoreValue _) -> Left ( err EREFNOTOBJ [render r] )
+		Nothing -> Left ( err (EASSIGN (render r)) )
+		Just (_, StoreValue _) -> Left ( err (EREFNOTOBJ (render r)) )
 		Just (ns', _) -> evalValue v $ (ns, ns' |+| r, s)
 
 -- 6.26
@@ -222,8 +222,8 @@ evalSF :: Body -> StoreOrError
 evalSF b = do
 	fB <- evalBody b $ (Reference [], Store [])
 	case (sfFind(fB,Reference [Identifier "sfConfig"])) of
-		Nothing -> Left ( err ENOSPEC [] )
-		Just (StoreValue bv) -> Left ( err ESPEC [render bv] )
+		Nothing -> Left (err ENOSPEC)
+		Just (StoreValue bv) -> Left ( err (ESPEC (render bv)) )
 		Just (SubStore s) -> return s
 
 {------------------------------------------------------------------------------
