@@ -1,0 +1,5 @@
+// parse error
+
+sfConfig extends {
+    test  $ "parse error";
+}

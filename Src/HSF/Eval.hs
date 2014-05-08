@@ -11,7 +11,6 @@ module HSF.Eval
 
 import HSF.Parser
 import HSF.Utils
-
 import Data.List (intercalate)
 
 -- cabal install Safe
@@ -23,9 +22,8 @@ import Safe (initSafe)
 
 -- the store is implemented strictly as in the semantics from the paper 
 -- ie. as hierarchical lists. this means that the result preserves the
--- ordering defined in the semantics, although I don't believe that this
--- is significant (or the same as the production compiler?)
--- The JSON standard also says (I think) that the order is records is not significant
+-- ordering defined in the semantics.
+-- Note that the JSON standard says that the order of records is not significant
 
 data StoreValue = StoreValue BasicValue | SubStore Store deriving(Eq)
 data Store = Store [(Identifier,StoreValue)] deriving(Eq)

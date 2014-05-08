@@ -31,8 +31,6 @@ compile isComparing sourcePath destPath = do
 				renderStore = if (isComparing) then renderCompactJSON else renderJSON
 	-- of we are comparing outputs, put the error message in the file
 	-- otherwise, print it to the stderr
-	-- TODO: *** the sourcepath here is the top-level file 
-	-- *** if we are inside a #include, we really want to print the included file ?
 	case (result) of
 		Left e -> if (isComparing)
 			then writeFile destPath e
@@ -45,7 +43,6 @@ compile isComparing sourcePath destPath = do
 		Left e -> return e
 		Right json -> return json
 
-
 {------------------------------------------------------------------------------
     main program
 ------------------------------------------------------------------------------}
@@ -56,9 +53,7 @@ main = do
 
 process :: [OptionFlag] -> String -> IO ()
 process opts srcPath = do
-	let dstPath = if ((outputPath opts) == "-")
-		then (++) "-"
-		else jsonPath srcPath opts
+	let dstPath = jsonPath srcPath opts
 	if (compareOptionPresent opts) then do
 		haskellResult <- compile True srcPath (dstPath "-1")
 		scalaResult <- runSfParser srcPath (dstPath "-2") opts

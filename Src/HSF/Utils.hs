@@ -9,7 +9,7 @@ module HSF.Utils
 	, indentBlock
 	) where
 
-import Data.String.Utils (replace)
+import Data.String.Utils (replace, rstrip)
 import Data.List (intercalate)
 import Text.Parsec (ParseError, errorPos, sourceName, sourceLine, sourceColumn)
 import Text.Parsec.Error (Message(..), errorMessages)
@@ -45,7 +45,9 @@ err code = \fmt -> case (code) of
 	ENOPARENT s -> "reference has no parent [error 2]: " ++ s
 	EREPLACEROOTSTORE -> "attempt to replace root store [error 3]"
 	ENOPROTO s -> "can't resolve prototype [error 4]: " ++ s
-	EPROTONOTSTORE s -> "prototype is not a store [error 4]: " ++ s
+	EPROTONOTSTORE s -> case fmt of
+		SFpFormat -> "[err4] invalid prototype reference: " ++ s
+		NativeFormat -> "prototype is not a store [error 4]: " ++ s
 	ENOLR s -> case fmt of
 		SFpFormat -> "[err5] cannot find link reference " ++ s
 		NativeFormat -> "can't resolve link value [error 5]: " ++ s
@@ -72,7 +74,7 @@ nativeParseError e =
 		msg = let msgs = errorMessages e in
 			if (isFail msgs)
 				then failMessage msgs
-				else unlines $ tail $ lines $ show e
+				else rstrip $ unlines $ tail $ lines $ show e
 
 sfpParseError :: ParseError -> String
 sfpParseError e =

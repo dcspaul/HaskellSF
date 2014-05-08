@@ -1,0 +1,6 @@
+// error 4
+
+sfConfig extends {
+	P "oops";
+	Q extends P, { test 2; }
+}

@@ -1,0 +1,5 @@
+// parse error in included file
+
+sfConfig extends {
+    test test test;
+}

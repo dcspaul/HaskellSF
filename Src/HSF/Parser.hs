@@ -200,7 +200,7 @@ enterInclude = do
 	contentOrError <- liftIO (Control.Exception.try (readFile absolutePath))
 	state <- getState
 	case contentOrError of
-		Left err -> fail ("can't open included file: " ++ absolutePath ++ ": " ++ (show (err :: IOException)))
+		Left err -> fail ("can't open included file " ++ (show (err :: IOException)))
 		Right content -> if (alreadyIncluded state absolutePath)
 			then fail ("recursive #include: " ++ absolutePath)
 			else switchInput content absolutePath

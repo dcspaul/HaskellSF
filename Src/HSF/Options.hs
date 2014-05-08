@@ -22,13 +22,6 @@ import System.Exit (exitWith,ExitCode(..))
     option handling
 ------------------------------------------------------------------------------}
 
--- output directory arg:
--- with no slash, it is treated as a subdirectory of the source directory
--- you can use ".." in this to refer to directories above the source
--- with a slash it is treated as an absolute pathname
--- the default is "" which is the same directory as the source
--- you can use "-" for stdout
-
 data OptionFlag = Output String | Compare | SfParser String deriving(Show,Eq)
 
 options :: [OptDescr OptionFlag]
@@ -60,9 +53,19 @@ sfParserPath (_:rest) = sfParserPath rest
 compareOptionPresent :: [OptionFlag] -> Bool
 compareOptionPresent opts = (Compare `elem` opts)
 
--- TODO: *** document this!
+-- where to put the json output:
+-- the default is the same directory as the source
+-- if the output arg is absolute, it is used as the directory for the output
+-- if it is relative, it is interpreted relative to the source
+-- "-" is interpreted as stdout
+--
+-- if we are comparing the two compilers ...
+-- the postfix -1 or -2 is added to the filename for the appropriate compiler
+-- output to the stdout does not make sense
 
 jsonPath :: String -> [OptionFlag] -> String -> String
-jsonPath srcPath opts ext =
-	((takeDirectory srcPath) </> (outputPath opts) </>
-		(addExtension ((dropExtension (takeFileName srcPath)) ++ ext) ".json"))
+jsonPath srcPath opts postfix =
+	if (((outputPath opts) == "-") && (postfix == ""))
+		then "-"
+		else ((takeDirectory srcPath) </> (outputPath opts) </>
+			(addExtension ((dropExtension (takeFileName srcPath)) ++ postfix) ".json"))
