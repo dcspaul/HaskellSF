@@ -1,3 +1,0 @@
-sfConfig extends {
-	#include "test1.sf";
-}

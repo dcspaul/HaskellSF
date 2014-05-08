@@ -1,0 +1,7 @@
+// #include
+
+sfConfig extends {
+    test1a "before";
+	#include "i1-include1.sf";
+    test1b "after";
+}

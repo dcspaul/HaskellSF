@@ -1,2 +1,0 @@
-// test for missing sfConfig
-A extends { x "this has no top-level sfConfig"; }

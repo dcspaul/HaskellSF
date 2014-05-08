@@ -1,0 +1,5 @@
+// parse error in included file
+
+sfConfig extends {
+    #include "i1-parseerror2.sf";
+}

@@ -1,0 +1,7 @@
+// #include directory
+
+sfConfig extends {
+    test1a "before";
+	#include "/tmp";
+    test1b "after";
+}
