@@ -17,41 +17,6 @@ import HSF.RunScalaVersion
     compile SF source
 ------------------------------------------------------------------------------}
 
--- TODO: **** split this function into smaller ones
-
-
-{--
-
-evaluate :: 
-
-
-parseFile :: String -> String -> IO (Either ParseError Body)
-parse sourcePath destPath = do
-	source <- readFile sourcePath
-	storeOrError <- parseSF sourcePath source
-	return storeOrError
-
-compile sourcePath destPath = do
-	source <- readFile sourcePath
-	storeOrError <- parseFile sourcePath
-	let result = case (storeOrError) of
-		Left e -> Left $ err EPARSEFAIL [ (show e) ] $ isComparing
-		Right body -> 
-		
-		
-		case (evalSF body) of
-			Left error -> Left $ ( error $ isComparing ) ++ "\n"
-			Right store -> Right $ ( renderStore store ) ++ "\n" where
-				renderStore = if (isComparing) then renderCompactJSON else renderJSON
- 
-
-compileAndCompare sourcePath destPath = do
-	-- parse it & evaluate if the parse succeeds
-	source <- readFile sourcePath
-	storeOrError <- parseSF sourcePath source
-
--}
-
 compile :: Bool -> String -> String -> IO (String)
 compile isComparing sourcePath destPath = do
 	let fmt = if (isComparing) then SFpFormat else NativeFormat

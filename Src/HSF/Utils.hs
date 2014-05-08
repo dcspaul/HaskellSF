@@ -39,8 +39,8 @@ data ErrorCode
 err :: ErrorCode -> ErrorFormat -> String
 err code = \fmt -> case (code) of
 	EPARSEFAIL e -> case fmt of
-		SFpFormat -> (nativeParseError e) ++ "\n"
-		NativeFormat -> (sfpParseError e) ++ "\n"
+		SFpFormat -> (sfpParseError e) ++ "\n"
+		NativeFormat -> (nativeParseError e) ++ "\n"
 	EPARENTNOTSTORE s -> "parent not a store [error 1]: " ++ s
 	ENOPARENT s -> "reference has no parent [error 2]: " ++ s
 	EREPLACEROOTSTORE -> "attempt to replace root store [error 3]"
@@ -59,6 +59,7 @@ err code = \fmt -> case (code) of
 	ESPEC s -> "sfConfig cannot be a basic value [error 7]: " ++ s
 
 -- these functions format the error messages from the parser
+-- if we are comparing with sfParser, we make some attempt to produce a similar format
 
 nativeParseError :: ParseError -> String
 nativeParseError e =
@@ -68,17 +69,21 @@ nativeParseError e =
 		f = sourceName pos
 		l = sourceLine pos
 		c = sourceColumn pos
-		msg = errorMessage (errorMessages e)
+		msg = let msgs = errorMessages e in
+			if (isFail msgs)
+				then failMessage msgs
+				else unlines $ tail $ lines $ show e
 
 sfpParseError :: ParseError -> String
 sfpParseError e =
-	"parse error at " ++ f ++ " (line " ++ (show l) ++ ", column " ++ (show c) ++ ")\n" ++ msg
-	where
-		pos = errorPos e
-		f = sourceName pos
-		l = sourceLine pos
-		c = sourceColumn pos
-		msg = errorMessage (errorMessages e)
+	let msgs = errorMessages e in
+		if (isFail msgs)
+			then failMessage msgs
+			else "invalid statement at " ++ (show l) ++ "." ++ (show c)
+			where
+				pos = errorPos e
+				l = sourceLine pos
+				c = sourceColumn pos
 
 isFailMessage (Message m) = True
 isFailMessage _ = False
@@ -87,17 +92,6 @@ isFail msgList = any isFailMessage msgList
 
 failMessage msgList = s
 	where (Message s) = head $ filter isFailMessage msgList 
-
-errorMessage :: [Message] -> String
-errorMessage msgs =
-	if (isFail msgs)
-		then failMessage msgs
-		else (intercalate "\n" (map msgString msgs))
-		where msgString m = case m of
-			SysUnExpect s -> "unexpected: " ++ s
-			UnExpect s -> "unexpected: " ++ s
-			Expect s -> "expected: " ++ s
-			Message s -> "failed: " ++ s
 
 {------------------------------------------------------------------------------
     output formatting
