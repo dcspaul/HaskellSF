@@ -3,6 +3,7 @@
 PLATFORM := $(shell echo `uname`-`arch`)
 VERSION := 76
 REMOTE_VERSION := 78
+TEST_PREFIX := t1-
 
 TOP_DIR := $(shell pwd)
 SRC_DIR := $(TOP_DIR)/Src
@@ -52,18 +53,18 @@ $(BUILD_DIR)/HSF/%.hs: $(SRC_DIR)/HSF/%.hs Makefile
 
 # this target compiles all of the test files
 
-compile-tests: build
+compile-tests: install
 	@echo compiling all tests ...
 	@mkdir -p $(SCRATCH_DIR) || exit 1
-	@$(BIN_DIR)/hsf$(VERSION)-$(PLATFORM) -o $(SCRATCH_DIR) $(TEST_DIR)/*.sf
+	@$(BIN_DIR)/hsf$(VERSION)-$(PLATFORM) -o $(SCRATCH_DIR) $(TEST_DIR)/$(TEST_PREFIX)*.sf
 
 # this target runs all of the tests, comparing the output with sfParser
 # you need to define: SFPARSER=location-of-sfparser (unless it is in your PATH)
 
-test: build
+test: install
 	@echo comparing output ...
 	@mkdir -p $(SCRATCH_DIR) || exit 1
-	@$(BIN_DIR)/hsf$(VERSION)-$(PLATFORM) -c -o $(SCRATCH_DIR) $(TEST_DIR)/*.sf
+	@$(BIN_DIR)/hsf$(VERSION)-$(PLATFORM) -c -o $(SCRATCH_DIR) $(TEST_DIR)/$(TEST_PREFIX)*.sf
 
 # this target does a build on a remote machine
 # using the given REMOTE_VERSION of the Haskell compiler

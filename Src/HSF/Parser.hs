@@ -22,6 +22,7 @@ import Control.Exception (try,IOException)
 import Text.Parsec
 import Text.Parsec.String (Parser, parseFromFile)
 import Text.Parsec.Language (GenLanguageDef)
+import Text.ParserCombinators.Parsec.Pos (newPos)
 import qualified Text.Parsec.Token as P
 
 {------------------------------------------------------------------------------
@@ -81,7 +82,7 @@ m_symbol = P.symbol lexer
     parser
 ------------------------------------------------------------------------------}
 
--- our parser uses the IO monad with ParsecT
+-- the parser uses the IO monad with ParsecT
 -- this is necessary to support the #include
 
 type ParserIO t = ParsecT [Char] ParserState IO t
@@ -117,7 +118,7 @@ assignment = do { lhs <- reference ; rhs <- value ; return (Assignment lhs rhs) 
 
 -- these "statements" are not part of the core syntax
 -- they are inserted here to handle #include
--- a Body is redefined to be a list of assignments or included files
+-- a Body is redefined to be a list of assignments or included content
 
 statement :: ParserIO [Assignment]
 statement = do { as <- assignment; return [as] }
@@ -140,7 +141,22 @@ specification :: ParserIO Body
 specification = do { m_whiteSpace; b <- body ; eof; return b }
 
 {------------------------------------------------------------------------------
-    include file handling (not part of core language)
+    parser state
+------------------------------------------------------------------------------}
+
+-- the parser state is currently used only to maintain the stack of
+-- open included files. but we may want to add other stuff later ...
+
+data ParserState = ParserState
+	{ includeStack :: [IncludeState]
+	}
+
+initialState = ParserState
+	{ includeStack = []
+	}
+
+{------------------------------------------------------------------------------
+    #include file handling (not part of core language)
 ------------------------------------------------------------------------------}
 
 -- this extension to the core language implements #include
@@ -154,73 +170,59 @@ specification = do { m_whiteSpace; b <- body ; eof; return b }
 -- (*) relative pathnames are interpreted relative the directory of the including file
 -- (*) It does not implement <filename> for locating files in a system search path
 
--- TODO: **** what about the type of the first thing here?
--- **** I just put in "String" as a placeholder
--- **** I'm sure it isn't really a String - why is there no error?
+-- relative pathnames are interpreted relative to the including file
+includePath :: String -> String -> String
+includePath parentPath filePath = combine (takeDirectory parentPath) filePath
 
-data ParserState = ParserState
-	{ includes :: [(String,SourcePos)]
-	}
+-- when we include a file, push:
+-- the remaining source stream
+-- and the including file position
 
--- TODO: **** all of this #include code needs tidying now that it is working
--- TODO: *** it also needs testing on multiple depth includes
+type IncludeState = (String,SourcePos)
 
-initialState = ParserState { includes = [] }
+pushInclude :: ParserState -> IncludeState -> ParserState
+pushInclude state i = state { includeStack = i:(includeStack state) }
 
-pushInclude state i = state { includes = i:(includes state) }
+popInclude :: ParserState -> (IncludeState,ParserState)
+popInclude state = case (includeStack state) of
+	[] -> error "attempt to pop empty #include stack: impossible!"
+	(i:is) -> (i, state { includeStack = is } )
 
-popInclude state = case (includes state) of
-	[] -> (Nothing,state)
-	(i:is) -> (Just i, state { includes = is } )
+-- use this to check for recursive includes
+alreadyIncluded :: ParserState -> String -> Bool
+alreadyIncluded state path = path `elem` (map (sourceName . snd) (includeStack state))
 
-panic :: Integer -> ParserIO ()
-panic _ = return ()
-
--- INC ::= #include "file"
 enterInclude :: ParserIO ()
 enterInclude = do
 	m_symbol "#include"; path <- m_stringLiteral; m_semi
 	currentPos <- getPosition
-	let path = includePath (sourceName currentPos) path
-	contentOrError <- liftIO (Control.Exception.try (readFile path))
+	let absolutePath = includePath (sourceName currentPos) path
+	contentOrError <- liftIO (Control.Exception.try (readFile absolutePath))
+	state <- getState
 	case contentOrError of
-		Left ex -> notok path ex
-		Right included -> switchInput included path
-
-notok :: String -> IOException -> ParserIO ()
-notok includePath e = do
-	let err = show (e)
-	fail ("Warning: Couldn't open " ++ includePath ++ ": " ++ err)
-	return ()
+		Left err -> fail ("can't open included file: " ++ absolutePath ++ ": " ++ (show (err :: IOException)))
+		Right content -> if (alreadyIncluded state absolutePath)
+			then fail ("recursive #include: " ++ absolutePath)
+			else switchInput content absolutePath
 
 switchInput :: String -> String -> ParserIO ()
-switchInput i path = do		
+switchInput content path = do
 	state <- getState
-	currentInput <- getInput
-	currentPos <- getPosition
-	setState (pushInclude state (currentInput,currentPos))
-	setPosition ((setSourceLine (setSourceColumn (setSourceName currentPos path) 1)) 1)
-	setInput i
+	input <- getInput
+	pos <- getPosition
+	setState (pushInclude state (input,pos))
+	setPosition (newPos path 1 1)
+	setInput content
 	m_whiteSpace
-	return ()
 
--- end of included file
 leaveInclude :: ParserIO ()
 leaveInclude = do
 	eof
 	state <- getState
-	let (oldState,newState) = popInclude state
+	let ((input,pos),newState) = popInclude state
 	setState newState
-	case oldState of
-		Nothing -> fail "foo"
-		Just (i,p) -> setInput i
-	case oldState of
-		Nothing -> fail "foo"
-		Just (i,p) -> setPosition p
-	return ()	
-
-includePath :: String -> String -> String
-includePath parentPath filePath = combine (takeDirectory parentPath) filePath
+	setPosition pos
+	setInput input
 
 {------------------------------------------------------------------------------
     parse tree rendering (pretty printing)

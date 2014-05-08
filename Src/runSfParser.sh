@@ -14,6 +14,9 @@ test -z "$DSTFILE" && echo "usage: runSfParser source dest [sfParser]" >&2 && ex
 test -z "$SFPARSER" && SFPARSER=sfparser
 test ! -x "$SFPARSER" && echo "can't find $SFPARSER" >&2 && exit 2
 
+# change to the directory containing the source file
+# so that #includes get interpreted in the same way
+cd `dirname $SRCFILE`
 $SFPARSER -json $SRCFILE 2>$DSTFILE# | grep -v '^(' >$DSTFILE
 cat $DSTFILE# >>$DSTFILE || exit 2
 if grep -q 'Exception' $DSTFILE ; then

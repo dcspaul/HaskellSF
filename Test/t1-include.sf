@@ -1,8 +1,0 @@
-// #include
-
-#include "t1-ref2.sf";
-
-sfConfig extends {
-    test "ok";
-    more A:B:x;
-}
