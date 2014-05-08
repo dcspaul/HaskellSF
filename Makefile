@@ -1,4 +1,4 @@
-.PHONY: install remote build test compile-tests clean
+.PHONY: install remote build test compile-tests clean where
 
 PLATFORM := $(shell echo `uname`-`arch`)
 VERSION := 76

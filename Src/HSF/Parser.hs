@@ -16,6 +16,7 @@ import HSF.Utils
 import Data.List (intercalate)
 import Control.Monad.IO.Class (liftIO)
 import System.FilePath.Posix (combine, takeDirectory)
+import Control.Exception (try,IOException)
 
 -- cabal install Parsec
 import Text.Parsec
@@ -172,20 +173,34 @@ popInclude state = case (includes state) of
 	[] -> (Nothing,state)
 	(i:is) -> (Just i, state { includes = is } )
 
+panic :: Integer -> ParserIO ()
+panic _ = return ()
+
 -- INC ::= #include "file"
 enterInclude :: ParserIO ()
 enterInclude = do
 	m_symbol "#include"; path <- m_stringLiteral; m_semi
+	currentPos <- getPosition
+	let path = includePath (sourceName currentPos) path
+	contentOrError <- liftIO (Control.Exception.try (readFile path))
+	case contentOrError of
+		Left ex -> notok path ex
+		Right included -> switchInput included path
+
+notok :: String -> IOException -> ParserIO ()
+notok includePath e = do
+	let err = show (e)
+	fail ("Warning: Couldn't open " ++ includePath ++ ": " ++ err)
+	return ()
+
+switchInput :: String -> String -> ParserIO ()
+switchInput i path = do		
 	state <- getState
 	currentInput <- getInput
 	currentPos <- getPosition
 	setState (pushInclude state (currentInput,currentPos))
-	-- TODO: **** if this readfile fails, we should return a graceful compiler
-	-- error, rather than crashing out
-	included <- liftIO (readFile (includePath (sourceName currentPos) path))
-	currentPos <- getPosition
 	setPosition ((setSourceLine (setSourceColumn (setSourceName currentPos path) 1)) 1)
-	setInput included
+	setInput i
 	m_whiteSpace
 	return ()
 
