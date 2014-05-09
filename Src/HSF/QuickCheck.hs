@@ -37,14 +37,6 @@ data Prototype = RefProto Reference | BodyProto Body deriving(Eq,Show)
 
 --}
 
-instance Arbitrary BasicValue where
-	arbitrary = oneof
-		[ liftM BoolValue arbitrary
-		, liftM NumValue (return 1234)
-		, liftM StringValue (return "string")
-		, liftM DataRef $ (resize 5) arbitrary
-		]
-
 instance Arbitrary Identifier where
 	arbitrary = oneof
 		[ liftM Identifier (return "a")
@@ -57,24 +49,33 @@ instance Arbitrary Identifier where
 
 instance Arbitrary Reference where
 	arbitrary = liftM Reference $ (resize 5) arbitrary
+	
+instance Arbitrary Body where
+	arbitrary = liftM Body $ (resize 4) arbitrary
+
+instance Arbitrary BasicValue where
+	arbitrary = oneof
+		[ liftM BoolValue arbitrary
+		, liftM NumValue (return 1234)
+		, liftM StringValue (return "string")
+		, liftM DataRef $ (resize 5) arbitrary
+		]
 
 instance Arbitrary Value where
 	arbitrary = oneof
 		[ liftM BasicValue arbitrary
+		, liftM LinkValue arbitrary
 		, liftM ProtoValue $ (resize 5) arbitrary
 		]
+
+instance Arbitrary Assignment where
+	arbitrary = liftM2 Assignment arbitrary arbitrary
 
 instance Arbitrary Prototype where
 	arbitrary = oneof
 		[ liftM BodyProto arbitrary
 		, liftM RefProto arbitrary 
 		]
-
-instance Arbitrary Assignment where
-	arbitrary = liftM2 Assignment arbitrary arbitrary
-
-instance Arbitrary Body where
-	arbitrary = liftM Body arbitrary
 
 newtype SfSource = SfSource String deriving(Show,Eq)
 
