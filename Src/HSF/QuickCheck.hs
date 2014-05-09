@@ -26,13 +26,22 @@ import Control.Monad;
 
     the basic generator is choose(lower,upper) which returns a value between upper & lower (inclusive)
 
+data Identifier = Identifier [Char] deriving(Eq,Show)
+data Reference = Reference [Identifier] deriving(Eq,Show)
+data Body = Body [Assignment] deriving(Eq,Show)
+data BasicValue = BoolValue Bool | NumValue Integer | StringValue [Char] | NullValue
+                | DataRef [Identifier] | Vector [BasicValue] deriving(Eq,Show)
+data Value = BasicValue BasicValue | LinkValue Reference | ProtoValue [Prototype] deriving(Eq,Show)
+data Assignment = Assignment Reference Value deriving(Eq,Show)
+data Prototype = RefProto Reference | BodyProto Body deriving(Eq,Show)
+
 --}
 
 instance Arbitrary BasicValue where
 	arbitrary = oneof
 		[ liftM BoolValue arbitrary
 		, liftM NumValue (return 1234)
-		, liftM StringValue (return "hello world")
+		, liftM StringValue (return "string")
 		, liftM DataRef $ (resize 5) arbitrary
 		]
 
@@ -43,7 +52,7 @@ instance Arbitrary Identifier where
 		, liftM Identifier (return "c")
 		, liftM Identifier (return "d")
 		, liftM Identifier (return "e")
-		, liftM Identifier (return "f")
+		, liftM Identifier (return "foo")
 		]
 
 instance Arbitrary Reference where
@@ -52,6 +61,13 @@ instance Arbitrary Reference where
 instance Arbitrary Value where
 	arbitrary = oneof
 		[ liftM BasicValue arbitrary
+		, liftM ProtoValue $ (resize 5) arbitrary
+		]
+
+instance Arbitrary Prototype where
+	arbitrary = oneof
+		[ liftM BodyProto arbitrary
+		, liftM RefProto arbitrary 
 		]
 
 instance Arbitrary Assignment where
