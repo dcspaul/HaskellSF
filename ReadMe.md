@@ -34,15 +34,11 @@ hsf requires some additional Haskell modules to build. These can be installed wi
 	cabal install MissingH
 	cabal install Safe
 
-There are multiple Build directories for the different versions of Haskell (eg. 7.6 and 7.8).
-The default Makefile build target currently uses version 7.6.
+The Bin directory may contain binaries for different platforms & different versions of Haskell.
 
-The files in the Build directories have the "platform" appended to the names to support builds
-on multiple platforms. Eg. "hsf-Linux-x86_64.hs". The file "hsf" is linked to the binary for the
-current platform.
-
-The default target builds on the current platform. The "remote" target can do a build on a remote
-machine (and retrieve the result). 
+The default Makefile target builds on the current platform. The "remote" target can do a build on
+a remote machine (and retrieve the result). Platform-specific Build directories are created for
+the compile.
 
 Paul Anderson
 <dcspaul@ed.ac.uk>
