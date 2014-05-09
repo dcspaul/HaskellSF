@@ -10,6 +10,7 @@ module HSF.Options
 	, jsonPath
 	, sfParserPath
 	, compareOptionPresent
+	, checkOptionPresent
 	) where
 
 
@@ -22,19 +23,19 @@ import System.Exit (exitWith,ExitCode(..))
     option handling
 ------------------------------------------------------------------------------}
 
-data OptionFlag = Output String | Compare | SfParser String deriving(Show,Eq)
+data OptionFlag = Output String | Compare | Check | SfParser String deriving(Show,Eq)
 
 options :: [OptDescr OptionFlag]
 options =
 	[ Option ['o'] ["output"]	(ReqArg Output "DIR")		"directory for json output"
 	, Option ['c'] ["compare"]	(NoArg Compare)				"compare with output of Scala compiler"
+	, Option ['q'] ["quickcheck"] (NoArg Check)				"quickcheck"
 	, Option ['s'] ["sfparser"]	(ReqArg SfParser "FILE")	"location of sfparser"
 	]
  
 parseOptions :: [String] -> IO ([OptionFlag], [String])
 parseOptions argv = case getOpt RequireOrder options argv of
-	(args,fs,[]) -> do
-		return (args,fs)
+	(args,fs,[]) -> return (args,fs)
 	(_,_,errs) -> do
 		hPutStrLn stderr (concat errs ++ usageInfo usage options)
 		exitWith (ExitFailure 1)
@@ -52,6 +53,9 @@ sfParserPath (_:rest) = sfParserPath rest
 
 compareOptionPresent :: [OptionFlag] -> Bool
 compareOptionPresent opts = (Compare `elem` opts)
+
+checkOptionPresent :: [OptionFlag] -> Bool
+checkOptionPresent opts = (Check `elem` opts)
 
 -- where to put the json output:
 -- the default is the same directory as the source

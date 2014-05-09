@@ -6,12 +6,14 @@
 import System.Environment (getArgs)
 import System.IO (hPutStrLn, stderr)
 import System.FilePath.Posix (takeBaseName)
+import Control.Monad (void)
 
 import HSF.Parser
 import HSF.Eval
 import HSF.Utils
 import HSF.Options
 import HSF.RunScalaVersion
+import HSF.QuickCheck
 
 {------------------------------------------------------------------------------
     compile SF source
@@ -56,11 +58,12 @@ compile fmt sourcePath destPath = do
 
 main = do
 
-    (args, files) <- getArgs >>= parseOptions
-    mapM_ (process args) files
-
-process :: [OptionFlag] -> String -> IO ()
-process opts srcPath = do
+	(args, files) <- getArgs >>= parseOptions
+	do if (checkOptionPresent args) then check else return ()
+	mapM_ (processFile args) files
+	
+processFile :: [OptionFlag] -> String -> IO ()
+processFile opts srcPath = do
 	
 		if (compareOptionPresent opts)
 			then compileAndCompare
@@ -68,8 +71,8 @@ process opts srcPath = do
 	where
 
 		dstPath = jsonPath srcPath opts
-
-		compileOnly = do compile NativeFormat srcPath (dstPath "") ; return ()
+		
+		compileOnly = void $ compile NativeFormat srcPath (dstPath "")
 
 		compileAndCompare = do
 			haskellResult <- compile SFpFormat srcPath (dstPath "-1")
@@ -82,8 +85,3 @@ process opts srcPath = do
 
 		matchFail h s = putStr ( "** match failed: " ++ (takeBaseName srcPath) ++ "\n"
 			++ "Haskell: " ++ h ++ "Scala:   " ++ s )
-
-
-
-
-

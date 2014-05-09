@@ -29,14 +29,14 @@ import qualified Text.Parsec.Token as P
     abstract syntax
 ------------------------------------------------------------------------------}
 
-data Identifier = Identifier [Char] deriving(Eq)
-data Reference = Reference [Identifier]
-data Body = Body [Assignment]
+data Identifier = Identifier [Char] deriving(Eq,Show)
+data Reference = Reference [Identifier] deriving(Eq,Show)
+data Body = Body [Assignment] deriving(Eq,Show)
 data BasicValue = BoolValue Bool | NumValue Integer | StringValue [Char] | NullValue
-                | DataRef [Identifier] | Vector [BasicValue] deriving(Eq)
-data Value = BasicValue BasicValue | LinkValue Reference | ProtoValue [Prototype]
-data Assignment = Assignment Reference Value
-data Prototype = RefProto Reference | BodyProto Body
+                | DataRef [Identifier] | Vector [BasicValue] deriving(Eq,Show)
+data Value = BasicValue BasicValue | LinkValue Reference | ProtoValue [Prototype] deriving(Eq,Show)
+data Assignment = Assignment Reference Value deriving(Eq,Show)
+data Prototype = RefProto Reference | BodyProto Body deriving(Eq,Show)
 
 {------------------------------------------------------------------------------
     lexer

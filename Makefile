@@ -1,4 +1,4 @@
-.PHONY: install remote build test compile-tests clean where
+.PHONY: install remote build test check compile-tests clean where
 
 PLATFORM := $(shell echo `uname`-`arch`)
 VERSION := 76
@@ -36,6 +36,7 @@ $(BUILD_DIR)/hsf-$(PLATFORM): \
 		$(BUILD_DIR)/HSF/Utils.hs \
 		$(BUILD_DIR)/HSF/Options.hs \
 		$(BUILD_DIR)/HSF/RunScalaVersion.hs \
+		$(BUILD_DIR)/HSF/QuickCheck.hs \
 		Makefile
 	@cd $(BUILD_DIR) || exit 1; \
 	export PATH=/opt/ghc$(VERSION)/bin:$$PATH || exit 1 ;\
@@ -65,6 +66,14 @@ test: install
 	@echo comparing output ...
 	@mkdir -p $(SCRATCH_DIR) || exit 1
 	@$(BIN_DIR)/hsf$(VERSION)-$(PLATFORM) -c -o $(SCRATCH_DIR) $(TEST_DIR)/$(TEST_PREFIX)*.sf
+
+# this target runs quickcheck comparing the output with sfParser
+# you need to define: SFPARSER=location-of-sfparser (unless it is in your PATH)
+
+check: install
+	@echo quickcheck ...
+	@mkdir -p $(SCRATCH_DIR) || exit 1
+	@$(BIN_DIR)/hsf$(VERSION)-$(PLATFORM) -q -o $(SCRATCH_DIR)
 
 # this target does a build on a remote machine
 # using the given REMOTE_VERSION of the Haskell compiler
