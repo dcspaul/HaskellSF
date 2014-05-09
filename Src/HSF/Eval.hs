@@ -23,7 +23,7 @@ import Safe (initSafe)
 -- the store is implemented strictly as in the semantics from the paper 
 -- ie. as hierarchical lists. this means that the result preserves the
 -- ordering defined in the semantics.
--- Note that the JSON standard says that the order of records is not significant
+-- (note that the JSON standard says that the order of records is not significant)
 
 data StoreValue = StoreValue BasicValue | SubStore Store deriving(Eq)
 data Store = Store [(Identifier,StoreValue)] deriving(Eq)

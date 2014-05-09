@@ -21,7 +21,7 @@ import Text.Parsec.Error (Message(..), errorMessages)
 -- err returns a function which gives the appropriate version of the message
 -- depending on whether we are doing a comparison with sfparser or not
 
-data ErrorFormat =  NativeFormat | SFpFormat
+data ErrorFormat =  NativeFormat | SFpFormat deriving(Eq)
 
 data ErrorCode
 	= EPARSEFAIL ParseError
@@ -67,10 +67,7 @@ nativeParseError :: ParseError -> String
 nativeParseError e =
 	"parse error at " ++ f ++ " (line " ++ (show l) ++ ", column " ++ (show c) ++ ")\n" ++ msg
 	where
-		pos = errorPos e
-		f = sourceName pos
-		l = sourceLine pos
-		c = sourceColumn pos
+		(f, l, c) = breakPos e
 		msg = let msgs = errorMessages e in
 			if (isFail msgs)
 				then failMessage msgs
@@ -82,10 +79,13 @@ sfpParseError e =
 		if (isFail msgs)
 			then failMessage msgs
 			else "invalid statement at " ++ (show l) ++ "." ++ (show c)
-			where
-				pos = errorPos e
-				l = sourceLine pos
-				c = sourceColumn pos
+			where (f, l, c) = breakPos e
+
+breakPos e = (f, l, c) where
+	pos = errorPos e
+	f = sourceName pos
+	l = sourceLine pos
+	c = sourceColumn pos
 
 isFailMessage (Message m) = True
 isFailMessage _ = False

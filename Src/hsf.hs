@@ -17,8 +17,8 @@ import HSF.RunScalaVersion
     compile SF source
 ------------------------------------------------------------------------------}
 
-compile :: Bool -> String -> String -> IO (String)
-compile isComparing sourcePath destPath = do
+compile :: ErrorFormat -> String -> String -> IO (String)
+compile fmt sourcePath destPath = do
 	
 		source <- readFile sourcePath
 		storeOrError <- parseSF sourcePath source
@@ -27,16 +27,16 @@ compile isComparing sourcePath destPath = do
 			Right parseTree -> eval parseTree
 	where
 		
-		fmt = if (isComparing) then SFpFormat else NativeFormat
+		isComparing = (fmt == SFpFormat)
 		
-		parseFail e = compileFail (err (EPARSEFAIL e) $ fmt)
+		parseFail e = compileFail (err (EPARSEFAIL e) fmt)
 
 		eval parseTree =
 			case (evalSF parseTree) of
 				Left e -> evalFail e
 				Right store -> output store
 
-		evalFail e = compileFail (( e $ fmt ) ++ "\n")
+		evalFail e = compileFail ((e fmt) ++ "\n")
 
 		output store = do
 			let renderStore = if (isComparing) then renderCompactJSON else renderJSON
@@ -55,20 +55,35 @@ compile isComparing sourcePath destPath = do
 ------------------------------------------------------------------------------}
 
 main = do
+
     (args, files) <- getArgs >>= parseOptions
     mapM_ (process args) files
 
 process :: [OptionFlag] -> String -> IO ()
 process opts srcPath = do
-	let dstPath = jsonPath srcPath opts
-	if (compareOptionPresent opts) then do
-		haskellResult <- compile True srcPath (dstPath "-1")
-		scalaResult <- runSfParser srcPath (dstPath "-2") opts
-		if (haskellResult == scalaResult)
-			then putStrLn ( ">> match ok: " ++ (takeBaseName srcPath) )
-			else putStr ( "** match failed: " ++ (takeBaseName srcPath) ++ "\n"
-				++ "Haskell: " ++ haskellResult ++ "Scala:   " ++ scalaResult )
-	else do
-		compile False srcPath (dstPath "")
-		return ()
-	return ()
+	
+		if (compareOptionPresent opts)
+			then compileAndCompare
+			else compileOnly
+	where
+
+		dstPath = jsonPath srcPath opts
+
+		compileOnly = do compile NativeFormat srcPath (dstPath "") ; return ()
+
+		compileAndCompare = do
+			haskellResult <- compile SFpFormat srcPath (dstPath "-1")
+			scalaResult <- runSfParser srcPath (dstPath "-2") opts
+			if (haskellResult == scalaResult)
+				then matchOK
+				else matchFail haskellResult scalaResult
+			
+		matchOK = putStrLn ( ">> match ok: " ++ (takeBaseName srcPath) )
+
+		matchFail h s = putStr ( "** match failed: " ++ (takeBaseName srcPath) ++ "\n"
+			++ "Haskell: " ++ h ++ "Scala:   " ++ s )
+
+
+
+
+

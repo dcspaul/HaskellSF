@@ -1,6 +1,6 @@
 // #include
 
-sfConfig extends {
+myInclude extends {
     test2a "before";
 	#include "i1-include2.sf";
     test2b "after";
