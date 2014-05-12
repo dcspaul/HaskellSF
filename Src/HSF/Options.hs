@@ -5,12 +5,14 @@
 
 module HSF.Options
 	( OptionFlag
+	, Format(..)
 	, parseOptions
 	, outputPath
 	, jsonPath
 	, sfParserPath
 	, compareOptionPresent
 	, checkOptionPresent
+	, format, setFormat
 	) where
 
 
@@ -23,23 +25,55 @@ import System.Exit (exitWith,ExitCode(..))
     option handling
 ------------------------------------------------------------------------------}
 
-data OptionFlag = Output String | Compare | Check | SfParser String deriving(Show,Eq)
+data Format = JSON | CompactJSON deriving(Show,Eq)
+
+data OptionFlag = Output String | Compare | Check | FormatString String
+				| Format Format | SfParser String deriving(Show,Eq)
 
 options :: [OptDescr OptionFlag]
 options =
-	[ Option ['o'] ["output"]	(ReqArg Output "DIR")		"directory for json output"
-	, Option ['c'] ["compare"]	(NoArg Compare)				"compare with output of Scala compiler"
-	, Option ['q'] ["quickcheck"] (NoArg Check)				"quickcheck"
-	, Option ['s'] ["sfparser"]	(ReqArg SfParser "FILE")	"location of sfparser"
+	[ Option ['o'] ["output"]	(ReqArg Output "DIR")			"directory for json output"
+	, Option ['c'] ["compare"]	(NoArg Compare)					"compare with output of Scala compiler"
+	, Option ['q'] ["quickcheck"] (NoArg Check)					"quickcheck"
+	, Option ['f'] ["format"] (ReqArg FormatString "json|compact")	"output format"
+	, Option ['s'] ["sfparser"]	(ReqArg SfParser "FILE")		"location of sfparser"
 	]
  
 parseOptions :: [String] -> IO ([OptionFlag], [String])
 parseOptions argv = case getOpt RequireOrder options argv of
-	(args,fs,[]) -> return (args,fs)
+	(opts,fs,[]) -> do
+		case (parseFormat(opts)) of
+			Left e -> do
+				hPutStrLn stderr e
+				exitWith (ExitFailure 1)
+			Right o -> return (o,fs)
 	(_,_,errs) -> do
 		hPutStrLn stderr (concat errs ++ usageInfo usage options)
 		exitWith (ExitFailure 1)
 	where usage = "Usage: options file .."
+
+parseFormat :: [OptionFlag] -> Either String [OptionFlag]
+parseFormat opts = 
+		case f of
+			"json" -> Right ((Format JSON) : opts)
+			"compact" -> Right ((Format CompactJSON) : opts)
+			otherwise -> Left ("invalid output format: " ++ f)
+	where f = formatString opts
+
+formatString :: [OptionFlag] -> String
+formatString [] = "json"
+formatString ((FormatString f):_) = f
+formatString (_:rest) = formatString rest
+
+format :: [OptionFlag] -> Format
+format [] = JSON
+format ((Format f):_) = f
+format (_:rest) = format rest
+
+setFormat :: [OptionFlag] -> Format -> [OptionFlag]
+setFormat [] f = [(Format f)]
+setFormat ((Format _):rest) f = (Format f):rest
+setFormat (o:rest) f = o:(setFormat rest f)
 
 outputPath :: [OptionFlag] -> String
 outputPath [] = ""
@@ -56,7 +90,7 @@ compareOptionPresent opts = (Compare `elem` opts)
 
 checkOptionPresent :: [OptionFlag] -> Bool
 checkOptionPresent opts = (Check `elem` opts)
-
+ 
 -- where to put the json output:
 -- the default is the same directory as the source
 -- if the output arg is absolute, it is used as the directory for the output

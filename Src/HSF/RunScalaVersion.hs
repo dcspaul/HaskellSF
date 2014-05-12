@@ -5,10 +5,13 @@
 
 module HSF.RunScalaVersion
 	( runSfParser
+	, compareSfError
 	) where
 
 import HSF.Options
+import HSF.Utils
 
+import Data.String.Utils (rstrip)
 import System.FilePath.Posix (takeDirectory, (</>))
 import System.Environment (getExecutablePath)
 import GHC.IO.Exception (ExitCode(..))
@@ -23,18 +26,22 @@ import System.Environment (lookupEnv)
 -- (assumed to be in same directory as the hsf binary)
 -- return the output
 
-runSfParser :: String -> String -> [OptionFlag] -> IO (String)
-runSfParser sourcePath destPath opts = do
+runSfParser :: [OptionFlag] -> String -> IO (Either Error String)
+runSfParser opts srcPath = do
+	let dstPath = jsonPath srcPath opts ("-s")
 	execPath <- getExecutablePath
 	parserPath <- getSfParserPath opts
 	let scriptPath = (takeDirectory execPath) </> "runSfParser.sh"
-	ph <- runProcess scriptPath [ sourcePath, destPath, parserPath  ]
+	ph <- runProcess scriptPath [ srcPath, dstPath, parserPath  ]
 		Nothing Nothing Nothing Nothing Nothing
 	exitCode <- waitForProcess ph
 	case (exitCode) of
-		ExitSuccess -> readFile destPath
-		ExitFailure code -> fail ("runSfParser failed: " ++ scriptPath ++
-			 " " ++ sourcePath ++ " " ++ destPath ++ " " ++ parserPath )
+		ExitSuccess -> do
+			result <- readFile dstPath
+			return (Right (rstrip result))
+		ExitFailure code ->
+			return (Left ( ESFPARSEFAIL ( "runSfParser failed: " ++ scriptPath ++
+			 	" " ++ srcPath ++ " " ++ dstPath ++ " " ++ parserPath )))
 
 -- get the path to the sfParser compiler
 -- try the command line arguments (-s PATHNAME) first
