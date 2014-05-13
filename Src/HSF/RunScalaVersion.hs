@@ -26,7 +26,7 @@ import Text.Regex (mkRegex, matchRegex)
 -- (assumed to be in same directory as the hsf binary)
 -- return the output or an error code
 
-runSfParser :: [OptionFlag] -> String -> IO (Either Error String)
+runSfParser :: Opts -> String -> IO (Either Error String)
 runSfParser opts srcPath = do
 	let dstPath = jsonPath srcPath opts ("-s")
 	execPath <- getExecutablePath
@@ -70,9 +70,9 @@ stringToErrorOrResult s
 -- then try the environment (SFPARSER)
 -- otherwise return the default (sfparser)
 
-getSfParserPath :: [OptionFlag] -> IO (String)
-getSfParserPath fs = do
-	let arg = sfParserPath fs
+getSfParserPath :: Opts -> IO (String)
+getSfParserPath opts = do
+	let arg = sfParserPath opts
 	sfParserEnv <- lookupEnv "SFPARSER"
 	case (arg) of
 		[] -> case (sfParserEnv) of

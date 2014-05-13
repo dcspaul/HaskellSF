@@ -20,7 +20,7 @@ import HSF.QuickCheck
     compile SF source
 ------------------------------------------------------------------------------}
 
-compile :: [OptionFlag] -> String -> IO (Either Error String)
+compile :: Opts -> String -> IO (Either Error String)
 compile opts srcPath = do
 
 		source <- readFile srcPath
@@ -42,7 +42,7 @@ compile opts srcPath = do
 				JSON -> ( renderJSON store )
 				CompactJSON -> ( renderCompactJSON store )
 
-compileAndSave :: [OptionFlag] -> String -> IO()
+compileAndSave :: Opts -> String -> IO()
 compileAndSave opts srcPath = do
 
 	result <- compile opts srcPath
@@ -51,10 +51,10 @@ compileAndSave opts srcPath = do
 		Right s -> if (dstPath == "-") then putStrLn s else writeFile dstPath (s++"\n")
 	where dstPath = jsonPath srcPath opts ""
 
-compileAndCompare :: [OptionFlag] -> String -> IO()
+compileAndCompare :: Opts -> String -> IO()
 compileAndCompare opts srcPath = do
 
-		haskellResult <- compile (setFormat opts CompactJSON) srcPath
+		haskellResult <- compile (opts { format=CompactJSON } ) srcPath
 		scalaResult <- runSfParser opts srcPath
 	
 		if (haskellResult == scalaResult)
@@ -77,11 +77,11 @@ compileAndCompare opts srcPath = do
 main = do
 
 	(opts, files) <- getArgs >>= parseOptions
-	do if (checkOptionPresent opts) then check else return ()
+	do if (isChecking opts) then check else return ()
 	mapM_ (processFile opts) files
 	
-processFile :: [OptionFlag] -> String -> IO ()
+processFile :: Opts -> String -> IO ()
 processFile opts srcPath = do
-	if (compareOptionPresent opts)
+	if (isComparing opts)
 		then compileAndCompare opts srcPath
 		else compileAndSave opts srcPath
