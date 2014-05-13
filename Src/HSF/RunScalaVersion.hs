@@ -5,11 +5,10 @@
 
 module HSF.RunScalaVersion
 	( runSfParser
-	, compareSfError
 	) where
 
 import HSF.Options
-import HSF.Utils
+import HSF.Errors
 
 import Data.String.Utils (rstrip)
 import System.FilePath.Posix (takeDirectory, (</>))
@@ -17,6 +16,7 @@ import System.Environment (getExecutablePath)
 import GHC.IO.Exception (ExitCode(..))
 import System.Process (runProcess, waitForProcess)
 import System.Environment (lookupEnv)
+import Text.Regex (mkRegex, matchRegex)
 
 {------------------------------------------------------------------------------
     compile source using the scala version of the SF compiler
@@ -38,10 +38,25 @@ runSfParser opts srcPath = do
 	case (exitCode) of
 		ExitSuccess -> do
 			result <- readFile dstPath
-			return (Right (rstrip result))
+			return (stringToErrorOrResult result)
 		ExitFailure code ->
-			return (Left ( ESFPARSEFAIL ( "runSfParser failed: " ++ scriptPath ++
+			return (Left ( ESYSFAIL ( scriptPath ++
 			 	" " ++ srcPath ++ " " ++ dstPath ++ " " ++ parserPath )))
+
+stringToErrorOrResult :: String -> Either Error String
+stringToErrorOrResult s
+		| isError s "^\\[err4\\] invalid prototype reference" = Left (EPROTONOTSTORE s)
+		| isError s "^\\[err5\\] cannot find link reference" = Left (ENOLR s)
+		| isError s "^\\[err6\\] prefix of .* is not a component" = Left (EASSIGN s)
+		| isError s "^\\[err7\\] sfConfig is not exist or a component" = Left ENOSPEC
+		| isError s "^Exception in thread \"main\" java.lang.StackOverflowError" = Left (EPARSEFAIL s)
+		| isError s "\\(Is a directory\\)$" = Left (EPARSEFAIL s)
+		| isError s "^invalid statement" = Left (EPARSEFAIL s)
+		| otherwise = Right (rstrip s)
+	where isError s r =
+		case (matchRegex (mkRegex r) s) of
+			Just _ -> True
+			Nothing -> False
 
 -- get the path to the sfParser compiler
 -- try the command line arguments (-s PATHNAME) first

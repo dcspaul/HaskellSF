@@ -11,6 +11,7 @@ module HSF.Eval
 	) where
 
 import HSF.Parser
+import HSF.Errors
 import HSF.Utils
 import Data.List (intercalate)
 

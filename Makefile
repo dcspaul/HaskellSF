@@ -34,6 +34,7 @@ $(BUILD_DIR)/hsf-$(PLATFORM): \
 		$(BUILD_DIR)/HSF/Parser.hs \
 		$(BUILD_DIR)/HSF/Eval.hs \
 		$(BUILD_DIR)/HSF/Utils.hs \
+		$(BUILD_DIR)/HSF/Errors.hs \
 		$(BUILD_DIR)/HSF/Options.hs \
 		$(BUILD_DIR)/HSF/RunScalaVersion.hs \
 		$(BUILD_DIR)/HSF/QuickCheck.hs \
