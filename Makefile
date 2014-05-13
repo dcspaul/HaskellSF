@@ -31,6 +31,7 @@ build: $(BUILD_DIR)/hsf-$(PLATFORM)
 
 $(BUILD_DIR)/hsf-$(PLATFORM): \
 		$(BUILD_DIR)/hsf.hs \
+		$(BUILD_DIR)/HSF/Compile.hs \
 		$(BUILD_DIR)/HSF/Parser.hs \
 		$(BUILD_DIR)/HSF/Eval.hs \
 		$(BUILD_DIR)/HSF/Utils.hs \

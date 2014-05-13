@@ -7,12 +7,15 @@ module HSF.QuickCheck
 	( check
 	) where
 
-import HSF.Utils
+import HSF.Options
 import HSF.Parser
 import HSF.Eval
+import HSF.Compile
+import HSF.RunScalaVersion
 
-import Test.QuickCheck;
-import Control.Monad;
+import Test.QuickCheck
+import Test.QuickCheck.Monadic (assert, monadicIO, run)
+import Control.Monad
 
 
 {--
@@ -90,6 +93,22 @@ instance Arbitrary SfSource where
 -- and compare the text result
 prop_Assign a = a /= (SfSource "some code here")
 
-check = do
+
+prop_Foo :: Opts -> SfSource -> Property
+prop_Foo opts (SfSource s) = not (null s) ==> monadicIO test where
+	test = do
+		isSame <- run $ compileAndCompare opts s
+		assert $ isSame
+
+
+
+
+check opts = do
 	-- quickCheck prop_Assign
-	verboseCheck prop_Assign
+	-- verboseCheck prop_Assign
+	quickCheck (prop_Foo opts)
+
+
+
+
+
