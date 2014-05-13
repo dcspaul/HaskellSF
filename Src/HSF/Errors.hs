@@ -17,6 +17,7 @@ import Text.Parsec.Error (Message(..), errorMessages)
 ------------------------------------------------------------------------------}
 
 data Error
+
 	= ESYSFAIL String
 	| EPARSEFAIL String
 	| EPARENTNOTSTORE String
@@ -29,11 +30,18 @@ data Error
 	| EREFNOTOBJ String
 	| ENOSPEC
 	| ESPEC String
+	
+	| S_EPROTONOTSTORE String
+	| S_ENOLR String
+	| S_EASSIGN String
+	| S_ENOSPEC String
+	| S_EPARSEFAIL String
 
 -- printable strings for error messages
 
 errorString :: Error -> String
 errorString code = case (code) of
+	
 	ESYSFAIL s -> "command failed: " ++ s
 	EPARSEFAIL s -> s
 	EPARENTNOTSTORE s -> "parent not a store [error 1]: " ++ s
@@ -46,13 +54,20 @@ errorString code = case (code) of
 	EREFNOTOBJ s -> "reference not an object [error 6]: " ++ s
 	ENOSPEC -> "no sfConfig at top level of specification [error 7]"
 	ESPEC s -> "sfConfig cannot be a basic value [error 7]: " ++ s
-
+	
+	S_EPROTONOTSTORE s -> s
+	S_ENOLR s -> s
+	S_EASSIGN s -> s
+	S_ENOSPEC s -> s
+	S_EPARSEFAIL s -> s
+	
 -- equality of error messages
 -- this is used to compare the error messages from different implementations.
 -- messages are generally counted as equal if they are the same type, 
 -- regardless of the details of the accompanying text
 
 instance Eq Error where
+	
 	ESYSFAIL a == ESYSFAIL b = True
 	EPARSEFAIL a == EPARSEFAIL b = True
 	EPARENTNOTSTORE a == EPARENTNOTSTORE b = True
@@ -65,6 +80,13 @@ instance Eq Error where
 	EREFNOTOBJ a == EREFNOTOBJ b = True
 	ENOSPEC == ENOSPEC = True
 	ESPEC a == ESPEC b = True
+	
+	S_EPROTONOTSTORE a == EPROTONOTSTORE b = True
+	S_ENOLR a == ENOLR b = True
+	S_EASSIGN a == EASSIGN b = True
+	S_ENOSPEC a == ENOSPEC = True
+	S_EPARSEFAIL a == EPARSEFAIL b = True
+
 	_ == _ = False
 
 {------------------------------------------------------------------------------

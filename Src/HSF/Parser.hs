@@ -8,7 +8,7 @@ module HSF.Parser
 	, Value(..), Assignment(..), Prototype(..)
 	, ParserIO
 	, parseSF
-	, render
+	, ParseItem, render
 	) where
 
 import HSF.Utils

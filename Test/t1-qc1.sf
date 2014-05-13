@@ -1,3 +1,4 @@
 // quickcheck identified this
 
-foo extends { false; }
+a:b "string";
+ ;

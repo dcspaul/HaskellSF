@@ -1,4 +1,4 @@
-.PHONY: install remote build test check compile-tests clean where
+.PHONY: install remote build test quickcheck compile-tests clean where
 
 PLATFORM := $(shell echo `uname`-`arch`)
 VERSION := 76
@@ -72,7 +72,7 @@ test: install
 # this target runs quickcheck comparing the output with sfParser
 # you need to define: SFPARSER=location-of-sfparser (unless it is in your PATH)
 
-check: install
+quickcheck: install
 	@echo quickcheck ...
 	@mkdir -p $(SCRATCH_DIR) || exit 1
 	@$(BIN_DIR)/hsf$(VERSION)-$(PLATFORM) -q -o $(SCRATCH_DIR)

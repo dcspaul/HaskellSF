@@ -13,10 +13,11 @@ import HSF.Eval
 import HSF.Compile
 import HSF.RunScalaVersion
 
+import Data.List (intercalate)
 import Test.QuickCheck
 import Test.QuickCheck.Monadic (assert, monadicIO, run)
 import Control.Monad
-
+import System.FilePath.Posix (isAbsolute,(</>))
 
 {--
     See: http://www.cse.chalmers.se/~rjmh/QuickCheck/manual.html
@@ -52,22 +53,31 @@ instance Arbitrary Identifier where
 		, liftM Identifier (return "foo")
 		]
 
--- TODO: this allows references to be empty
+-- TODO: for now, we generate only single-identifier references
+-- we need a second pass to replace them with something chosen
+-- from the list of "real" identifiers
 
 instance Arbitrary Reference where
-	arbitrary = liftM Reference $ (resize 5) arbitrary
-	
--- TODO: this allows bodies to be empty (maybe we want that sometimes?)
+	arbitrary = do
+		first <- arbitrary
+		-- rest <- (resize 3) arbitrary
+		return (Reference [first])
+		-- return (Reference (first:rest))
 
 instance Arbitrary Body where
 	arbitrary = liftM Body $ (resize 4) arbitrary
+
+-- datarefs must not be empty
 
 instance Arbitrary BasicValue where
 	arbitrary = oneof
 		[ liftM BoolValue arbitrary
 		, liftM NumValue (return 1234)
 		, liftM StringValue (return "string")
-		, liftM DataRef $ (resize 5) arbitrary
+		, do
+			first <- arbitrary
+			rest <- (resize 3) arbitrary
+			return (DataRef (first:rest))
 		]
 
 instance Arbitrary Value where
@@ -91,11 +101,29 @@ newtype SfSource = SfSource String deriving(Eq)
 instance Show SfSource where
 	show (SfSource s) = id s
 
-renderBody :: Body -> String
-renderBody = render
+data SFConfig = SFConfig [Assignment] deriving(Eq,Show)
+
+-- the aim here is to generate a list of assignments with at least one sfConfig
+-- TODO: I guess you might want to test configurations with no sfconfig
+-- so we could make this randomly something else ....
+-- you might also want to test an empty top level?
+
+instance Arbitrary SFConfig where
+	arbitrary = do
+		left <- ((resize 3) arbitrary)
+		sfConfig <- (resize 3) arbitrary
+		let a = Assignment (Reference [Identifier "sfConfig"]) sfConfig
+		right <- ((resize 3) arbitrary)
+		return (SFConfig (left ++ [a] ++ right))
+
+renderConfig :: SFConfig -> String
+renderConfig = render
 
 instance Arbitrary SfSource where
-	arbitrary = liftM SfSource $ liftM renderBody arbitrary
+	arbitrary = liftM SfSource $ liftM renderConfig arbitrary
+
+instance ParseItem SFConfig where
+	render (SFConfig as) = intercalate "\n" (map render as)
 
 -- see: http://stackoverflow.com/questions/2259926/testing-io-actions-with-monadic-quickcheck
 
@@ -108,23 +136,23 @@ prop_CompareScala opts (SfSource source) = not (null source) ==> monadicIO test 
 compileForTest :: Opts -> String -> IO (Bool)
 compileForTest opts source = do
 
-		let srcPath = "/tmp/hsf-qc.sf"
+		let srcPath = tmpPath opts
 		writeFile srcPath source
 		haskellResult <- compile (opts { format=CompactJSON } ) srcPath
 		scalaResult <- runSfParser opts srcPath
+		if (haskellResult /= scalaResult) then do
+			putStrLn ( "Haskell: " ++ (resultString haskellResult) )
+			putStrLn ( "Scala:   " ++ (resultString scalaResult) )
+			return False
+		else return True
 
--- TODO: can we print the outputs *only* when the test fails ?
-
-		putStrLn ( "Haskell: " ++ (resultString haskellResult))
-		putStrLn ( "Scala: " ++ (resultString scalaResult) ++ "\n" )
-		return (haskellResult == scalaResult)
-
-tmpPath :: Opts -> String -> String
-tmpPath opts srcPath = undefined
--- TODO: write this and use it
--- if the "output" option is absolute, use that as the location of the source
--- otherwise, use "/tmp" 
-
+tmpPath :: Opts -> String
+tmpPath opts = 
+	if (isAbsolute outDir)
+		then outDir </> "quickcheck.sf"
+		else "/tmp" </> "quickcheck.sf"
+	where outDir = outputPath opts
+		
 -- TODO: support a -v flag which we can use to control the printing level
 
 check opts = do
