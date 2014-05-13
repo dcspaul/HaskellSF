@@ -57,7 +57,6 @@ compileAndCompare opts srcPath = do
 		haskellResult <- compile (setFormat opts CompactJSON) srcPath
 		scalaResult <- runSfParser opts srcPath
 	
-		-- if (compareResult haskellResult scalaResult)
 		if (haskellResult == scalaResult)
 			then putStrLn ( ">> match ok: " ++ (takeBaseName srcPath) )
 			else putStrLn ( "** match failed: " ++ indentMsg ((takeBaseName srcPath) ++ "\n"

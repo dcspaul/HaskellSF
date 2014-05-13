@@ -1,5 +1,5 @@
 {------------------------------------------------------------------------------
-    HSF - SmartFrog Core Language Compiler: Utilities
+    HSF - SmartFrog Core Language Compiler: Error Messages
 	Paul Anderson <dcspaul@ed.ac.uk>
 ------------------------------------------------------------------------------}
 
@@ -30,6 +30,8 @@ data Error
 	| ENOSPEC
 	| ESPEC String
 
+-- printable strings for error messages
+
 errorString :: Error -> String
 errorString code = case (code) of
 	ESYSFAIL s -> "command failed: " ++ s
@@ -45,7 +47,10 @@ errorString code = case (code) of
 	ENOSPEC -> "no sfConfig at top level of specification [error 7]"
 	ESPEC s -> "sfConfig cannot be a basic value [error 7]: " ++ s
 
--- we count errors as the same if the basic type is the same (ignoring the message)
+-- equality of error messages
+-- this is used to compare the error messages from different implementations.
+-- messages are generally counted as equal if they are the same type, 
+-- regardless of the details of the accompanying text
 
 instance Eq Error where
 	ESYSFAIL a == ESYSFAIL b = True
@@ -62,12 +67,18 @@ instance Eq Error where
 	ESPEC a == ESPEC b = True
 	_ == _ = False
 
--- these functions format the error messages from the parser
+{------------------------------------------------------------------------------
+    parser error messages
+------------------------------------------------------------------------------}
+
+-- this function formats error messages from the parser
+-- and wraps them in an EPARSEFAIL
 
 parseError :: ParseError -> Error
 parseError e =
 	EPARSEFAIL ( "parse error at " ++ f ++ " (line " ++ (show l) ++
 		", column " ++ (show c) ++ ")\n" ++ msg )
+
 	where
 		(f, l, c) = breakPos e
 		msg = let msgs = errorMessages e in
@@ -75,16 +86,16 @@ parseError e =
 				then failMessage msgs
 				else rstrip $ unlines $ tail $ lines $ show e
 
-breakPos e = (f, l, c) where
-	pos = errorPos e
-	f = sourceName pos
-	l = sourceLine pos
-	c = sourceColumn pos
+		breakPos e = (f, l, c) where
+			pos = errorPos e
+			f = sourceName pos
+			l = sourceLine pos
+			c = sourceColumn pos
 
-isFailMessage (Message m) = True
-isFailMessage _ = False
+		isFailMessage (Message m) = True
+		isFailMessage _ = False
 
-isFail msgList = any isFailMessage msgList
+		isFail msgList = any isFailMessage msgList
 
-failMessage msgList = s
-	where (Message s) = head $ filter isFailMessage msgList 
+		failMessage msgList = s
+			where (Message s) = head $ filter isFailMessage msgList 

@@ -24,7 +24,7 @@ import Text.Regex (mkRegex, matchRegex)
 
 -- run the script runSfParser.sh
 -- (assumed to be in same directory as the hsf binary)
--- return the output
+-- return the output or an error code
 
 runSfParser :: [OptionFlag] -> String -> IO (Either Error String)
 runSfParser opts srcPath = do
@@ -43,6 +43,10 @@ runSfParser opts srcPath = do
 			return (Left ( ESYSFAIL ( scriptPath ++
 			 	" " ++ srcPath ++ " " ++ dstPath ++ " " ++ parserPath )))
 
+{------------------------------------------------------------------------------
+    convert sfparser error messages to error codes
+------------------------------------------------------------------------------}
+
 stringToErrorOrResult :: String -> Either Error String
 stringToErrorOrResult s
 		| isError s "^\\[err4\\] invalid prototype reference" = Left (EPROTONOTSTORE s)
@@ -58,7 +62,10 @@ stringToErrorOrResult s
 			Just _ -> True
 			Nothing -> False
 
--- get the path to the sfParser compiler
+{------------------------------------------------------------------------------
+    get the path to the sfParser compiler
+------------------------------------------------------------------------------}
+
 -- try the command line arguments (-s PATHNAME) first
 -- then try the environment (SFPARSER)
 -- otherwise return the default (sfparser)
