@@ -40,6 +40,8 @@ data Prototype = RefProto Reference | BodyProto Body deriving(Eq,Show)
 
 --}
 
+-- TODO: not yet supporting vectors ?
+
 instance Arbitrary Identifier where
 	arbitrary = oneof
 		[ liftM Identifier (return "a")
@@ -50,9 +52,13 @@ instance Arbitrary Identifier where
 		, liftM Identifier (return "foo")
 		]
 
+-- TODO: this allows references to be empty
+
 instance Arbitrary Reference where
 	arbitrary = liftM Reference $ (resize 5) arbitrary
 	
+-- TODO: this allows bodies to be empty (maybe we want that sometimes?)
+
 instance Arbitrary Body where
 	arbitrary = liftM Body $ (resize 4) arbitrary
 
@@ -80,7 +86,10 @@ instance Arbitrary Prototype where
 		, liftM RefProto arbitrary 
 		]
 
-newtype SfSource = SfSource String deriving(Show,Eq)
+newtype SfSource = SfSource String deriving(Eq)
+
+instance Show SfSource where
+	show (SfSource s) = id s
 
 renderBody :: Body -> String
 renderBody = render
@@ -88,25 +97,40 @@ renderBody = render
 instance Arbitrary SfSource where
 	arbitrary = liftM SfSource $ liftM renderBody arbitrary
 
--- this test currently returns True so that it keeps doing all the tests
--- eventually, we want to compile the source with the two compilers
--- and compare the text result
-prop_Assign a = a /= (SfSource "some code here")
+-- see: http://stackoverflow.com/questions/2259926/testing-io-actions-with-monadic-quickcheck
 
-
-prop_Foo :: Opts -> SfSource -> Property
-prop_Foo opts (SfSource s) = not (null s) ==> monadicIO test where
+prop_CompareScala :: Opts -> SfSource -> Property
+prop_CompareScala opts (SfSource source) = not (null source) ==> monadicIO test where
 	test = do
-		isSame <- run $ compileAndCompare opts s
+		isSame <- run $ compileForTest opts source
 		assert $ isSame
 
+compileForTest :: Opts -> String -> IO (Bool)
+compileForTest opts source = do
 
+		let srcPath = "/tmp/hsf-qc.sf"
+		writeFile srcPath source
+		haskellResult <- compile (opts { format=CompactJSON } ) srcPath
+		scalaResult <- runSfParser opts srcPath
 
+-- TODO: can we print the outputs *only* when the test fails ?
+
+		putStrLn ( "Haskell: " ++ (resultString haskellResult))
+		putStrLn ( "Scala: " ++ (resultString scalaResult) ++ "\n" )
+		return (haskellResult == scalaResult)
+
+tmpPath :: Opts -> String -> String
+tmpPath opts srcPath = undefined
+-- TODO: write this and use it
+-- if the "output" option is absolute, use that as the location of the source
+-- otherwise, use "/tmp" 
+
+-- TODO: support a -v flag which we can use to control the printing level
 
 check opts = do
-	-- quickCheck prop_Assign
-	-- verboseCheck prop_Assign
-	quickCheck (prop_Foo opts)
+	-- TODO: control these with the verbose option
+	-- quickCheck prop_Foo
+	verboseCheck (prop_CompareScala opts)
 
 
 

@@ -22,5 +22,5 @@ main = do
 processFile :: Opts -> String -> IO ()
 processFile opts srcPath = do
 	if (isComparing opts)
-		then compileCompareAndDisplay opts srcPath
+		then compileAndCompare opts srcPath
 		else compileAndSave opts srcPath

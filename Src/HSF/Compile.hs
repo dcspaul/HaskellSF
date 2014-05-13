@@ -7,7 +7,7 @@ module HSF.Compile
 	( compile
 	, compileAndSave
 	, compileAndCompare
-	, compileCompareAndDisplay
+	, resultString
 	) where
 
 import System.IO (hPutStrLn, stderr)
@@ -21,7 +21,7 @@ import HSF.Options
 import HSF.RunScalaVersion
 
 {------------------------------------------------------------------------------
-    compile SF source
+    compile SF source from file
 ------------------------------------------------------------------------------}
 
 compile :: Opts -> String -> IO (Either Error String)
@@ -47,7 +47,7 @@ compile opts srcPath = do
 				CompactJSON -> ( renderCompactJSON store )
 
 {------------------------------------------------------------------------------
-    compile and save to file
+    compile from file and save to file
 ------------------------------------------------------------------------------}
 
 compileAndSave :: Opts -> String -> IO ()
@@ -60,37 +60,27 @@ compileAndSave opts srcPath = do
 	where dstPath = jsonPath srcPath opts ""
 
 {------------------------------------------------------------------------------
-    compile with multiple compilers & compare result
+    compile from file with multiple compilers & compare result
 ------------------------------------------------------------------------------}
 
-compileAndCompare :: Opts -> String -> IO (Bool)
-compileAndCompare opts source = do
+compileAndCompare :: Opts -> String -> IO ()
+compileAndCompare opts srcPath = do
 
-		let srcPath = "SOME-PATH"
-		writeFile srcPath source
-		haskellResult <- compile (opts { format=CompactJSON } ) srcPath
-		scalaResult <- runSfParser opts srcPath
-		return (haskellResult == scalaResult)
+	haskellResult <- compile (opts { format=CompactJSON } ) srcPath
+	scalaResult <- runSfParser opts srcPath
+
+	if (haskellResult == scalaResult)
+		then putStrLn ( ">> match ok: " ++ (takeBaseName srcPath) )
+		else putStrLn ( "** match failed: " ++ indentMsg ((takeBaseName srcPath) ++ "\n"
+			++ "Haskell: " ++ (resultString haskellResult) ++ "\n"
+			++ "Scala:   " ++ (resultString scalaResult) ))
 
 {------------------------------------------------------------------------------
-    compile with multiple compilers & compare result
+    string result of compilation
 ------------------------------------------------------------------------------}
 
-compileCompareAndDisplay :: Opts -> String -> IO ()
-compileCompareAndDisplay opts srcPath = do
-
-		haskellResult <- compile (opts { format=CompactJSON } ) srcPath
-		scalaResult <- runSfParser opts srcPath
-
-		if (haskellResult == scalaResult)
-			then putStrLn ( ">> match ok: " ++ (takeBaseName srcPath) )
-			else putStrLn ( "** match failed: " ++ indentMsg ((takeBaseName srcPath) ++ "\n"
-				++ "Haskell: " ++ (resultString haskellResult) ++ "\n"
-				++ "Scala:   " ++ (resultString scalaResult) ))
-	where
-
-		resultString :: (Either Error String) -> String
-		resultString r =
-			case r of
-				Left e -> errorString e
-				Right s -> s
+resultString :: (Either Error String) -> String
+resultString r =
+	case r of
+		Left e -> errorString e
+		Right s -> s
