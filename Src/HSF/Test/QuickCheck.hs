@@ -13,7 +13,7 @@ import HSF.Eval
 import HSF.Compile
 import HSF.Test.RunScalaVersion
 
-import Data.List (intercalate)
+import Data.List (intercalate,nub)
 import Test.QuickCheck
 import Test.QuickCheck.Monadic (assert, monadicIO, run)
 import Control.Monad
@@ -61,14 +61,14 @@ instance Arbitrary Reference where
 	arbitrary = do
 		first <- arbitrary
 		-- rest <- (resize 3) arbitrary
-		return (Reference [first])
+		return (Reference [first]) -- [Identifier]
 		-- return (Reference (first:rest))
 
 instance Arbitrary Body where
-	arbitrary = do
-		first <- arbitrary
-		rest <- (resize 3) arbitrary
-		return (Body (first:rest))
+	arbitrary = sized body' where
+		body' n
+			| n<=1 = liftM Body ((resize 1) arbitrary)
+			| n>1  = liftM Body ((resize n) arbitrary)
 
 -- datarefs must not be empty
 
@@ -80,26 +80,26 @@ instance Arbitrary BasicValue where
 		, do
 			first <- arbitrary
 			rest <- (resize 3) arbitrary
-			return (DataRef (first:rest))
+			return (DataRef (first:rest)) -- [Identifier]
 		]
 
 instance Arbitrary Value where
 	arbitrary = oneof
-		[ liftM BasicValue arbitrary
-		, liftM LinkValue arbitrary
+		[ liftM BasicValue arbitrary -- BasicValue
+		, liftM LinkValue arbitrary -- Reference
 		, do
 			first <- arbitrary
 			rest <- (resize 3) arbitrary
-			return (ProtoValue (first:rest))
+			return (ProtoValue (first:rest)) -- [Prototype]
 		]
 
 instance Arbitrary Assignment where
-	arbitrary = liftM2 Assignment arbitrary arbitrary
+	arbitrary = liftM2 Assignment arbitrary arbitrary -- Reference Value
 
 instance Arbitrary Prototype where
 	arbitrary = oneof
-		[ liftM BodyProto arbitrary
-		, liftM RefProto arbitrary 
+		[ liftM BodyProto arbitrary -- Body
+		, liftM RefProto arbitrary -- Reference
 		]
 
 newtype SfSource = SfSource String deriving(Eq)
@@ -165,3 +165,36 @@ check opts = do
 	-- TODO: control these with the verbose option
 	-- quickCheck prop_Foo
 	verboseCheck (prop_CompareScala opts)
+
+
+
+{------------------------------------------------------------------------------
+    find all references
+------------------------------------------------------------------------------}
+
+addPrefix :: Identifier -> Reference -> Reference
+addPrefix id (Reference ids) = Reference(id:ids)
+
+class HasRefList a where
+	refList :: a -> [Reference]
+	
+instance HasRefList Assignment where
+	-- if the assignment has a single identifier on the left, that is valid reference
+	-- if the rhs is a block, then we can prefix the lhs to every value in the rhs
+	refList (Assignment (Reference [id]) val) = (Reference [id]):(map (addPrefix id) (refList val))
+	-- if the thing on the left is a reference, then we can't do anything (we need to sub it later)
+	refList (Assignment (Reference (_:_)) _) = []
+	
+instance HasRefList Prototype where
+	-- if the thing on the right is a reference, we can't do anythign (we need to sub it later)
+	refList (RefProto ref) = []
+	-- if it is a body, then return the protolist from the body
+	refList (BodyProto b) = refList b
+		
+instance HasRefList Value where
+	refList (BasicValue bv) = []
+	refList (LinkValue ref) = []
+	refList (ProtoValue ps) = nub $ concat $ map refList ps
+
+instance HasRefList Body where
+	refList (Body as) = nub $ concat $ map refList as

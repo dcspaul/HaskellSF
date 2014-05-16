@@ -229,7 +229,7 @@ leaveInclude = do
 ------------------------------------------------------------------------------}
 
 class ParseItem a where
-	render :: a -> String 
+	render :: a -> String
 	
 instance ParseItem Identifier where
 	render (Identifier id) = id

@@ -13,6 +13,7 @@ module HSF.Compile
 import System.IO (hPutStrLn, stderr)
 import System.FilePath.Posix (takeBaseName)
 
+import Data.List (intercalate) -- TODO: temporary
 import HSF.Parser
 import HSF.Eval
 import HSF.Utils
