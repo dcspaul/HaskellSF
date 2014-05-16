@@ -65,7 +65,10 @@ instance Arbitrary Reference where
 		-- return (Reference (first:rest))
 
 instance Arbitrary Body where
-	arbitrary = liftM Body $ (resize 4) arbitrary
+	arbitrary = do
+		first <- arbitrary
+		rest <- (resize 3) arbitrary
+		return (Body (first:rest))
 
 -- datarefs must not be empty
 
@@ -84,7 +87,10 @@ instance Arbitrary Value where
 	arbitrary = oneof
 		[ liftM BasicValue arbitrary
 		, liftM LinkValue arbitrary
-		, liftM ProtoValue $ (resize 5) arbitrary
+		, do
+			first <- ( arbitrary :: Prototype )
+			rest <- (resize 3) ( arbitrary :: [Prototype] )
+			return (ProtoValue (first:rest))
 		]
 
 instance Arbitrary Assignment where
@@ -159,8 +165,3 @@ check opts = do
 	-- TODO: control these with the verbose option
 	-- quickCheck prop_Foo
 	verboseCheck (prop_CompareScala opts)
-
-
-
-
-

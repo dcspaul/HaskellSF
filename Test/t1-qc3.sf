@@ -1,0 +1,20 @@
+b extends {
+  b DATA c:a:b:c;
+  foo "string";
+}, foo
+b extends e, {
+  e extends {}, b, a, {
+    foo false;
+    e DATA d:c:b:e;
+    b true;
+  }
+  d c;
+}, {
+  e "string";
+}
+c 1234;
+sfConfig extends a
+e extends b, {
+  b "string";
+  d d;
+}

@@ -53,6 +53,7 @@ stringToErrorOrResult s
 		| isError s "^\\[err5\\] cannot find link reference" = Left (S_ENOLR s)
 		| isError s "^\\[err6\\] prefix of .* is not a component" = Left (S_EASSIGN s)
 		| isError s "^\\[err7\\] sfConfig is not exist or a component" = Left (S_ENOSPEC s)
+		| isError s "^\\[err4\\] invalid prototype reference" = Left (S_EPROTO s)
 		| isError s "^Exception in thread \"main\" java.lang.StackOverflowError" = Left (S_EPARSEFAIL s)
 		| isError s "\\(Is a directory\\)$" = Left (S_EPARSEFAIL s)
 		| isError s "^invalid statement" = Left (S_EPARSEFAIL s)

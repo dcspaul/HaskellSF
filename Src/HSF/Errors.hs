@@ -36,6 +36,7 @@ data Error
 	| S_EASSIGN String
 	| S_ENOSPEC String
 	| S_EPARSEFAIL String
+	| S_EPROTO String
 
 -- printable strings for error messages
 
@@ -61,6 +62,7 @@ errorString code = case (code) of
 	S_EASSIGN s -> s
 	S_ENOSPEC s -> s
 	S_EPARSEFAIL s -> s
+	S_EPROTO s -> s
 	
 -- equality of error messages
 -- this is used to compare the error messages from different implementations.
@@ -83,6 +85,7 @@ instance Eq Error where
 	ESPEC a == ESPEC b = True
 	
 	-- compare errors with scala version
+	-- TODO: can we handle the commutativity better ?
 	S_EPROTONOTSTORE a == EPROTONOTSTORE b = True
 	EPROTONOTSTORE a == S_EPROTONOTSTORE b = True
 	S_ENOLR a == ENOLR b = True
@@ -93,6 +96,12 @@ instance Eq Error where
 	ENOSPEC == S_ENOSPEC a = True
 	S_EPARSEFAIL a == EPARSEFAIL b = True
 	EPARSEFAIL a == S_EPARSEFAIL b = True
+	S_EPROTO a == ENOPROTO b = True
+	ENOPROTO a == S_EPROTO b = True
+	S_EPROTO a == EPROTONOTSTORE b = True
+	EPROTONOTSTORE a == S_EPROTO b = True
+	S_ENOSPEC a == ESPEC b = True
+	ESPEC a == S_ENOSPEC b = True
 
 	_ == _ = False
 
