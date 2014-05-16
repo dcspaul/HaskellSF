@@ -3,7 +3,7 @@
 	Paul Anderson <dcspaul@ed.ac.uk>
 ------------------------------------------------------------------------------}
 
-module HSF.QuickCheck
+module HSF.Test.QuickCheck
 	( check
 	) where
 

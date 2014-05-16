@@ -37,8 +37,8 @@ $(BUILD_DIR)/hsf-$(PLATFORM): \
 		$(BUILD_DIR)/HSF/Utils.hs \
 		$(BUILD_DIR)/HSF/Errors.hs \
 		$(BUILD_DIR)/HSF/Options.hs \
-		$(BUILD_DIR)/HSF/RunScalaVersion.hs \
-		$(BUILD_DIR)/HSF/QuickCheck.hs \
+		$(BUILD_DIR)/HSF/Test/RunScalaVersion.hs \
+		$(BUILD_DIR)/HSF/Test/QuickCheck.hs \
 		Makefile
 	@cd $(BUILD_DIR) || exit 1; \
 	export PATH=/opt/ghc$(VERSION)/bin:$$PATH || exit 1 ;\
@@ -50,7 +50,7 @@ $(BUILD_DIR)/hsf.hs: $(SRC_DIR)/hsf.hs Makefile
 	@cp $(SRC_DIR)/hsf.hs $(BUILD_DIR)/hsf.hs || exit 1
 
 $(BUILD_DIR)/HSF/%.hs: $(SRC_DIR)/HSF/%.hs Makefile
-	@mkdir -p $(BUILD_DIR)/HSF || exit 1
+	@mkdir -p $(BUILD_DIR)/HSF $(BUILD_DIR)/HSF/Test || exit 1
 	@rm -f $@ || exit 1
 	@cp $< $@ 
 
@@ -67,7 +67,7 @@ compile-tests: install
 test: install
 	@echo comparing output ...
 	@mkdir -p $(SCRATCH_DIR) || exit 1
-	@$(BIN_DIR)/hsf$(VERSION)-$(PLATFORM) -c -o $(SCRATCH_DIR) $(TEST_DIR)/$(TEST_PREFIX)*.sf
+	@$(BIN_DIR)/hsf$(VERSION)-$(PLATFORM) -c scala -o $(SCRATCH_DIR) $(TEST_DIR)/$(TEST_PREFIX)*.sf
 
 # this target runs quickcheck comparing the output with sfParser
 # you need to define: SFPARSER=location-of-sfparser (unless it is in your PATH)
@@ -75,7 +75,7 @@ test: install
 quickcheck: install
 	@echo quickcheck ...
 	@mkdir -p $(SCRATCH_DIR) || exit 1
-	@$(BIN_DIR)/hsf$(VERSION)-$(PLATFORM) -q -o $(SCRATCH_DIR)
+	@$(BIN_DIR)/hsf$(VERSION)-$(PLATFORM) -q scala -o $(SCRATCH_DIR)
 
 # this target does a build on a remote machine
 # using the given REMOTE_VERSION of the Haskell compiler

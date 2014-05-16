@@ -3,7 +3,7 @@
 	Paul Anderson <dcspaul@ed.ac.uk>
 ------------------------------------------------------------------------------}
 
-module HSF.RunScalaVersion
+module HSF.Test.RunScalaVersion
 	( runSfParser
 	) where
 
