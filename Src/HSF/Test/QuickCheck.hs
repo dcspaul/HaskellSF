@@ -11,7 +11,7 @@ import HSF.Options
 import HSF.Parser
 import HSF.Eval
 import HSF.Compile
-import HSF.RunScalaVersion
+import HSF.Test.RunScalaVersion
 
 import Data.List (intercalate)
 import Test.QuickCheck
@@ -88,8 +88,8 @@ instance Arbitrary Value where
 		[ liftM BasicValue arbitrary
 		, liftM LinkValue arbitrary
 		, do
-			first <- ( arbitrary :: Prototype )
-			rest <- (resize 3) ( arbitrary :: [Prototype] )
+			first <- arbitrary
+			rest <- (resize 3) arbitrary
 			return (ProtoValue (first:rest))
 		]
 
@@ -146,7 +146,7 @@ compileForTest opts source = do
 		writeFile srcPath source
 		haskellResult <- compile (opts { format=CompactJSON } ) srcPath
 		scalaResult <- runSfParser opts srcPath
-		if (haskellResult /= scalaResult) then do
+		if (not $ matchSfParser haskellResult scalaResult) then do
 			putStrLn ( "Haskell: " ++ (resultString haskellResult) )
 			putStrLn ( "Scala:   " ++ (resultString scalaResult) )
 			return False

@@ -18,7 +18,7 @@ import HSF.Eval
 import HSF.Utils
 import HSF.Errors
 import HSF.Options
-import HSF.RunScalaVersion
+import HSF.Test.RunScalaVersion
 
 {------------------------------------------------------------------------------
     compile SF source from file
@@ -69,7 +69,7 @@ compileAndCompare opts srcPath = do
 	haskellResult <- compile (opts { format=CompactJSON } ) srcPath
 	scalaResult <- runSfParser opts srcPath
 
-	if (haskellResult == scalaResult)
+	if (matchSfParser haskellResult scalaResult)
 		then putStrLn ( ">> match ok: " ++ (takeBaseName srcPath) )
 		else putStrLn ( "** match failed: " ++ indentMsg ((takeBaseName srcPath) ++ "\n"
 			++ "Haskell: " ++ (resultString haskellResult) ++ "\n"
@@ -79,7 +79,7 @@ compileAndCompare opts srcPath = do
     string result of compilation
 ------------------------------------------------------------------------------}
 
-resultString :: (Either Error String) -> String
+resultString :: ErrorMessage e => (Either e String) -> String
 resultString r =
 	case r of
 		Left e -> errorString e

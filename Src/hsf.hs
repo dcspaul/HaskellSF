@@ -7,7 +7,7 @@ import System.Environment (getArgs)
 
 import HSF.Compile
 import HSF.Options
-import HSF.QuickCheck
+import HSF.Test.QuickCheck
 
 {------------------------------------------------------------------------------
     main program

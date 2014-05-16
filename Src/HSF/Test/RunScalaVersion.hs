@@ -4,7 +4,7 @@
 ------------------------------------------------------------------------------}
 
 module HSF.Test.RunScalaVersion
-	( runSfParser
+	( runSfParser, matchSfParser
 	) where
 
 import HSF.Options
@@ -26,7 +26,7 @@ import Text.Regex (mkRegex, matchRegex)
 -- (assumed to be in same directory as the hsf binary)
 -- return the output or an error code
 
-runSfParser :: Opts -> String -> IO (Either Error String)
+runSfParser :: Opts -> String -> IO (Either S_Error String)
 runSfParser opts srcPath = do
 	let dstPath = jsonPath srcPath opts ("-s")
 	execPath <- getExecutablePath
@@ -40,20 +40,34 @@ runSfParser opts srcPath = do
 			result <- readFile dstPath
 			return (stringToErrorOrResult result)
 		ExitFailure code ->
-			return (Left ( ESYSFAIL ( scriptPath ++
+			return (Left ( S_ESYSFAIL ( scriptPath ++
 			 	" " ++ srcPath ++ " " ++ dstPath ++ " " ++ parserPath )))
 
 {------------------------------------------------------------------------------
     convert sfparser error messages to error codes
 ------------------------------------------------------------------------------}
 
-stringToErrorOrResult :: String -> Either Error String
+data S_Error
+
+	= S_ESYSFAIL String
+	| S_EPARSEFAIL String
+	| S_ERR1 String
+	| S_ERR2 String
+	| S_ERR3 String
+	| S_ERR4 String
+	| S_ERR5 String
+	| S_ERR6 String
+	| S_ERR7 String
+
+stringToErrorOrResult :: String -> (Either S_Error String)
 stringToErrorOrResult s
-		| isError s "^\\[err4\\] invalid prototype reference" = Left (S_EPROTONOTSTORE s)
-		| isError s "^\\[err5\\] cannot find link reference" = Left (S_ENOLR s)
-		| isError s "^\\[err6\\] prefix of .* is not a component" = Left (S_EASSIGN s)
-		| isError s "^\\[err7\\] sfConfig is not exist or a component" = Left (S_ENOSPEC s)
-		| isError s "^\\[err4\\] invalid prototype reference" = Left (S_EPROTO s)
+		| isError s "^\\[err1\\]" = Left (S_ERR1 s)
+		| isError s "^\\[err2\\]" = Left (S_ERR2 s)
+		| isError s "^\\[err3\\]" = Left (S_ERR3 s)
+		| isError s "^\\[err4\\]" = Left (S_ERR4 s)
+		| isError s "^\\[err5\\]" = Left (S_ERR5 s)
+		| isError s "^\\[err6\\]" = Left (S_ERR6 s)
+		| isError s "^\\[err7\\]" = Left (S_ERR7 s)
 		| isError s "^Exception in thread \"main\" java.lang.StackOverflowError" = Left (S_EPARSEFAIL s)
 		| isError s "\\(Is a directory\\)$" = Left (S_EPARSEFAIL s)
 		| isError s "^invalid statement" = Left (S_EPARSEFAIL s)
@@ -62,6 +76,35 @@ stringToErrorOrResult s
 		case (matchRegex (mkRegex r) s) of
 			Just _ -> True
 			Nothing -> False
+
+-- match with hsf error codes
+
+matchSfParser :: (Either Error String) -> (Either S_Error String) -> Bool
+matchSfParser (Right _) (Right _) = True
+matchSfParser (Left (ESYSFAIL _)) (Left (S_ESYSFAIL _)) = True
+matchSfParser (Left (EPARSEFAIL _)) (Left (S_EPARSEFAIL _)) = True
+matchSfParser (Left (EPARENTNOTSTORE _)) (Left (S_ERR1 _)) = True
+matchSfParser (Left (ENOPARENT _)) (Left (S_ERR2 _)) = True
+matchSfParser (Left EREPLACEROOTSTORE) (Left (S_ERR3 _)) = True
+matchSfParser (Left (ENOPROTO _)) (Left (S_ERR4 _)) = True
+matchSfParser (Left (EPROTONOTSTORE _)) (Left (S_ERR4 _)) = True
+matchSfParser (Left (ENOLR _)) (Left (S_ERR5 _)) = True
+matchSfParser (Left (EASSIGN _)) (Left (S_ERR6 _)) = True
+matchSfParser (Left (EREFNOTOBJ _)) (Left (S_ERR6 _)) = True
+matchSfParser (Left ENOSPEC) (Left (S_ERR7 _)) = True
+matchSfParser (Left (ESPEC _)) (Left (S_ERR7 _)) = True
+matchSfParser _ _ = False
+
+instance ErrorMessage S_Error where
+	errorString (S_ESYSFAIL s) = s
+	errorString (S_EPARSEFAIL s) = s
+	errorString (S_ERR1 s) = s
+	errorString (S_ERR2 s) = s
+	errorString (S_ERR3 s) = s
+	errorString (S_ERR4 s) = s
+	errorString (S_ERR5 s) = s
+	errorString (S_ERR6 s) = s
+	errorString (S_ERR7 s) = s
 
 {------------------------------------------------------------------------------
     get the path to the sfParser compiler

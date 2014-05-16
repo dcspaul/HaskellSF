@@ -3,7 +3,7 @@
 PLATFORM := $(shell echo `uname`-`arch`)
 VERSION := 76
 REMOTE_VERSION := 78
-TEST_PREFIX := t1-qc
+TEST_PREFIX := t1
 
 TOP_DIR := $(shell pwd)
 SRC_DIR := $(TOP_DIR)/Src
