@@ -4,11 +4,12 @@
 ------------------------------------------------------------------------------}
 
 module HSF.Test.RunScalaVersion
-	( runSfParser, matchSfParser
+	( compareWithScala
 	) where
 
 import HSF.Options
 import HSF.Errors
+import HSF.Utils
 
 import Data.String.Utils (rstrip)
 import System.FilePath.Posix (takeDirectory, (</>))
@@ -17,6 +18,29 @@ import GHC.IO.Exception (ExitCode(..))
 import System.Process (runProcess, waitForProcess)
 import System.Environment (lookupEnv)
 import Text.Regex (mkRegex, matchRegex)
+import System.FilePath.Posix (takeBaseName)
+
+{------------------------------------------------------------------------------
+    compare hsf output with scala compiler output
+------------------------------------------------------------------------------}
+
+type Compile = Opts -> String -> IO (Either Error String)
+
+compareWithScala :: Opts -> Compile -> String -> IO (Bool)
+compareWithScala opts compile srcPath = do
+
+	haskellResult <- compile (opts { format=CompactJSON } ) srcPath
+	scalaResult <- runSfParser opts srcPath
+
+	if (matchSfParser haskellResult scalaResult)
+		then do
+			putStrLn ( ">> match ok: " ++ (takeBaseName srcPath) )
+			return True
+		else do
+			putStrLn ( "** match failed: " ++ indentMsg ((takeBaseName srcPath) ++ "\n"	
+				++ "Haskell: " ++ (outputOrError haskellResult) ++ "\n"
+				++ "Scala:   " ++ (outputOrError scalaResult) ))
+			return False
 
 {------------------------------------------------------------------------------
     compile source using the scala version of the SF compiler

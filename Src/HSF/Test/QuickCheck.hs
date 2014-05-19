@@ -4,13 +4,13 @@
 ------------------------------------------------------------------------------}
 
 module HSF.Test.QuickCheck
-	( check
+	( checkWithScala, checkWithOCaml, checkWithHP
 	) where
 
 import HSF.Options
 import HSF.Parser
 import HSF.Eval
-import HSF.Compile
+import HSF.Errors
 import HSF.Test.RunScalaVersion
 
 import Data.List (intercalate,nub)
@@ -133,24 +133,20 @@ instance ParseItem SFConfig where
 
 -- see: http://stackoverflow.com/questions/2259926/testing-io-actions-with-monadic-quickcheck
 
-prop_CompareScala :: Opts -> SfSource -> Property
-prop_CompareScala opts (SfSource source) = not (null source) ==> monadicIO test where
+type Compile = Opts -> String -> IO (Either Error String)
+
+prop_CompareScala :: Opts -> Compile -> SfSource -> Property
+prop_CompareScala opts compile (SfSource source) = not (null source) ==> monadicIO test where
 	test = do
-		isSame <- run $ compileForTest opts source
+		isSame <- run $ compileForTest opts compile source
 		assert $ isSame
 
-compileForTest :: Opts -> String -> IO (Bool)
-compileForTest opts source = do
+compileForTest :: Opts -> Compile -> String -> IO (Bool)
+compileForTest opts compile source = do
 
 		let srcPath = tmpPath opts
 		writeFile srcPath source
-		haskellResult <- compile (opts { format=CompactJSON } ) srcPath
-		scalaResult <- runSfParser opts srcPath
-		if (not $ matchSfParser haskellResult scalaResult) then do
-			putStrLn ( "Haskell: " ++ (resultString haskellResult) )
-			putStrLn ( "Scala:   " ++ (resultString scalaResult) )
-			return False
-		else return True
+		compareWithScala opts compile srcPath
 
 tmpPath :: Opts -> String
 tmpPath opts = 
@@ -161,12 +157,17 @@ tmpPath opts =
 		
 -- TODO: support a -v flag which we can use to control the printing level
 
-check opts = do
+checkWithScala :: Opts -> Compile -> IO()
+checkWithScala opts compile = do
 	-- TODO: control these with the verbose option
 	-- quickCheck prop_Foo
-	verboseCheck (prop_CompareScala opts)
+	verboseCheck (prop_CompareScala opts compile)
 
+checkWithOCaml :: Opts -> Compile -> IO()
+checkWithOCaml opts compile = undefined
 
+checkWithHP :: Opts -> Compile -> IO()
+checkWithHP opts compile = undefined
 
 {------------------------------------------------------------------------------
     find all references

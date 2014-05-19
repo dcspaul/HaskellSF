@@ -31,14 +31,15 @@ build: $(BUILD_DIR)/hsf-$(PLATFORM)
 
 $(BUILD_DIR)/hsf-$(PLATFORM): \
 		$(BUILD_DIR)/hsf.hs \
-		$(BUILD_DIR)/HSF/Compile.hs \
 		$(BUILD_DIR)/HSF/Parser.hs \
 		$(BUILD_DIR)/HSF/Eval.hs \
 		$(BUILD_DIR)/HSF/Utils.hs \
 		$(BUILD_DIR)/HSF/Errors.hs \
 		$(BUILD_DIR)/HSF/Options.hs \
-		$(BUILD_DIR)/HSF/Test/RunScalaVersion.hs \
 		$(BUILD_DIR)/HSF/Test/QuickCheck.hs \
+		$(BUILD_DIR)/HSF/Test/RunScalaVersion.hs \
+		$(BUILD_DIR)/HSF/Test/RunOCamlVersion.hs \
+		$(BUILD_DIR)/HSF/Test/RunHPVersion.hs \
 		Makefile
 	@cd $(BUILD_DIR) || exit 1; \
 	export PATH=/opt/ghc$(VERSION)/bin:$$PATH || exit 1 ;\

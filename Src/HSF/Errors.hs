@@ -5,7 +5,7 @@
 
 module HSF.Errors
 	( Error(..), ErrorMessage
-	, errorString, parseError
+	, errorString, parseError, outputOrError
 	) where
 
 import Data.String.Utils (rstrip)
@@ -82,3 +82,13 @@ parseError e =
 
 		failMessage msgList = s
 			where (Message s) = head $ filter isFailMessage msgList 
+
+{------------------------------------------------------------------------------
+    string result of compilation
+------------------------------------------------------------------------------}
+
+outputOrError :: ErrorMessage e => (Either e String) -> String
+outputOrError r =
+	case r of
+		Left e -> errorString e
+		Right s -> s

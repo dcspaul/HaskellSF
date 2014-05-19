@@ -10,7 +10,7 @@ module HSF.Options
 	, compareWith, checkWith
 	, outputPath, sfParserPath
 	, jsonPath
-	, isComparing, isChecking
+	-- , isComparing, isChecking
 	) where
 
 import System.IO (hPutStrLn, stderr)
@@ -26,7 +26,7 @@ import System.Exit (exitWith,ExitCode(..))
 data Format = JSON | CompactJSON | UnknownFormat String deriving(Show,Eq)
 
 -- possible alternative compilers that we can compare output with
-data Compiler = ScalaCompiler | OCamlCompiler | HPCompiler | NoCompiler deriving(Show,Eq)
+data Compiler = ScalaCompiler | OCamlCompiler | HPCompiler | NoCompare deriving(Show,Eq)
 
 -- the (validated) data from the command line options
 data Opts = Opts
@@ -40,8 +40,8 @@ data Opts = Opts
 -- the default options
 defaults = Opts
 	{ format = JSON
-	, compareWith = NoCompiler
-	, checkWith = NoCompiler
+	, compareWith = NoCompare
+	, checkWith = NoCompare
 	, sfParserPath = ""
 	, outputPath = ""
 	}
@@ -85,17 +85,14 @@ extractOptions (f:fs) = do
 			otherwise -> Left ( "invalid format: \"" ++ fmt ++ "\"" )
 		(Compare c) -> case c of
 			"scala" -> return $ o { compareWith = ScalaCompiler }
-			"ocaml" -> Left "ocaml compiler not yet supported"
-			"hp" -> Left "hp compiler not yet supported"
+			"ocaml" -> return $ o { compareWith = OCamlCompiler }
+			"hp" -> return $ o { compareWith = HPCompiler }
 			otherwise -> Left ( "invalid compiler: \"" ++ c ++ "\"" )
 		(Check c) -> case c of
 			"scala" -> return $ o { checkWith = ScalaCompiler }
-			"ocaml" -> Left "ocaml compiler not yet supported"
-			"hp" -> Left "hp compiler not yet supported"
+			"ocaml" -> return $ o { checkWith = OCamlCompiler }
+			"hp" -> return $ o { checkWith = HPCompiler }
 			otherwise -> Left ( "invalid compiler: \"" ++ c ++ "\"" )
-
-isComparing opts = not $ compareWith opts == NoCompiler
-isChecking opts = not $ checkWith opts == NoCompiler
 
 -- where to put the json output:
 -- the default is the same directory as the source
