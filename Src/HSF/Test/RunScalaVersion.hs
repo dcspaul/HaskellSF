@@ -34,7 +34,12 @@ compareWithScala opts compile srcPath = do
 
 	if (matchSfParser haskellResult scalaResult)
 		then do
-			putStrLn ( ">> match ok: " ++ (takeBaseName srcPath) )
+			let status = case scalaResult of
+				(Left e) -> "\n" ++ (errorString e)
+				(Right _) -> ""
+			if (verbosity opts >= Verbose)
+				then putStrLn ( ">> match ok: " ++ (takeBaseName srcPath) ++ status )
+				else return ()
 			return True
 		else do
 			putStrLn ( "** match failed: " ++ indentMsg ((takeBaseName srcPath) ++ "\n"	
@@ -140,10 +145,7 @@ instance ErrorMessage S_Error where
 
 getSfParserPath :: Opts -> IO (String)
 getSfParserPath opts = do
-	let arg = sfParserPath opts
 	sfParserEnv <- lookupEnv "SFPARSER"
-	case (arg) of
-		[] -> case (sfParserEnv) of
-			Just s -> return s
-			Nothing -> return "sfparser"
-		f -> return f
+	case (sfParserEnv) of
+		Just s -> return s
+		Nothing -> return "sfparser"

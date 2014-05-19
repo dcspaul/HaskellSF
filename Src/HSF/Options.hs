@@ -4,12 +4,11 @@
 ------------------------------------------------------------------------------}
 
 module HSF.Options
-	( Opts , Format(..), Compiler(..)
+	( Opts , Format(..), Compiler(..), Verbosity(..)
 	, parseOptions
-	, format
+	, format, verbosity
 	, compareWith, checkWith
-	, outputPath, sfParserPath
-	, jsonPath
+	, outputPath, jsonPath
 	-- , isComparing, isChecking
 	) where
 
@@ -28,13 +27,16 @@ data Format = JSON | CompactJSON | UnknownFormat String deriving(Show,Eq)
 -- possible alternative compilers that we can compare output with
 data Compiler = ScalaCompiler | OCamlCompiler | HPCompiler | NoCompare deriving(Show,Eq)
 
+-- verbosity
+data Verbosity = Normal | Verbose | Debug deriving(Show,Eq,Ord)
+
 -- the (validated) data from the command line options
 data Opts = Opts
 	{ format :: Format
 	, compareWith :: Compiler
 	, checkWith :: Compiler
-	, sfParserPath :: String
 	, outputPath :: String
+	, verbosity :: Verbosity
 	}
 
 -- the default options
@@ -42,21 +44,22 @@ defaults = Opts
 	{ format = JSON
 	, compareWith = NoCompare
 	, checkWith = NoCompare
-	, sfParserPath = ""
 	, outputPath = ""
+	, verbosity = Normal
 	}
 
 -- the command line flags
 data OptionFlag = Output String | Compare String | Check String | Format String
-				| SfParser String deriving(Show,Eq)
+				| VerboseOpt | DebugOpt deriving(Show,Eq)
 
 options :: [OptDescr OptionFlag]
 options =
-	[ Option ['o'] ["output"]	(ReqArg Output "DIR")				"directory for json output"
-	, Option ['c'] ["compare"]	(ReqArg Compare "scala|ocaml|hp")	"compare with output of other compiler"
-	, Option ['q'] ["quickcheck"] (ReqArg Check "scala|ocaml|hp") 	"quickcheck"
+	[ Option ['c'] ["compare"]	(ReqArg Compare "scala|ocaml|hp")	"compare with output of other compiler"
+	, Option ['d'] ["debug"]	(NoArg DebugOpt)					"debug logging"
 	, Option ['f'] ["format"] 	(ReqArg Format "json|compact")		"output format"
-	, Option ['s'] ["sfparser"]	(ReqArg SfParser "FILE")			"location of sfparser"
+	, Option ['o'] ["output"]	(ReqArg Output "DIR")				"directory for json output"
+	, Option ['q'] ["quickcheck"] (ReqArg Check "scala|ocaml|hp") 	"quickcheck"
+	, Option ['v'] ["verbose"]	(NoArg VerboseOpt)					"verbose"
 	]
 
 parseOptions :: [String] -> IO (Opts, [String])
@@ -77,8 +80,9 @@ extractOptions [] = Right defaults
 extractOptions (f:fs) = do
 	o <- extractOptions fs
 	case f of
+		VerboseOpt -> return $ o { verbosity = Verbose }
+		DebugOpt -> return $ o { verbosity = Debug }
 		(Output p) -> return $ o { outputPath = p }
-		(SfParser p) -> return $ o { sfParserPath = p }
 		(Format fmt) -> case fmt of
 			"json" -> return $ o { format = JSON }
 			"compact" -> return $ o { format = CompactJSON }

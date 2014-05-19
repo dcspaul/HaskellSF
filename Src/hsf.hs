@@ -6,7 +6,6 @@
 import System.Environment (getArgs)
 import System.IO (hPutStrLn, stderr)
 
-import Data.List (intercalate) -- TODO: temporary
 import HSF.Parser
 import HSF.Eval
 import HSF.Utils
@@ -23,6 +22,7 @@ import HSF.Test.RunHPVersion
 
 main = do
 
+	-- command line args
 	(opts, files) <- getArgs >>= parseOptions
 
 	-- quickcheck ?

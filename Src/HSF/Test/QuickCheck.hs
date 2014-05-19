@@ -161,7 +161,9 @@ checkWithScala :: Opts -> Compile -> IO()
 checkWithScala opts compile = do
 	-- TODO: control these with the verbose option
 	-- quickCheck prop_Foo
-	verboseCheck (prop_CompareScala opts compile)
+	if (verbosity opts >= Debug)
+		then verboseCheck (prop_CompareScala opts compile)
+		else quickCheck (prop_CompareScala opts compile)
 
 checkWithOCaml :: Opts -> Compile -> IO()
 checkWithOCaml opts compile = undefined

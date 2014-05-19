@@ -13,18 +13,25 @@ A list of SmartFrog source files can be  compiled into corresponding JSON output
 The output files can be generated in a different directory (relative to the source files):
 
 	hsf -o ../output-dir file1.sf file2.sf ...
+	
+The output format can be set with "-f json" or "-f compact"
+The output logging can ve increased with "-v" (verbose) or "-d" (debug)
 
 ### Comparing output
 
-The -c option compiles each source file using the Scala SF compiler sfparser, and compares the result with the hsf output. The output files are named *-1.json (for the hsf version) and *-2.json (for the sfparser version). Differences are displayed on the stdout.
+The "-c scala" option compiles each source file using the Scala SF compiler sfparser, and compares the result with the hsf output. Differences are displayed on the stdout.
 
-	hsf -c file1.sf file2.sf ...
+	hsf -c scala file1.sf file2.sf ...
 
 In this mode, any error messages are placed in the output file allowing them to be compared with the corresponding messages from sfParser. The compiler also generates slightly different error messages and JSON formatting which are compatible with sfParser. 
 
-The script runSfParser.sh is used to run sfparser and must be in the same directory as the hsf binary. If sfparser is not in the path, the location can be specified with the SFPARSER environment variable, or with the -s option:
+The script runSfParser.sh is used to run sfparser and must be in the same directory as the hsf binary. If sfparser is not in the path, the location can be specified with the SFPARSER environment variable:
 
-	hsf -s path-to-sfparser -c file1.sf file2.sf ...
+### Quickcheck
+
+The "-q scala" option generates random SF source files and compares the output of the two compilers using quickcheck.
+
+	hsf -q scala
 
 ### Building hsf
 

@@ -76,7 +76,7 @@ test: install
 quickcheck: install
 	@echo quickcheck ...
 	@mkdir -p $(SCRATCH_DIR) || exit 1
-	@$(BIN_DIR)/hsf$(VERSION)-$(PLATFORM) -q scala -o $(SCRATCH_DIR)
+	@$(BIN_DIR)/hsf$(VERSION)-$(PLATFORM) -d -q scala -o $(SCRATCH_DIR)
 
 # this target does a build on a remote machine
 # using the given REMOTE_VERSION of the Haskell compiler
