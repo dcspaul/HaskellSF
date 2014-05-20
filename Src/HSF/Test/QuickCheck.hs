@@ -154,7 +154,7 @@ instance Arbitrary SFConfig where
 		sfConfig <- (resize 3) arbitrary
 		let a = Assignment (Reference [Identifier "sfConfig"]) sfConfig
 		right <- ((resize 3) arbitrary)
-		return (evalRefs (left ++ [a] ++ right))
+		return (evalRefs [1..] (left ++ [a] ++ right))
 
 renderConfig :: SFConfig -> String
 renderConfig = render
@@ -171,16 +171,13 @@ instance ParseItem SFConfig where
     substitute references
 ------------------------------------------------------------------------------}
 
-
-data SymTab = SymTab String [SymTab]
-
-top = SymTab "top" []
+type SymTab = ([Int],[String])
 
 -- process a list of assignments by
 -- replacing the LHS and RHS "placeholders" with arbitrary, valid references
-evalRefs :: [Assignment] -> SFConfig 
-evalRefs as = (SFConfig as')
-	where (_,(Body as')) = subBodyRef (top,(Body [])) (Body as)
+evalRefs :: [Int] -> [Assignment] -> SFConfig 
+evalRefs ns as = (SFConfig as')
+	where (_,(Body as')) = subBodyRef ((ns,[]),(Body [])) (Body as)
 
 -- evaluate list of assignments (left to right) 
 subBodyRef :: (SymTab,Body) -> Body -> (SymTab,Body)
@@ -192,26 +189,39 @@ subAssignRef (t,body) (Assignment r v) =
 	let
 		(r',t') = case r of
 			(Reference [Identifier "LHS"]) -> subLHSRef t
+			(Reference [Identifier id]) -> addRef t id
 			otherwise -> (r,t)
 		(v',t'') = case v of
 			(ProtoValue ps) -> subProtoListRef t' ps
-			(LinkValue (Reference [Identifier "RHS"])) -> ( (subRHSLinkRef t'), t' )
+			(LinkValue (Reference [Identifier "RHS"])) -> subRHSLinkRef t'
 			otherwise -> (v,t')
 	in ( t'', (appendToBody body (Assignment r' v')))
 		where appendToBody (Body as) a = Body (as ++ [a])
 
-subLHSRef :: SymTab -> (Reference,SymTab)
-subLHSRef t = ( Reference [Identifier "NEWREF"] , t )
+-- add reference to the symbol table
+addRef :: SymTab -> String -> (Reference,SymTab)
+addRef (ns,t) id = ( Reference [Identifier id] , (ns,(id:t)) )
+
 -- invent a reference
 -- add it to the symbol table
+subLHSRef :: SymTab -> (Reference,SymTab)
+subLHSRef (n:ns,t) = ( Reference [Identifier id] , (ns,(id:t)) )
+	where
+		candidates = map (:[]) ['A' .. 'Z']
+		l = length candidates
+		id = candidates !! (n `mod` l)
 
-subRHSProtoRef :: SymTab -> Reference
-subRHSProtoRef t = Reference [Identifier "PROTOREF"]
--- invent a reference
+-- choose a reference for a prototype
+subRHSProtoRef :: SymTab -> (Reference,SymTab)
+subRHSProtoRef (ns,[]) = ( Reference [Identifier "NOREF"] , (ns,[]) )
+subRHSProtoRef (n:ns,t) = ( Reference [Identifier id] , (ns,t) )
+	where id = t !! (n `mod` (length t))
 
-subRHSLinkRef :: SymTab -> Value
-subRHSLinkRef t = LinkValue ( Reference [Identifier "LINKREF"] )
--- invent a reference
+-- choose a reference for a link
+subRHSLinkRef :: SymTab -> (Value,SymTab)
+subRHSLinkRef (ns,[]) = ( LinkValue ( Reference [Identifier "NOLINK"] ) , (ns,[]) )
+subRHSLinkRef (n:ns,t) = ( LinkValue ( Reference [Identifier id] ) , (ns,t) )
+	where id = t !! (n `mod` (length t))
 
 subProtoListRef :: SymTab -> [Prototype] -> (Value,SymTab)
 subProtoListRef t ps = ((ProtoValue ps'),t')
@@ -219,9 +229,11 @@ subProtoListRef t ps = ((ProtoValue ps'),t')
 
 subProtoRef :: (SymTab,[Prototype]) -> Prototype -> (SymTab,[Prototype])
 subProtoRef (t,ps) p = case p of
-	(RefProto (Reference [Identifier "RHS"])) -> ( t, (ps++[(RefProto r)]) )
-		where r = subRHSProtoRef t
-	(BodyProto b) -> ( t', (ps++[(BodyProto b')]) )
+	(RefProto (Reference [Identifier "RHS"])) -> ( t', (ps++[(RefProto r)]) )
+		where (r,t') = subRHSProtoRef t
+	-- notice the we keep the original symbol table (t not t')
+	-- otherwise, we would keep all of the symbols defined in deeper levels
+	(BodyProto b) -> ( t, (ps++[(BodyProto b')]) )
 		where (t',b') = subBodyRef (t,(Body [])) b
 	otherwise -> ( t, (ps++[p]) )
 
