@@ -151,9 +151,14 @@ data SFConfig = SFConfig [Assignment] deriving(Eq,Show)
 instance Arbitrary SFConfig where
 	arbitrary = do
 		left <- ((resize 3) arbitrary)
+		-- TODO: sfConfig should be a block most of the time
+		-- (rather than a simple value)
+		-- otherwise, you just get lots of errors
 		sfConfig <- (resize 3) arbitrary
 		let a = Assignment (Reference [Identifier "sfConfig"]) sfConfig
 		right <- ((resize 3) arbitrary)
+		-- TODO: make the list of numbers random ...
+		-- see: http://www.haskell.org/haskellwiki/Random_list
 		return (evalRefs [1..] (left ++ [a] ++ right))
 
 renderConfig :: SFConfig -> String
@@ -171,13 +176,19 @@ instance ParseItem SFConfig where
     substitute references
 ------------------------------------------------------------------------------}
 
-type SymTab = ([Int],[String])
+-- TODO: this is not really just the symbol table
+-- the first thing is the current "path"
+-- the second thing is the list of random numbers
+-- the third thing is the list of valid references
+-- so it is really a more general type of "state"
+type SymTab = (String,[Int],[String])
 
 -- process a list of assignments by
 -- replacing the LHS and RHS "placeholders" with arbitrary, valid references
 evalRefs :: [Int] -> [Assignment] -> SFConfig 
 evalRefs ns as = (SFConfig as')
-	where (_,(Body as')) = subBodyRef ((ns,[]),(Body [])) (Body as)
+	-- we start with an empty path, the suuplied list of random numbers, and an empty body
+	where (_,(Body as')) = subBodyRef (("",ns,[]),(Body [])) (Body as)
 
 -- evaluate list of assignments (left to right) 
 subBodyRef :: (SymTab,Body) -> Body -> (SymTab,Body)
@@ -189,10 +200,13 @@ subAssignRef (t,body) (Assignment r v) =
 	let
 		(r',t') = case r of
 			(Reference [Identifier "LHS"]) -> subLHSRef t
-			(Reference [Identifier id]) -> addRef t id
+			(Reference [Identifier i]) -> addRef t i
 			otherwise -> (r,t)
 		(v',t'') = case v of
-			(ProtoValue ps) -> subProtoListRef t' ps
+			-- TODO: passing the table t here (rather than t')
+			-- means that we don;t generate references to ourselves
+			-- so we should probaby only do this occasionally
+			(ProtoValue ps) -> subProtoListRef r' t ps
 			(LinkValue (Reference [Identifier "RHS"])) -> subRHSLinkRef t'
 			otherwise -> (v,t')
 	in ( t'', (appendToBody body (Assignment r' v')))
@@ -200,77 +214,64 @@ subAssignRef (t,body) (Assignment r v) =
 
 -- add reference to the symbol table
 addRef :: SymTab -> String -> (Reference,SymTab)
-addRef (ns,t) id = ( Reference [Identifier id] , (ns,(id:t)) )
-
--- invent a reference
--- add it to the symbol table
-subLHSRef :: SymTab -> (Reference,SymTab)
-subLHSRef (n:ns,t) = ( Reference [Identifier id] , (ns,(id:t)) )
+addRef (p,ns,t) i = ( Reference [Identifier i] , (p,ns,t') )
 	where
-		candidates = map (:[]) ['A' .. 'Z']
-		l = length candidates
-		id = candidates !! (n `mod` l)
+		-- TODO: we don't add sfConfig to the symbol table
+		-- maybe we should do this **occasionally**
+		t' = if (i == "sfConfig") then t else (i':t)
+		i' = if (p == "") then i else ( p ++ ":" ++ i )
+
+-- TODO: all references are currently "absolute"
+-- we can (randomly) make them relative by removing (some of) any common prefix
+
+-- choose a reference for the lhs
+-- if we don't have any refernces, use a single character value
+-- TODO: occasionally we should output an invalid reference
+subLHSRef :: SymTab -> (Reference,SymTab)
+subLHSRef (p,n:ns,[]) = ( Reference [Identifier i] , (p,ns,[]) )
+	where
+		is = map (:[]) ['A' .. 'Z']
+		i = is !! (n `mod` (length is))
+subLHSRef (p,n:ns,t) = ( Reference [Identifier i] , (p,ns,t) )
+	where i = t !! (n `mod` (length t))
 
 -- choose a reference for a prototype
-subRHSProtoRef :: SymTab -> (Reference,SymTab)
-subRHSProtoRef (ns,[]) = ( Reference [Identifier "NOREF"] , (ns,[]) )
-subRHSProtoRef (n:ns,t) = ( Reference [Identifier id] , (ns,t) )
-	where id = t !! (n `mod` (length t))
+-- if we don't have any valid references, then just output an empty block
+-- TODO: occasionally we should output an invalid reference
+-- TODO: this really needs to point at a prototype to be legal - can we do that most of the time?
+subRHSProtoRef :: SymTab -> (Prototype,SymTab)
+subRHSProtoRef (p,ns,[]) = ( BodyProto (Body []) , (p,ns,[]) )
+subRHSProtoRef (p,n:ns,t) = ( RefProto (Reference [Identifier i]) , (p,ns,t) )
+	where i = t !! (n `mod` (length t))
 
 -- choose a reference for a link
+-- if we don't have any valid references, then just output an empty block
+-- TODO: occasionally we should output an invalid reference
+-- TODO: this really needs to point at a prototype to be legal - can we do that most of the time?
 subRHSLinkRef :: SymTab -> (Value,SymTab)
-subRHSLinkRef (ns,[]) = ( LinkValue ( Reference [Identifier "NOLINK"] ) , (ns,[]) )
-subRHSLinkRef (n:ns,t) = ( LinkValue ( Reference [Identifier id] ) , (ns,t) )
-	where id = t !! (n `mod` (length t))
+subRHSLinkRef (p,ns,[]) = ( ProtoValue [BodyProto (Body [])] , (p,ns,[]) )
+subRHSLinkRef (p,n:ns,t) = ( LinkValue ( Reference [Identifier i] ) , (p,ns,t) )
+	where i = t !! (n `mod` (length t))
 
-subProtoListRef :: SymTab -> [Prototype] -> (Value,SymTab)
-subProtoListRef t ps = ((ProtoValue ps'),t')
-	where (t',ps') = foldl subProtoRef (t,[]) ps
+subProtoListRef :: Reference -> SymTab -> [Prototype] -> (Value,SymTab)
+subProtoListRef (Reference [Identifier i]) t ps = ((ProtoValue ps'),t')
+	where (t',ps') = foldl (subProtoRef i) (t,[]) ps
 
-subProtoRef :: (SymTab,[Prototype]) -> Prototype -> (SymTab,[Prototype])
-subProtoRef (t,ps) p = case p of
-	(RefProto (Reference [Identifier "RHS"])) -> ( t', (ps++[(RefProto r)]) )
+subProtoRef :: String -> (SymTab,[Prototype]) -> Prototype -> (SymTab,[Prototype])
+subProtoRef i (t,ps) p = case p of
+	(RefProto (Reference [Identifier "RHS"])) -> ( t', (ps++[r]) )
 		where (r,t') = subRHSProtoRef t
-	-- notice the we keep the original symbol table (t not t')
-	-- otherwise, we would keep all of the symbols defined in deeper levels
-	(BodyProto b) -> ( t, (ps++[(BodyProto b')]) )
-		where (t',b') = subBodyRef (t,(Body [])) b
+	-- notice the we use t' not t - to keep all the symbols from the deeper levels
+	(BodyProto b) -> ( t', (ps++[(BodyProto b')]) )
+		where
+			-- add the prefix to the symbols before we descend into the block
+			(p,rs,ss) = t
+			p' = if (p == "") then i else ( p ++ ":" ++ i )
+			-- process the block
+			((_,rs',ss'),b') = subBodyRef ((p',rs,ss),(Body [])) b
+			-- return to the old prefix
+			t' = (p,rs',ss')
 	otherwise -> ( t, (ps++[p]) )
-
-{--
-
-{------------------------------------------------------------------------------
-    find all references
-------------------------------------------------------------------------------}
-
-addPrefix :: Identifier -> Reference -> Reference
-addPrefix id (Reference ids) = Reference(id:ids)
-
-class HasRefList a where
-	refList :: a -> [Reference]
-	
-instance HasRefList Assignment where
-	-- if the assignment has a single identifier on the left, that is valid reference
-	-- if the rhs is a block, then we can prefix the lhs to every value in the rhs
-	refList (Assignment (Reference [id]) val) = (Reference [id]):(map (addPrefix id) (refList val))
-	-- if the thing on the left is a reference, then we can't do anything (we need to sub it later)
-	refList (Assignment (Reference (_:_)) _) = []
-	
-instance HasRefList Prototype where
-	-- if the thing on the right is a reference, we can't do anythign (we need to sub it later)
-	refList (RefProto ref) = []
-	-- if it is a body, then return the protolist from the body
-	refList (BodyProto b) = refList b
-		
-instance HasRefList Value where
-	refList (BasicValue bv) = []
-	refList (LinkValue ref) = []
-	refList (ProtoValue ps) = nub $ concat $ map refList ps
-
-instance HasRefList Body where
-	refList (Body as) = nub $ concat $ map refList as
-
---}
 
 {------------------------------------------------------------------------------
     compile tests with both compilers & compare the result
