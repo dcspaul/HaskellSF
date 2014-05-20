@@ -18,6 +18,7 @@ import Test.QuickCheck
 import Test.QuickCheck.Monadic (assert, monadicIO, run)
 import Control.Monad
 import System.FilePath.Posix (isAbsolute,(</>))
+import Control.Monad.State
 
 {--
     See: http://www.cse.chalmers.se/~rjmh/QuickCheck/manual.html
@@ -41,28 +42,48 @@ data Prototype = RefProto Reference | BodyProto Body deriving(Eq,Show)
 
 --}
 
+
+{------------------------------------------------------------------------------
+    arbitrary items
+------------------------------------------------------------------------------}
+
 -- TODO: not yet supporting vectors ?
 
+-- identifiers are arbitrary (lowercase) letters
+
 instance Arbitrary Identifier where
-	arbitrary = oneof
-		[ liftM Identifier (return "a")
-		, liftM Identifier (return "b")
-		, liftM Identifier (return "c")
-		, liftM Identifier (return "d")
-		, liftM Identifier (return "e")
-		, liftM Identifier (return "foo")
-		]
+	arbitrary =  oneof (map (return . Identifier) ids)
+		where ids = map (:[]) ['a' .. 'z']
 
--- TODO: for now, we generate only single-identifier references
--- we need a second pass to replace them with something chosen
--- from the list of "real" identifiers
+-- we need to have separate generators for references, depending on how
+-- the references are used. so we don't define an Arbitrary instance -
+-- use one of the following functions instead:
 
-instance Arbitrary Reference where
-	arbitrary = do
-		first <- arbitrary
-		-- rest <- (resize 3) arbitrary
-		return (Reference [first]) -- [Identifier]
-		-- return (Reference (first:rest))
+-- a reference appearing on the LHS of an assignment is either a single identifier
+-- or a compound reference
+-- we choose single identifiers using the arbitrary identifier code
+-- we just generate a marker for compound references so we can substitute them
+-- with something valid later on
+-- TODO: think about the frequencies later
+
+arbitraryLHSRef :: Gen Reference
+arbitraryLHSRef = frequency [(2,singleIdentifier),(1,return dummyRef)]
+	where
+		dummyRef = (Reference [Identifier "LHS"])
+		singleIdentifier = do
+			id <- arbitrary
+			return (Reference [id])
+
+-- a reference appearing on the RHS of an assignment must refer to something
+-- we just generate a marker so we can substitute them with something valid later on
+
+arbitraryRHSRef :: Gen Reference
+arbitraryRHSRef = do
+	return (Reference [Identifier "RHS"])
+
+-- a body is a non-empty list of assignments, of the appropriate size
+-- TODO: think about the frequencies later
+-- TODO: should we allow it to be empty?
 
 instance Arbitrary Body where
 	arbitrary = sized body' where
@@ -70,8 +91,10 @@ instance Arbitrary Body where
 			| n<=1 = liftM Body ((resize 1) arbitrary)
 			| n>1  = liftM Body ((resize n) arbitrary)
 
--- datarefs must not be empty
-
+-- arbitrary basic values
+-- data references are not evaluated, so we can just generate an arbitrary (non-empty)
+-- list of Identifiers
+	
 instance Arbitrary BasicValue where
 	arbitrary = oneof
 		[ liftM BoolValue arbitrary
@@ -80,27 +103,43 @@ instance Arbitrary BasicValue where
 		, do
 			first <- arbitrary
 			rest <- (resize 3) arbitrary
-			return (DataRef (first:rest)) -- [Identifier]
+			return (DataRef (first:rest))
 		]
+
+-- a value is a BasicValue or an (RHS) Reference, or a list of Prototypes
 
 instance Arbitrary Value where
 	arbitrary = oneof
-		[ liftM BasicValue arbitrary -- BasicValue
-		, liftM LinkValue arbitrary -- Reference
+		[ liftM BasicValue arbitrary
+		, liftM LinkValue arbitraryRHSRef
 		, do
 			first <- arbitrary
 			rest <- (resize 3) arbitrary
-			return (ProtoValue (first:rest)) -- [Prototype]
+			return (ProtoValue (first:rest))
 		]
 
+-- assignment is an arbitrary (LHS) Reference and an arbitrary Value
+
 instance Arbitrary Assignment where
-	arbitrary = liftM2 Assignment arbitrary arbitrary -- Reference Value
+	arbitrary = liftM2 Assignment arbitraryLHSRef arbitrary
+
+-- prototype is an arbitrary Body, or an arbitrary (RHS) Reference
 
 instance Arbitrary Prototype where
 	arbitrary = oneof
-		[ liftM BodyProto arbitrary -- Body
-		, liftM RefProto arbitrary -- Reference
+		[ liftM BodyProto arbitrary
+		, liftM RefProto arbitraryRHSRef
 		]
+
+{------------------------------------------------------------------------------
+    top-level source
+------------------------------------------------------------------------------}
+
+-- the top-level body is slightly different, because ...
+-- the aim here is to generate a list of assignments with at least one sfConfig
+-- TODO: I guess you might want to test configurations with no sfconfig
+-- so we could make this randomly something else ....
+-- you might also want to test an empty top level?
 
 newtype SfSource = SfSource String deriving(Eq)
 
@@ -109,18 +148,13 @@ instance Show SfSource where
 
 data SFConfig = SFConfig [Assignment] deriving(Eq,Show)
 
--- the aim here is to generate a list of assignments with at least one sfConfig
--- TODO: I guess you might want to test configurations with no sfconfig
--- so we could make this randomly something else ....
--- you might also want to test an empty top level?
-
 instance Arbitrary SFConfig where
 	arbitrary = do
 		left <- ((resize 3) arbitrary)
 		sfConfig <- (resize 3) arbitrary
 		let a = Assignment (Reference [Identifier "sfConfig"]) sfConfig
 		right <- ((resize 3) arbitrary)
-		return (SFConfig (left ++ [a] ++ right))
+		return (evalRefs (left ++ [a] ++ right))
 
 renderConfig :: SFConfig -> String
 renderConfig = render
@@ -133,43 +167,65 @@ instance ParseItem SFConfig where
 
 -- see: http://stackoverflow.com/questions/2259926/testing-io-actions-with-monadic-quickcheck
 
-type Compile = Opts -> String -> IO (Either Error String)
+{------------------------------------------------------------------------------
+    substitute references
+------------------------------------------------------------------------------}
 
-prop_CompareScala :: Opts -> Compile -> SfSource -> Property
-prop_CompareScala opts compile (SfSource source) = not (null source) ==> monadicIO test where
-	test = do
-		isSame <- run $ compileForTest opts compile source
-		assert $ isSame
 
-compileForTest :: Opts -> Compile -> String -> IO (Bool)
-compileForTest opts compile source = do
+data SymTab = SymTab String [SymTab]
 
-		let srcPath = tmpPath opts
-		writeFile srcPath source
-		compareWithScala opts compile srcPath
+top = SymTab "top" []
 
-tmpPath :: Opts -> String
-tmpPath opts = 
-	if (isAbsolute outDir)
-		then outDir </> "quickcheck.sf"
-		else "/tmp" </> "quickcheck.sf"
-	where outDir = outputPath opts
-		
--- TODO: support a -v flag which we can use to control the printing level
+-- process a list of assignments by
+-- replacing the LHS and RHS "placeholders" with arbitrary, valid references
+evalRefs :: [Assignment] -> SFConfig 
+evalRefs as = (SFConfig as')
+	where (_,(Body as')) = subBodyRef (top,(Body [])) (Body as)
 
-checkWithScala :: Opts -> Compile -> IO()
-checkWithScala opts compile = do
-	-- TODO: control these with the verbose option
-	-- quickCheck prop_Foo
-	if (verbosity opts >= Debug)
-		then verboseCheck (prop_CompareScala opts compile)
-		else quickCheck (prop_CompareScala opts compile)
+-- evaluate list of assignments (left to right) 
+subBodyRef :: (SymTab,Body) -> Body -> (SymTab,Body)
+subBodyRef (t,body) (Body as) = foldl subAssignRef (t,body) as
 
-checkWithOCaml :: Opts -> Compile -> IO()
-checkWithOCaml opts compile = undefined
+-- evaluate one assignment
+subAssignRef :: (SymTab,Body) -> Assignment -> (SymTab,Body)
+subAssignRef (t,body) (Assignment r v) =
+	let
+		(r',t') = case r of
+			(Reference [Identifier "LHS"]) -> subLHSRef t
+			otherwise -> (r,t)
+		(v',t'') = case v of
+			(ProtoValue ps) -> subProtoListRef t' ps
+			(LinkValue (Reference [Identifier "RHS"])) -> ( (subRHSLinkRef t'), t' )
+			otherwise -> (v,t')
+	in ( t'', (appendToBody body (Assignment r' v')))
+		where appendToBody (Body as) a = Body (as ++ [a])
 
-checkWithHP :: Opts -> Compile -> IO()
-checkWithHP opts compile = undefined
+subLHSRef :: SymTab -> (Reference,SymTab)
+subLHSRef t = ( Reference [Identifier "NEWREF"] , t )
+-- invent a reference
+-- add it to the symbol table
+
+subRHSProtoRef :: SymTab -> Reference
+subRHSProtoRef t = Reference [Identifier "PROTOREF"]
+-- invent a reference
+
+subRHSLinkRef :: SymTab -> Value
+subRHSLinkRef t = LinkValue ( Reference [Identifier "LINKREF"] )
+-- invent a reference
+
+subProtoListRef :: SymTab -> [Prototype] -> (Value,SymTab)
+subProtoListRef t ps = ((ProtoValue ps'),t')
+	where (t',ps') = foldl subProtoRef (t,[]) ps
+
+subProtoRef :: (SymTab,[Prototype]) -> Prototype -> (SymTab,[Prototype])
+subProtoRef (t,ps) p = case p of
+	(RefProto (Reference [Identifier "RHS"])) -> ( t, (ps++[(RefProto r)]) )
+		where r = subRHSProtoRef t
+	(BodyProto b) -> ( t', (ps++[(BodyProto b')]) )
+		where (t',b') = subBodyRef (t,(Body [])) b
+	otherwise -> ( t, (ps++[p]) )
+
+{--
 
 {------------------------------------------------------------------------------
     find all references
@@ -201,3 +257,47 @@ instance HasRefList Value where
 
 instance HasRefList Body where
 	refList (Body as) = nub $ concat $ map refList as
+
+--}
+
+{------------------------------------------------------------------------------
+    compile tests with both compilers & compare the result
+------------------------------------------------------------------------------}
+
+type Compile = Opts -> String -> IO (Either Error String)
+
+prop_CompareScala :: Opts -> Compile -> SfSource -> Property
+prop_CompareScala opts compile (SfSource source) = not (null source) ==> monadicIO test where
+	test = do
+		isSame <- run $ compileForTest opts compile source
+		assert $ isSame
+
+compileForTest :: Opts -> Compile -> String -> IO (Bool)
+compileForTest opts compile source = do
+
+		let srcPath = tmpPath opts
+		writeFile srcPath source
+		compareWithScala opts compile srcPath
+
+tmpPath :: Opts -> String
+tmpPath opts = 
+	if (isAbsolute outDir)
+		then outDir </> "quickcheck.sf"
+		else "/tmp" </> "quickcheck.sf"
+	where outDir = outputPath opts
+
+checkWithScala :: Opts -> Compile -> IO()
+checkWithScala opts compile = do
+	if (verbosity opts >= Debug)
+		then verboseCheck (prop_CompareScala opts compile)
+		else quickCheck (prop_CompareScala opts compile)
+
+{------------------------------------------------------------------------------
+    these not yet implemented
+------------------------------------------------------------------------------}
+
+checkWithOCaml :: Opts -> Compile -> IO()
+checkWithOCaml opts compile = undefined
+
+checkWithHP :: Opts -> Compile -> IO()
+checkWithHP opts compile = undefined
