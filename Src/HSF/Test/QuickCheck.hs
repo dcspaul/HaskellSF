@@ -224,13 +224,24 @@ subAssignRef (s,body) (Assignment r v) =
 			-- means that we never generate references to ourselves
 			-- we should probaby do this occasionally as an error test
 			(ProtoValue ps) -> subProtoListRef r' s ps
-			(LinkValue (Reference [Identifier "RHS"])) -> subRHSLinkRef s'
+			(LinkValue (Reference [Identifier "RHS"])) -> subRHSLinkRef s
 			otherwise -> (v,s')
 
-		-- TODO: here is where we want to strip the common prefix from r' and the current path
+		-- remove the common prefix
+		-- TODO: sometimes we should perhaps leave the full pathname (or some of it?)
+		r'' = stripCommonPrefix (path s) r'
 
-	in ( s'', (appendToBody body (Assignment r' v')))
+	in ( s'', (appendToBody body (Assignment r'' v')))
 		where appendToBody (Body as) a = Body (as ++ [a])
+
+-- remove the common prefix from reference
+stripCommonPrefix :: Reference -> Reference -> Reference
+stripCommonPrefix (Reference r) (Reference r') = Reference (scp r r')
+	where
+		scp _ [] = [Identifier "???"]
+		scp _ [i'] = [i']
+		scp (i:is) (i':is') = if (i==i') then (scp is is') else (i':is')
+		scp _ is' = is'
 
 -- choose an arbitrary reference for the lhs
 -- if we don't know any references, then just use an arbitrary local name
@@ -280,7 +291,7 @@ subRHSLinkRef s = ( v, s { random = ns } )
 		v = if (null vs) then emptyBlock else randomLink
 			where
 				emptyBlock = ProtoValue [BodyProto (Body [])]
-				randomLink = LinkValue (randomElt vs n)
+				randomLink = LinkValue (stripCommonPrefix (path s) (randomElt vs n))
 			
 -- substitute references in a list of prototypes (left to right), propagating the state
 subProtoListRef :: Reference -> SubState -> [Prototype] -> (Value,SubState)
