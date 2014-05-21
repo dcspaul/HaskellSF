@@ -159,7 +159,7 @@ instance Arbitrary SFConfig where
 		right <- ((resize 3) arbitrary)
 		-- TODO: make the list of numbers random ...
 		-- see: http://www.haskell.org/haskellwiki/Random_list
-		return (evalRefs [1..] (left ++ [a] ++ right))
+		return (subRefs (left ++ [a] ++ right))
 
 renderConfig :: SFConfig -> String
 renderConfig = render
@@ -176,106 +176,147 @@ instance ParseItem SFConfig where
     substitute references
 ------------------------------------------------------------------------------}
 
--- TODO: this is not really just the symbol table
--- the first thing is the current "path"
--- the second thing is the list of random numbers
--- the third thing is the list of known references
--- so it is really a more general type of "state"
-type SymTab = (Reference,[Int],[Reference])
+-- the state of a variable substitution process
+data SubState = SubState
+	{ path :: Reference			-- the path to the current component
+	, random :: [Int]			-- list of random numbers
+	, blocks :: [Reference]		-- references of all known blocks - TODO: not currently used
+	, values :: [Reference]		-- references of all known values - TODO: should distinguish blocks & values
+	}
 
--- process a list of assignments by
--- replacing the LHS and RHS "placeholders" with arbitrary, valid references
-evalRefs :: [Int] -> [Assignment] -> SFConfig 
-evalRefs ns as = (SFConfig as')
-	-- we start with an empty path, the suuplied list of random numbers, and an empty body
-	where (_,(Body as')) = subBodyRef (((Reference []),ns,[]),(Body [])) (Body as)
+-- the initial state
+initialState = SubState
+	{ path = Reference []
+	, random = [1..] -- TODO: make this a list of random numbers? 
+	, blocks = []
+	, values = []
+	}
 
--- evaluate list of assignments (left to right) 
-subBodyRef :: (SymTab,Body) -> Body -> (SymTab,Body)
-subBodyRef (t,body) (Body as) = foldl subAssignRef (t,body) as
+-- start with an empty body
+initialBody = (Body [])
 
--- evaluate one assignment
-subAssignRef :: (SymTab,Body) -> Assignment -> (SymTab,Body)
-subAssignRef (t,body) (Assignment r v) =
+-- generate a configuration from a list of arbitrary assignments by
+-- substituting the LHS and RHS "placeholders" with arbitrary, valid references
+subRefs :: [Assignment] -> SFConfig 
+subRefs as = (SFConfig as')
+	where ( _, (Body as') ) = subBodyRef ( initialState, initialBody ) (Body as)
+
+-- substitute a list of assignments (left to right), propagating the state
+subBodyRef :: (SubState,Body) -> Body -> (SubState,Body)
+subBodyRef (s,body) (Body as) = foldl subAssignRef (s,body) as
+
+-- substitute one assignment
+subAssignRef :: (SubState,Body) -> Assignment -> (SubState,Body)
+subAssignRef (s,body) (Assignment r v) =
 	let
-		(r',t') = case r of
-			(Reference [Identifier "LHS"]) -> subLHSRef t
-			(Reference [Identifier i]) -> addRef t i
-			otherwise -> (r,t)
-		(v',t'') = case v of
-			-- TODO: passing the table t here (rather than t')
-			-- means that we don;t generate references to ourselves
-			-- so we should probaby only do this occasionally
-			(ProtoValue ps) -> subProtoListRef r' t ps
-			(LinkValue (Reference [Identifier "RHS"])) -> subRHSLinkRef t'
-			otherwise -> (v,t')
-	in ( t'', (appendToBody body (Assignment r' v')))
+		-- if the lhs is a placeholder, substitute it with a valid reference
+		-- otherwise, add it to the symbol table
+		-- r' is the absolute path of the reference on the lhs
+		(r',s') = case r of
+			(Reference [Identifier "LHS"]) -> subLHSRef s
+			otherwise -> addRef s r
+			
+		-- if the rhs is a list of prototypes, substitute within the prototypes
+		-- if it is a reference placeholder, substitute with a valid reference
+		-- otherwise, use it unchanged	
+		(v',s'') = case v of
+			-- TODO: passing the state s here (rather than s')
+			-- means that we never generate references to ourselves
+			-- we should probaby do this occasionally as an error test
+			(ProtoValue ps) -> subProtoListRef r' s ps
+			(LinkValue (Reference [Identifier "RHS"])) -> subRHSLinkRef s'
+			otherwise -> (v,s')
+
+		-- TODO: here is where we want to strip the common prefix from r' and the current path
+
+	in ( s'', (appendToBody body (Assignment r' v')))
 		where appendToBody (Body as) a = Body (as ++ [a])
 
--- add s as an identifier to the symbol table at the current path
--- return the (absolute) reference for the symbol
--- and the new symbol table
-addRef :: SymTab -> String -> (Reference,SymTab)
-addRef ((Reference p),ns,t) s = ( r , ((Reference p),ns,t') )
+-- choose an arbitrary reference for the lhs
+-- if we don't know any references, then just use an arbitrary local name
+-- TODO: we might want to specify whether we would prefer a block or a value
+-- TODO: occasionally we should output an invalid reference (that doesn't exist)
+-- TODO: it would also be nice (but hard?) to test forward references (should be an error)?
+subLHSRef :: SubState -> (Reference,SubState)
+subLHSRef s = ( r , s { random = ns } )
 	where
-		r = Reference (p++[Identifier s])
-		-- TODO: we don't add sfConfig to the symbol table
-		-- maybe we should do this **occasionally**
-		t' = if (s == "sfConfig") then t else (r:t)
+		(n:ns) = random s
+		vs = (values s)
+		r = if (null vs) then (randomRef n) else (randomElt vs n)
 
--- TODO: all references are currently "absolute"
--- we can (randomly) make them relative by removing (some of) any common prefix
-
--- choose a reference for the lhs
--- if we don't have any references, use a single character value
--- use upper case letters so we can easily tell when this has happened
--- TODO: occasionally we should output an invalid reference
-subLHSRef :: SymTab -> (Reference,SymTab)
-subLHSRef (p,n:ns,[]) = ( Reference [Identifier i] , (p,ns,[]) )
+-- random reference
+randomRef :: Int -> Reference		
+randomRef n = Reference [Identifier i]
 	where
 		is = map (:[]) ['A' .. 'Z']
 		i = is !! (n `mod` (length is))
-subLHSRef (p,n:ns,t) = ( r , (p,ns,t) )
-	where r = t !! (n `mod` (length t))
 
--- choose a reference for a prototype
+-- random element of list
+randomElt :: [a] -> Int -> a
+randomElt es n = (es !! (n `mod` (length es)))
+
+-- add (relative) reference to the symbol table at the current path
+-- return the (absolute) reference for the symbol and the new symbol table
+-- don't add sfConfig to the symbol table
+-- (just because it is confusing to have items randomly named sfConfig)
+addRef :: SubState -> Reference -> (Reference,SubState)
+addRef s (Reference is) = ( r , s' )
+	where
+		(Reference ps) = path s
+		r = Reference (ps++is)
+		s' = if (is == [Identifier "sfConfig"])
+			then s
+			else s { values = r:(values s) }
+
+-- choose a arbitrary reference for a link
 -- if we don't have any valid references, then just output an empty block
 -- TODO: occasionally we should output an invalid reference
 -- TODO: this really needs to point at a prototype to be legal - can we do that most of the time?
-subRHSProtoRef :: SymTab -> (Prototype,SymTab)
-subRHSProtoRef (p,ns,[]) = ( BodyProto (Body []) , (p,ns,[]) )
-subRHSProtoRef (p,n:ns,t) = ( RefProto r , (p,ns,t) )
-	where r = t !! (n `mod` (length t))
+subRHSLinkRef :: SubState -> (Value,SubState)
+subRHSLinkRef s = ( v, s { random = ns } )
+	where
+		(n:ns) = random s
+		vs = (values s)
+		v = if (null vs) then emptyBlock else randomLink
+			where
+				emptyBlock = ProtoValue [BodyProto (Body [])]
+				randomLink = LinkValue (randomElt vs n)
+			
+-- substitute references in a list of prototypes (left to right), propagating the state
+subProtoListRef :: Reference -> SubState -> [Prototype] -> (Value,SubState)
+subProtoListRef path s ps = ((ProtoValue ps'),s')
+	where (s',ps') = foldl (subProtoRef path) (s,[]) ps
 
--- choose a reference for a link
--- if we don't have any valid references, then just output an empty block
--- TODO: occasionally we should output an invalid reference
--- TODO: this really needs to point at a prototype to be legal - can we do that most of the time?
-subRHSLinkRef :: SymTab -> (Value,SymTab)
-subRHSLinkRef (p,ns,[]) = ( ProtoValue [BodyProto (Body [])] , (p,ns,[]) )
-subRHSLinkRef (p,n:ns,t) = ( LinkValue r , (p,ns,t) )
-	where r = t !! (n `mod` (length t))
+-- substitute references in a prototype
+subProtoRef :: Reference -> (SubState,[Prototype]) -> Prototype -> (SubState,[Prototype])
+subProtoRef path' (s,ps) p = case p of
+	
+	-- if the prototype is a reference, substitute a random reference	
+	(RefProto (Reference [Identifier "RHS"])) -> ( s', (ps++[r]) )
+		where (r,s') = subRHSProtoRef s
 
-subProtoListRef :: Reference -> SymTab -> [Prototype] -> (Value,SymTab)
-subProtoListRef r t ps = ((ProtoValue ps'),t')
-	where (t',ps') = foldl (subProtoRef r) (t,[]) ps
-
-subProtoRef :: Reference -> (SymTab,[Prototype]) -> Prototype -> (SymTab,[Prototype])
-subProtoRef s (t,ps) p = case p of
-	(RefProto (Reference [Identifier "RHS"])) -> ( t', (ps++[r]) )
-		where (r,t') = subRHSProtoRef t
-	-- notice the we use t' not t - to keep all the symbols from the deeper levels
-	(BodyProto b) -> ( t', (ps++[(BodyProto b')]) )
+	-- if the prototype is a block, we recurse down
+	-- notice that we set the new path before we descend
+	-- and reset it when we return
+	(BodyProto b) -> ( s3, (ps++[(BodyProto b')]) )
 		where
-			-- add the prefix to the symbols before we descend into the block
-			((Reference p),rs,ss) = t
-			(Reference s') = s
-			p' = Reference (p++s')
-			-- process the block
-			((_,rs',ss'),b') = subBodyRef ((p',rs,ss),(Body [])) b
-			-- return to the old prefix
-			t' = ((Reference p),rs',ss')
-	otherwise -> ( t, (ps++[p]) )
+			s1 = s { path = path' }
+			(s2,b') = subBodyRef (s1,(Body [])) b
+			s3 = s2 { path = (path s) }
+
+-- choose a arbitrary reference for a link
+-- if we don't have any valid references, then just output an empty block
+-- TODO: occasionally we should output an invalid reference
+-- TODO: this really needs to point at a prototype to be legal - can we do that most of the time?
+subRHSProtoRef :: SubState -> (Prototype,SubState)
+subRHSProtoRef s = ( v, s { random = ns } )
+	where
+		(n:ns) = random s
+		vs = (values s)
+		v = if (null vs) then emptyProto else randomProto
+			where
+				emptyProto = BodyProto (Body [])
+				randomProto = RefProto (randomElt vs n)
 
 {------------------------------------------------------------------------------
     compile tests with both compilers & compare the result
@@ -297,7 +338,7 @@ compileForTest opts compile source = do
 		compareWithScala opts compile srcPath
 
 tmpPath :: Opts -> String
-tmpPath opts = 
+tmpPath opts =
 	if (isAbsolute outDir)
 		then outDir </> "quickcheck.sf"
 		else "/tmp" </> "quickcheck.sf"
