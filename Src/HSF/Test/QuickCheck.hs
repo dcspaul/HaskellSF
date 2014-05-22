@@ -14,6 +14,7 @@ import HSF.Errors
 import HSF.Test.RunScalaVersion
 
 import Data.List (intercalate,nub)
+import Data.String.Utils (endswith)
 import Test.QuickCheck
 import Test.QuickCheck.Monadic (assert, monadicIO, run)
 import Control.Monad
@@ -59,27 +60,26 @@ instance Arbitrary Identifier where
 -- the references are used. so we don't define an Arbitrary instance -
 -- use one of the following functions instead:
 
--- a reference appearing on the LHS of an assignment is either a single identifier
--- or a compound reference
--- we choose single identifiers using the arbitrary identifier code
--- we just generate a marker for compound references so we can substitute them
--- with something valid later on
+-- a reference appearing on the LHS of an assignment is
+-- either a single identifier (foo) or a compound reference (a:b:foo)
+-- we need to be able to generate sensible values for the references,
+-- so that they point at valid entities. We can't do that yet because
+-- the AST has not yet been created, so we simple insert placeholders
+-- which we will populate later.
 -- TODO: think about the frequencies later
 
 arbitraryLHSRef :: Gen Reference
-arbitraryLHSRef = frequency [(2,singleIdentifier),(1,return dummyRef)]
+arbitraryLHSRef = frequency [(2,return dummyId),(1,return dummyRef)]
 	where
-		dummyRef = (Reference [Identifier "LHS"])
-		singleIdentifier = do
-			id <- arbitrary
-			return (Reference [id])
+		dummyRef = (Reference [Identifier "?ref"]) 
+		dummyId = (Reference [Identifier "?id"]) 
 
 -- a reference appearing on the RHS of an assignment must refer to something
 -- we just generate a marker so we can substitute them with something valid later on
 
 arbitraryRHSRef :: Gen Reference
 arbitraryRHSRef = do
-	return (Reference [Identifier "RHS"])
+	return (Reference [Identifier "?ref"])
 
 -- a body is a non-empty list of assignments, of the appropriate size
 -- TODO: think about the frequencies later
@@ -106,7 +106,7 @@ instance Arbitrary BasicValue where
 			return (DataRef (first:rest))
 		]
 
--- a value is a BasicValue or an (RHS) Reference, or a list of Prototypes
+-- a value is a BasicValue or an (?rhs) Reference, or a list of Prototypes
 
 instance Arbitrary Value where
 	arbitrary = oneof
@@ -118,12 +118,12 @@ instance Arbitrary Value where
 			return (ProtoValue (first:rest))
 		]
 
--- assignment is an arbitrary (LHS) Reference and an arbitrary Value
+-- assignment is an arbitrary (?lhs or ?id) Reference and an arbitrary Value
 
 instance Arbitrary Assignment where
 	arbitrary = liftM2 Assignment arbitraryLHSRef arbitrary
 
--- prototype is an arbitrary Body, or an arbitrary (RHS) Reference
+-- prototype is an arbitrary Body, or an arbitrary (?rhs) Reference
 
 instance Arbitrary Prototype where
 	arbitrary = oneof
@@ -151,14 +151,13 @@ data SFConfig = SFConfig [Assignment] deriving(Eq,Show)
 instance Arbitrary SFConfig where
 	arbitrary = do
 		left <- ((resize 3) arbitrary)
-		-- TODO: sfConfig should be a block most of the time
-		-- (rather than a simple value)
-		-- otherwise, you just get lots of errors
 		sfConfig <- (resize 3) arbitrary
-		let a = Assignment (Reference [Identifier "sfConfig"]) sfConfig
+		-- TODO: this forces sfConfig to be a block
+		-- occasionally we might want to make it a value to test the error condition
+		-- the following line makes it arbitrary (but that is abit too frequent)
+		-- let a = Assignment (Reference [Identifier "sfConfig"]) sfConfig
+		let a = Assignment (Reference [Identifier "sfConfig"]) (ProtoValue sfConfig)
 		right <- ((resize 3) arbitrary)
-		-- TODO: make the list of numbers random ...
-		-- see: http://www.haskell.org/haskellwiki/Random_list
 		return (subRefs (left ++ [a] ++ right))
 
 renderConfig :: SFConfig -> String
@@ -180,23 +179,98 @@ instance ParseItem SFConfig where
 data SubState = SubState
 	{ path :: Reference			-- the path to the current component
 	, random :: [Int]			-- list of random numbers
-	, blocks :: [Reference]		-- references of all known blocks - TODO: not currently used
-	, values :: [Reference]		-- references of all known values - TODO: should distinguish blocks & values
+	, values :: [Reference]		-- references of all known values
 	}
 
 -- the initial state
 initialState = SubState
 	{ path = Reference []
 	, random = [1..] -- TODO: make this a list of random numbers? 
-	, blocks = []
 	, values = []
 	}
 
 -- start with an empty body
 initialBody = (Body [])
 
+-- assignment types
+data VType = BlockType | ValueType | AnyType deriving(Eq)
+
+-- random element of list
+randomElt :: [a] -> Int -> a
+randomElt es n = (es !! (n `mod` (length es)))
+
+-- invent a LHS for an assignment
+-- it is to be either an identifier 
+-- or a reference to an item of the specified type
+inventLHS :: SubState -> VType -> Reference -> (SubState,Reference)
+inventLHS s t lhs = case lhs of			
+	(Reference [Identifier "?id"]) -> inventID s t
+	(Reference [Identifier "?ref"]) -> inventLHSRef s t
+	_ -> undefined -- not possible
+		
+-- invent a reference for the LHS of an assignment
+-- it should point to something of the specified type
+-- if there isn't anything of the specified type,
+-- then just invent an id
+inventLHSRef :: SubState -> VType -> (SubState,Reference)
+inventLHSRef s t = r where
+	(n:ns) = random s
+	vs = filter (hasType t) (values s)
+	r = if (null vs) then (inventID s t)
+		else ( s { random = ns }, randomElt vs n )
+		
+-- invent an identifier of the specified type
+inventID :: SubState -> VType -> (SubState,Reference)
+inventID s t = case t of
+		BlockType -> inventID' "p"
+		ValueType -> inventID' "v"
+		_ -> undefined -- not possible
+	where
+		(n:ns) = random s
+		is = map (:[]) ['A' .. 'Z']
+		i = is !! (n `mod` (length is))
+		inventID' sfx = ( s { random = ns }, (Reference [Identifier (i++sfx)]) )
+	
+-- invent a reference for the RHS of an assignment
+-- it should point to something of the specified type
+-- if there isn't anything of the specified type,
+-- then invent a value
+inventRHS :: SubState -> VType -> (SubState,Value)
+inventRHS s t = r where
+	(n:ns) = random s
+	vs = filter (hasType t) (values s)
+	r = if (null vs) then ( s, inventValue t )
+		else ( s { random = ns }, LinkValue (randomElt vs n) )
+		
+-- invent a value for the RHS
+-- either an empty block or a random literal, depending on the required type
+inventValue :: VType -> Value
+inventValue t = case t of
+		BlockType -> ProtoValue [BodyProto (Body [])]
+		ValueType -> BasicValue (StringValue "string")
+		_ -> undefined -- not possible
+
+-- does a reference have type "t" ?
+-- we use the last letter of the name to denote the type
+-- "v" is a value, "p" is a prototype (block)
+hasType t (Reference r) = hasType' t r
+hasType' _ [] = False
+hasType' ValueType [Identifier "sfConfig"] = True
+hasType' _ [Identifier "sfConfig"] = False
+hasType' ValueType [Identifier i] = endswith "v" i
+hasType' BlockType [Identifier i] = endswith "p" i
+hasType' _ [Identifier i] = False
+hasType' t (i:is) = hasType' t is
+	
+-- TODO: at some point, we may want to generate valid forward references so 
+-- we can test ther HP semantics, or test for errors
+-- one easy way of doing this would be to ramdomly swap the order
+-- of the blocks once they have been generated ....
+-- although, I guess this wouldn't generate (for example) loops
+
 -- generate a configuration from a list of arbitrary assignments by
--- substituting the LHS and RHS "placeholders" with arbitrary, valid references
+-- substituting the (?lhs,?rhs,?id) "placeholders" with arbitrary, valid values
+
 subRefs :: [Assignment] -> SFConfig 
 subRefs as = (SFConfig as')
 	where ( _, (Body as') ) = subBodyRef ( initialState, initialBody ) (Body as)
@@ -207,53 +281,81 @@ subBodyRef (s,body) (Body as) = foldl subAssignRef (s,body) as
 
 -- substitute one assignment
 subAssignRef :: (SubState,Body) -> Assignment -> (SubState,Body)
-subAssignRef (s,body) (Assignment r v) =
-	let
-		-- if the lhs is a placeholder, substitute it with a valid reference
-		-- otherwise, add it to the symbol table
-		-- r' is the absolute path of the reference on the lhs
-		(r',s') = case r of
-			(Reference [Identifier "LHS"]) -> subLHSRef s
-			otherwise -> addRef s r
-			
-		-- if the rhs is a list of prototypes, substitute within the prototypes
-		-- if it is a reference placeholder, substitute with a valid reference
-		-- otherwise, use it unchanged	
-		(v',s'') = case v of
-			-- TODO: passing the state s here (rather than s')
-			-- means that we never generate references to ourselves
-			-- we should probaby do this occasionally as an error test
-			(ProtoValue ps) -> subProtoListRef r' s ps
-			(LinkValue (Reference [Identifier "RHS"])) -> subRHSLinkRef s
-			otherwise -> (v,s')
+subAssignRef (s,body) (Assignment lhs rhs) = let
 
+		-- the type of the rhs
+		rhsType = case rhs of 
+			LinkValue (Reference [Identifier "?ref"]) -> AnyType
+			BasicValue _ -> ValueType
+			ProtoValue _ -> BlockType
+			LinkValue _ -> undefined -- not possible
+			
+		-- the type of the lhs
+		lhsType = case lhs of
+			(Reference [Identifier "?ref"]) -> AnyType
+			(Reference [Identifier "?id"]) -> AnyType
+			(Reference [Identifier "sfConfig"]) -> BlockType
+			_ -> undefined -- not possible
+	
+		-- the type of the assignment
+		(s1,t) = case lhsType of
+				AnyType -> case rhsType of
+					AnyType -> ( s { random=ns }, ( randomElt [ BlockType, ValueType ] n ) )
+					otherwise -> (s,rhsType)
+				otherwise -> (s,lhsType)
+ 			where (n:ns) = random s
+
+		-- invent the LHS if we need to
+		(s2,lhs2) = if (lhsType == AnyType) then (inventLHS s1 t lhs) else (s1,lhs)
+	
+		-- invent the RHS if we need to
+		(s3,rhs3) = if (rhsType == AnyType) then (inventRHS s2 t) else (s2,rhs)
+		
+		-- if the rhs is a list of prototypes, substitute within the prototypes
+		-- TODO: since we do this before we add the lhs to the symbol table,
+		-- we avoid self-references. although we might want to do this occasionally
+		-- as a test
+		(s4,rhs4) = case rhs of
+			(ProtoValue ps) -> subProtoListRef s3 lhs2 ps
+			otherwise -> (s3,rhs3)
+
+		-- add lhs to the symbol table
+		(s5,lhs5) = addRef s4 lhs2
+	
 		-- remove the common prefix
 		-- TODO: sometimes we should perhaps leave the full pathname (or some of it?)
-		r'' = stripCommonPrefix (path s) r'
+		lhs6 = stripCommonPrefix (path s5) lhs5
 
-	in ( s'', (appendToBody body (Assignment r'' v')))
+	in ( s5, (appendToBody body (Assignment lhs6 rhs4)))
 		where appendToBody (Body as) a = Body (as ++ [a])
+
 
 -- remove the common prefix from reference
 stripCommonPrefix :: Reference -> Reference -> Reference
-stripCommonPrefix (Reference r) (Reference r') = Reference (scp r r')
-	where
-		scp _ [] = [Identifier "???"]
-		scp _ [i'] = [i']
-		scp (i:is) (i':is') = if (i==i') then (scp is is') else (i':is')
-		scp _ is' = is'
+stripCommonPrefix (Reference r) (Reference r') = Reference (scp r r') where
+	scp _ [] = []
+	scp _ [i'] = [i']
+	scp (i:is) (i':is') = if (i==i') then (scp is is') else (i':is')
+	scp _ is' = is'
+
+{--
 
 -- choose an arbitrary reference for the lhs
 -- if we don't know any references, then just use an arbitrary local name
+-- the "f" is a function to filter the reference list for things of the right type
+-- (either value or reference, or either)
 -- TODO: we might want to specify whether we would prefer a block or a value
 -- TODO: occasionally we should output an invalid reference (that doesn't exist)
 -- TODO: it would also be nice (but hard?) to test forward references (should be an error)?
-subLHSRef :: SubState -> (Reference,SubState)
-subLHSRef s = ( r , s { random = ns } )
+subLHSRef :: SubState -> ([Reference] -> [Reference]) -> (Reference,SubState)
+subLHSRef s f = ( r , s { random = ns } )
 	where
 		(n:ns) = random s
-		vs = (values s)
-		r = if (null vs) then (randomRef n) else (randomElt vs n)
+		vs = f (values s)
+		r = if (null vs) then (randomElt rs n) else (randomElt vs n)
+			where
+				i = randomRef n
+				rs = f [ makeValueRef i, makeProtoRef i ]
 
 -- random reference
 randomRef :: Int -> Reference		
@@ -266,36 +368,39 @@ randomRef n = Reference [Identifier i]
 randomElt :: [a] -> Int -> a
 randomElt es n = (es !! (n `mod` (length es)))
 
+--}
+
 -- add (relative) reference to the symbol table at the current path
 -- return the (absolute) reference for the symbol and the new symbol table
 -- don't add sfConfig to the symbol table
 -- (just because it is confusing to have items randomly named sfConfig)
-addRef :: SubState -> Reference -> (Reference,SubState)
-addRef s (Reference is) = ( r , s' )
+addRef :: SubState -> Reference -> (SubState,Reference)
+addRef s (Reference is) = ( s', r )
 	where
 		(Reference ps) = path s
 		r = Reference (ps++is)
-		s' = if (is == [Identifier "sfConfig"])
-			then s
-			else s { values = r:(values s) }
+		s' = if ((head is) == Identifier "sfConfig")
+			then s else s { values = r:(values s) }
 
+{--
 -- choose a arbitrary reference for a link
 -- if we don't have any valid references, then just output an empty block
 -- TODO: occasionally we should output an invalid reference
--- TODO: this really needs to point at a prototype to be legal - can we do that most of the time?
+-- TODO: or one which has the wrong type
 subRHSLinkRef :: SubState -> (Value,SubState)
 subRHSLinkRef s = ( v, s { random = ns } )
 	where
 		(n:ns) = random s
-		vs = (values s)
+		vs = filter isProtoRef (values s)
 		v = if (null vs) then emptyBlock else randomLink
 			where
 				emptyBlock = ProtoValue [BodyProto (Body [])]
 				randomLink = LinkValue (stripCommonPrefix (path s) (randomElt vs n))
+--}
 			
 -- substitute references in a list of prototypes (left to right), propagating the state
-subProtoListRef :: Reference -> SubState -> [Prototype] -> (Value,SubState)
-subProtoListRef path s ps = ((ProtoValue ps'),s')
+subProtoListRef :: SubState -> Reference -> [Prototype] -> (SubState,Value)
+subProtoListRef s path ps = (s',(ProtoValue ps'))
 	where (s',ps') = foldl (subProtoRef path) (s,[]) ps
 
 -- substitute references in a prototype
@@ -303,7 +408,7 @@ subProtoRef :: Reference -> (SubState,[Prototype]) -> Prototype -> (SubState,[Pr
 subProtoRef path' (s,ps) p = case p of
 	
 	-- if the prototype is a reference, substitute a random reference	
-	(RefProto (Reference [Identifier "RHS"])) -> ( s', (ps++[r]) )
+	(RefProto (Reference [Identifier "?ref"])) -> ( s', (ps++[r]) )
 		where (r,s') = subRHSProtoRef s
 
 	-- if the prototype is a block, we recurse down
@@ -318,12 +423,12 @@ subProtoRef path' (s,ps) p = case p of
 -- choose a arbitrary reference for a link
 -- if we don't have any valid references, then just output an empty block
 -- TODO: occasionally we should output an invalid reference
--- TODO: this really needs to point at a prototype to be legal - can we do that most of the time?
+-- TODO: or one which has the wrong type
 subRHSProtoRef :: SubState -> (Prototype,SubState)
 subRHSProtoRef s = ( v, s { random = ns } )
 	where
 		(n:ns) = random s
-		vs = (values s)
+		vs = filter (hasType BlockType) (values s)
 		v = if (null vs) then emptyProto else randomProto
 			where
 				emptyProto = BodyProto (Body [])
