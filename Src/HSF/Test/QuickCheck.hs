@@ -43,7 +43,6 @@ data Prototype = RefProto Reference | BodyProto Body deriving(Eq,Show)
 
 --}
 
-
 {------------------------------------------------------------------------------
     arbitrary items
 ------------------------------------------------------------------------------}
@@ -151,12 +150,13 @@ data SFConfig = SFConfig [Assignment] deriving(Eq,Show)
 instance Arbitrary SFConfig where
 	arbitrary = do
 		left <- ((resize 3) arbitrary)
-		sfConfig <- (resize 3) arbitrary
+		first <- arbitrary
+		rest <- (resize 3) arbitrary
 		-- TODO: this forces sfConfig to be a block
 		-- occasionally we might want to make it a value to test the error condition
 		-- the following line makes it arbitrary (but that is abit too frequent)
-		-- let a = Assignment (Reference [Identifier "sfConfig"]) sfConfig
-		let a = Assignment (Reference [Identifier "sfConfig"]) (ProtoValue sfConfig)
+		-- let a = Assignment (Reference [Identifier "sfConfig"]) (ProtoValue (first:rest))
+		let a = Assignment (Reference [Identifier "sfConfig"]) (ProtoValue (first:rest))
 		right <- ((resize 3) arbitrary)
 		return (subRefs (left ++ [a] ++ right))
 
@@ -215,7 +215,8 @@ inventLHS s t lhs = case lhs of
 inventLHSRef :: SubState -> VType -> (SubState,Reference)
 inventLHSRef s t = r where
 	(n:ns) = random s
-	vs = filter (hasType t) (values s)
+	isCompound (Reference is) = ((length is) > 1)
+	vs = filter isCompound $ filter (hasType t) (values s)
 	r = if (null vs) then (inventID s t)
 		else ( s { random = ns }, randomElt vs n )
 		
@@ -310,7 +311,7 @@ subAssignRef (s,body) (Assignment lhs rhs) = let
 	
 		-- invent the RHS if we need to
 		(s3,rhs3) = if (rhsType == AnyType) then (inventRHS s2 t) else (s2,rhs)
-		
+
 		-- if the rhs is a list of prototypes, substitute within the prototypes
 		-- TODO: since we do this before we add the lhs to the symbol table,
 		-- we avoid self-references. although we might want to do this occasionally
@@ -319,12 +320,15 @@ subAssignRef (s,body) (Assignment lhs rhs) = let
 			(ProtoValue ps) -> subProtoListRef s3 lhs2 ps
 			otherwise -> (s3,rhs3)
 
-		-- add lhs to the symbol table
-		(s5,lhs5) = addRef s4 lhs2
+		-- add lhs to the symbol table (unless it is a reference)
+		(s5,lhs5) = case lhs of
+			(Reference [Identifier _]) -> addRef s4 lhs2
+			_ -> (s4,lhs2)
 	
 		-- remove the common prefix
 		-- TODO: sometimes we should perhaps leave the full pathname (or some of it?)
-		lhs6 = stripCommonPrefix (path s5) lhs5
+		-- lhs6 = stripCommonPrefix (path ss) lhs5
+		lhs6 = lhs5
 
 	in ( s5, (appendToBody body (Assignment lhs6 rhs4)))
 		where appendToBody (Body as) a = Body (as ++ [a])
@@ -338,65 +342,18 @@ stripCommonPrefix (Reference r) (Reference r') = Reference (scp r r') where
 	scp (i:is) (i':is') = if (i==i') then (scp is is') else (i':is')
 	scp _ is' = is'
 
-{--
-
--- choose an arbitrary reference for the lhs
--- if we don't know any references, then just use an arbitrary local name
--- the "f" is a function to filter the reference list for things of the right type
--- (either value or reference, or either)
--- TODO: we might want to specify whether we would prefer a block or a value
--- TODO: occasionally we should output an invalid reference (that doesn't exist)
--- TODO: it would also be nice (but hard?) to test forward references (should be an error)?
-subLHSRef :: SubState -> ([Reference] -> [Reference]) -> (Reference,SubState)
-subLHSRef s f = ( r , s { random = ns } )
-	where
-		(n:ns) = random s
-		vs = f (values s)
-		r = if (null vs) then (randomElt rs n) else (randomElt vs n)
-			where
-				i = randomRef n
-				rs = f [ makeValueRef i, makeProtoRef i ]
-
--- random reference
-randomRef :: Int -> Reference		
-randomRef n = Reference [Identifier i]
-	where
-		is = map (:[]) ['A' .. 'Z']
-		i = is !! (n `mod` (length is))
-
--- random element of list
-randomElt :: [a] -> Int -> a
-randomElt es n = (es !! (n `mod` (length es)))
-
---}
-
 -- add (relative) reference to the symbol table at the current path
 -- return the (absolute) reference for the symbol and the new symbol table
--- don't add sfConfig to the symbol table
--- (just because it is confusing to have items randomly named sfConfig)
 addRef :: SubState -> Reference -> (SubState,Reference)
 addRef s (Reference is) = ( s', r )
 	where
 		(Reference ps) = path s
 		r = Reference (ps++is)
-		s' = if ((head is) == Identifier "sfConfig")
-			then s else s { values = r:(values s) }
-
-{--
--- choose a arbitrary reference for a link
--- if we don't have any valid references, then just output an empty block
--- TODO: occasionally we should output an invalid reference
--- TODO: or one which has the wrong type
-subRHSLinkRef :: SubState -> (Value,SubState)
-subRHSLinkRef s = ( v, s { random = ns } )
-	where
-		(n:ns) = random s
-		vs = filter isProtoRef (values s)
-		v = if (null vs) then emptyBlock else randomLink
-			where
-				emptyBlock = ProtoValue [BodyProto (Body [])]
-				randomLink = LinkValue (stripCommonPrefix (path s) (randomElt vs n))
---}
+		s' = s { values = r:(values s) }
+		-- don't add sfConfig to the symbol table
+		-- (just because it is confusing to have items randomly named sfConfig)
+		-- s' = if ((head is) == Identifier "sfConfig")
+		--	then s else s { values = r:(values s) }
 			
 -- substitute references in a list of prototypes (left to right), propagating the state
 subProtoListRef :: SubState -> Reference -> [Prototype] -> (SubState,Value)
