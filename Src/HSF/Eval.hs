@@ -4,7 +4,7 @@
 ------------------------------------------------------------------------------}
 
 module HSF.Eval
-	( Store, StoreOrError
+	( Store, StoreOrError, (|+|)
 	, evalSF
 	, renderJSON
 	, renderCompactJSON
@@ -37,14 +37,6 @@ data Store = Store [(Identifier,StoreValue)] deriving(Eq)
 type NameSpace = Reference
 type StoreOrError = Either Error Store
 
--- the Data.List.Utils version of addToAL adds new items at the start of the alist
--- this version follows the strict semantics by adding them at the end
-
-addToAL' [] i v = [(i,v)]
-addToAL' ((i',v'):s') i v
-	| (i'==i)	= (i,v):s'
-	| otherwise = (i',v'):(addToAL' s' i v)
-
 -- 6.7
 -- this operator concatenates two references
 -- the version in the paper is rather more complicated because it
@@ -67,7 +59,7 @@ sfPrefix (Reference r) = (Reference (initSafe r))
 -- the following function (bind) extends this to support hierarchical references
 
 sfPut :: (Store,Identifier,StoreValue) -> Store
-sfPut ( Store s, i, v ) = Store ( addToAL' s i v )
+sfPut ( Store s, i, v ) = Store ( addToEndOfAL s i v )
 
 -- 6.13
 -- this function updates the value of a reference in a store
@@ -84,7 +76,7 @@ sfBind ( Store ivs, Reference is, v ) = sfBind' ivs is v where
 			Just (StoreValue _) -> Left ( EPARENTNOTSTORE (render (Reference (i:is))) )
 			Just (SubStore (Store ivs')) -> do
 				s' <- sfBind' ivs' is v
-				return (Store (addToAL' ivs i (SubStore s'))) where
+				return (Store (addToEndOfAL ivs i (SubStore s'))) where
 
 -- 6.14
 -- this function looks up the value of a reference in a store

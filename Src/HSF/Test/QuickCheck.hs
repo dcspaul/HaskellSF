@@ -16,10 +16,9 @@ import HSF.Test.RunScalaVersion
 import Data.List (intercalate,nub)
 import Data.String.Utils (endswith)
 import Test.QuickCheck
-import Test.QuickCheck.Monadic (assert, monadicIO, run)
-import Control.Monad
+import Test.QuickCheck.Monadic (assert,monadicIO,run)
+import Control.Monad (liftM,liftM2)
 import System.FilePath.Posix (isAbsolute,(</>))
-import Control.Monad.State
 
 {--
     See: http://www.cse.chalmers.se/~rjmh/QuickCheck/manual.html
@@ -172,6 +171,59 @@ instance ParseItem SFConfig where
 -- see: http://stackoverflow.com/questions/2259926/testing-io-actions-with-monadic-quickcheck
 
 {------------------------------------------------------------------------------
+    type store
+------------------------------------------------------------------------------}
+
+-- assignment types
+data AttributeType = BlockType | ValueType | NoType deriving(Eq)
+
+-- this store is the same as the store used by the evaluator
+-- but it stores the type, not the evaluated value
+data TStoreType = TStoreValue | TSubStore TStore deriving(Eq)
+data TStore = TStore [(Identifier,TStoreType)] deriving(Eq)
+
+tPut :: (TStore,Identifier,TStoreType) -> TStore
+tPut ( TStore s, i, v ) = TStore ( addToEndOfAL s i v )
+
+tBind :: (TStore,Reference,TStoreType) -> Maybe TStore
+tBind ( TStore ivs, Reference is, v ) = tBind' ivs is v where
+	tBind' _   []  _    = Nothing
+	tBind' ivs [i] v    = Just (tPut (TStore ivs,i,v))
+	tBind' ivs (i:is) v =
+		case (lookup i ivs) of
+			Nothing -> Nothing
+			Just TStoreValue -> Nothing
+			Just (TSubStore (TStore ivs')) -> do
+				s' <- tBind' ivs' is v
+				return (TStore (addToEndOfAL ivs i (TSubStore s')))
+
+tFind :: (TStore,Reference) -> Maybe TStoreType
+tFind ( TStore ivs, Reference is ) = tFind' ivs is where
+	tFind' ivs [] = Just (TSubStore (TStore ivs))
+	tFind' []  _  = Nothing
+	tFind' ivs (i:is) =
+		case (lookup i ivs) of
+			Nothing -> Nothing
+			Just TStoreValue -> if null is then Just TStoreValue else Nothing
+			Just (TSubStore (TStore ivs')) -> tFind' ivs' is
+
+typeOf :: TStore -> Reference -> AttributeType
+typeOf ts r = case (tFind (ts,r)) of
+	Nothing -> NoType
+	Just TStoreValue -> ValueType
+	Just (TSubStore _) -> BlockType
+
+hasType :: TStore -> AttributeType -> Reference -> Bool
+hasType ts t r = ((typeOf ts r) == t)
+
+-- the type of a value
+valueType :: TStore -> Value -> AttributeType
+valueType s v = case v of 
+	BasicValue _ -> ValueType
+	ProtoValue _ -> BlockType
+	LinkValue l -> typeOf s l		
+
+{------------------------------------------------------------------------------
     substitute references
 ------------------------------------------------------------------------------}
 
@@ -179,21 +231,18 @@ instance ParseItem SFConfig where
 data SubState = SubState
 	{ path :: Reference			-- the path to the current component
 	, random :: [Int]			-- list of random numbers
-	, values :: [Reference]		-- references of all known values
+	, types :: TStore			-- type store
 	}
 
 -- the initial state
 initialState = SubState
 	{ path = Reference []
 	, random = [1..] -- TODO: make this a list of random numbers? 
-	, values = []
+	, types = TStore []
 	}
 
 -- start with an empty body
 initialBody = (Body [])
-
--- assignment types
-data VType = BlockType | ValueType | AnyType deriving(Eq)
 
 -- random element of list
 randomElt :: [a] -> Int -> a
@@ -202,7 +251,7 @@ randomElt es n = (es !! (n `mod` (length es)))
 -- invent a LHS for an assignment
 -- it is to be either an identifier 
 -- or a reference to an item of the specified type
-inventLHS :: SubState -> VType -> Reference -> (SubState,Reference)
+inventLHS :: SubState -> AttributeType -> Reference -> (SubState,Reference)
 inventLHS s t lhs = case lhs of			
 	(Reference [Identifier "?id"]) -> inventID s t
 	(Reference [Identifier "?ref"]) -> inventLHSRef s t
@@ -212,16 +261,16 @@ inventLHS s t lhs = case lhs of
 -- it should point to something of the specified type
 -- if there isn't anything of the specified type,
 -- then just invent an id
-inventLHSRef :: SubState -> VType -> (SubState,Reference)
+inventLHSRef :: SubState -> AttributeType -> (SubState,Reference)
 inventLHSRef s t = r where
 	(n:ns) = random s
 	isCompound (Reference is) = ((length is) > 1)
-	vs = filter isCompound $ filter (hasType t) (values s)
+	vs = filter isCompound $ filter (hasType (types s) t) (values s)
 	r = if (null vs) then (inventID s t)
 		else ( s { random = ns }, randomElt vs n )
 		
 -- invent an identifier of the specified type
-inventID :: SubState -> VType -> (SubState,Reference)
+inventID :: SubState -> AttributeType -> (SubState,Reference)
 inventID s t = case t of
 		BlockType -> inventID' "p"
 		ValueType -> inventID' "v"
@@ -236,32 +285,20 @@ inventID s t = case t of
 -- it should point to something of the specified type
 -- if there isn't anything of the specified type,
 -- then invent a value
-inventRHS :: SubState -> VType -> (SubState,Value)
+inventRHS :: SubState -> AttributeType -> (SubState,Value)
 inventRHS s t = r where
 	(n:ns) = random s
-	vs = filter (hasType t) (values s)
+	vs = filter (hasType (types s) t) (values s)
 	r = if (null vs) then ( s, inventValue t )
 		else ( s { random = ns }, LinkValue (randomElt vs n) )
 		
 -- invent a value for the RHS
 -- either an empty block or a random literal, depending on the required type
-inventValue :: VType -> Value
+inventValue :: AttributeType -> Value
 inventValue t = case t of
 		BlockType -> ProtoValue [BodyProto (Body [])]
 		ValueType -> BasicValue (StringValue "string")
 		_ -> undefined -- not possible
-
--- does a reference have type "t" ?
--- we use the last letter of the name to denote the type
--- "v" is a value, "p" is a prototype (block)
-hasType t (Reference r) = hasType' t r
-hasType' _ [] = False
-hasType' ValueType [Identifier "sfConfig"] = True
-hasType' _ [Identifier "sfConfig"] = False
-hasType' ValueType [Identifier i] = endswith "v" i
-hasType' BlockType [Identifier i] = endswith "p" i
-hasType' _ [Identifier i] = False
-hasType' t (i:is) = hasType' t is
 	
 -- TODO: at some point, we may want to generate valid forward references so 
 -- we can test ther HP semantics, or test for errors
@@ -284,33 +321,23 @@ subBodyRef (s,body) (Body as) = foldl subAssignRef (s,body) as
 subAssignRef :: (SubState,Body) -> Assignment -> (SubState,Body)
 subAssignRef (s,body) (Assignment lhs rhs) = let
 
-		-- the type of the rhs
-		rhsType = case rhs of 
-			LinkValue (Reference [Identifier "?ref"]) -> AnyType
-			BasicValue _ -> ValueType
-			ProtoValue _ -> BlockType
-			LinkValue _ -> undefined -- not possible
-			
-		-- the type of the lhs
-		lhsType = case lhs of
-			(Reference [Identifier "?ref"]) -> AnyType
-			(Reference [Identifier "?id"]) -> AnyType
-			(Reference [Identifier "sfConfig"]) -> BlockType
-			_ -> undefined -- not possible
+		-- the type of the lhs & rhs
+		rhsType = valueType (types s) rhs
+		lhsType = typeOf (types s) lhs
 	
 		-- the type of the assignment
 		(s1,t) = case lhsType of
-				AnyType -> case rhsType of
-					AnyType -> ( s { random=ns }, ( randomElt [ BlockType, ValueType ] n ) )
+				NoType -> case rhsType of
+					NoType -> ( s { random=ns }, ( randomElt [ BlockType, ValueType ] n ) )
 					otherwise -> (s,rhsType)
 				otherwise -> (s,lhsType)
  			where (n:ns) = random s
 
 		-- invent the LHS if we need to
-		(s2,lhs2) = if (lhsType == AnyType) then (inventLHS s1 t lhs) else (s1,lhs)
+		(s2,lhs2) = if (lhsType == NoType) then (inventLHS s1 t lhs) else (s1,lhs)
 	
 		-- invent the RHS if we need to
-		(s3,rhs3) = if (rhsType == AnyType) then (inventRHS s2 t) else (s2,rhs)
+		(s3,rhs3) = if (rhsType == NoType) then (inventRHS s2 t) else (s2,rhs)
 
 		-- if the rhs is a list of prototypes, substitute within the prototypes
 		-- TODO: since we do this before we add the lhs to the symbol table,
@@ -320,11 +347,20 @@ subAssignRef (s,body) (Assignment lhs rhs) = let
 			(ProtoValue ps) -> subProtoListRef s3 lhs2 ps
 			otherwise -> (s3,rhs3)
 
-		-- add lhs to the symbol table (unless it is a reference)
+		-- add lhs to the type table (unless it is a reference)
 		(s5,lhs5) = case lhs of
-			(Reference [Identifier _]) -> addRef s4 lhs2
-			_ -> (s4,lhs2)
-	
+			(Reference [Identifier _]) -> addRef s4 (valueType s4 rhs4) ((path s4) |+| lhs)
+				
+				HELP!!!!!!!!! STUFF HERE 
+				MAYBE WE can do without the addRef function & do it here?
+				What happens if addref returns Nothing ?
+				
+			otherwise -> (s4,lhs2)
+			
+			
+			
+			
+			
 		-- remove the common prefix
 		-- TODO: sometimes we should perhaps leave the full pathname (or some of it?)
 		-- lhs6 = stripCommonPrefix (path ss) lhs5
@@ -385,7 +421,7 @@ subRHSProtoRef :: SubState -> (Prototype,SubState)
 subRHSProtoRef s = ( v, s { random = ns } )
 	where
 		(n:ns) = random s
-		vs = filter (hasType BlockType) (values s)
+		vs = filter (hasType (types s) BlockType) (values s)
 		v = if (null vs) then emptyProto else randomProto
 			where
 				emptyProto = BodyProto (Body [])
