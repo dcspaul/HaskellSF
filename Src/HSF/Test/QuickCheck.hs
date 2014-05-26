@@ -64,7 +64,7 @@ instance Arbitrary Identifier where
 -- either a single identifier (foo) or a compound reference (a:b:foo)
 -- we need to be able to generate sensible values for the references,
 -- so that they point at valid entities. We can't do that yet because
--- the AST has not yet been created, so we simple insert placeholders
+-- the AST has not yet been created, so we simply insert placeholders
 -- which we will populate later.
 -- TODO: think about the frequencies later
 

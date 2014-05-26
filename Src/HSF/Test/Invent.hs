@@ -19,64 +19,72 @@ import Safe (initSafe)
     evaluation functions
 ------------------------------------------------------------------------------}
 
-inventProtoList :: [Prototype] -> (NameSpace,Reference,Store) -> Either Error (Store,[Prototype])
+data Result a = Result
+	{ store :: Store
+	, node :: a
+	}
+
+type ResultOrError a = Either Error (Result a)
+
+inventProtoList :: [Prototype] -> (NameSpace,Reference,Store) -> ResultOrError [Prototype]
 
 inventProtoList ((BodyProto bp):ps) = \(ns,r,s) -> do
-	(fB,bp') <- inventBody bp $ (r,s)
-	(s',ps') <- inventProtoList ps $ (ns, r, fB)
-	return (s',(BodyProto bp'):ps')
+	fB <- inventBody bp $ (r,s)
+	result <- inventProtoList ps $ (ns, r, (store fB))
+	return ( result { node =  (BodyProto (node fB)):(node result) } )
 
 inventProtoList ((RefProto rp):ps) = \(ns,r,s) -> do
 	s' <- sfInherit(s,ns,rp,r)
-	(s'',ps') <- inventProtoList ps $ (ns, r, s')
-	return (s'',(RefProto rp):ps')
+	result <- inventProtoList ps $ (ns, r, s')
+	return ( result { node = (RefProto rp):(node result) } )
 
-inventProtoList ([]) = \(ns,r,s) -> (Right (s,[]))
+inventProtoList ([]) = \(ns,r,s) -> Right ( Result { store = s, node = [] } )
 
-inventValue :: Value -> (NameSpace,Reference,Store) -> Either Error (Store,Value)
+inventValue :: Value -> (NameSpace,Reference,Store) -> ResultOrError Value
 
 inventValue (BasicValue bv) = \(ns,r,s) -> do
 	s' <- sfBind(s, r, StoreValue bv)
-	return (s',(BasicValue bv))
+	return ( Result { store = s', node = BasicValue bv } )
 
 inventValue (LinkValue lr) = \(ns,r,s) -> do
 	(ns',v') <- case (sfResolv(s, ns, lr)) of
 		Nothing -> Left ( ENOLR (render lr) )
 		Just (n,v) -> Right (n,v)
 	s' <- sfBind(s, r, v')
-	return (s',(LinkValue lr))
+	return ( Result { store = s', node = LinkValue lr } )
 
 inventValue (ProtoValue ps) = \(ns,r,s) -> do
 	s' <- sfBind(s,r,SubStore (Store []))
-	(s'',ps') <- inventProtoList ps $ (ns,r,s')
-	return (s'',(ProtoValue ps'))
+	result <- inventProtoList ps $ (ns,r,s')
+	return ( result { node = (ProtoValue (node result)) } )
 
-inventAssignment :: Assignment -> (NameSpace,Store) -> Either Error (Store,Assignment)
+inventAssignment :: Assignment -> (NameSpace,Store) -> ResultOrError Assignment
 
 inventAssignment (Assignment r@(Reference [_]) v) = \(ns,s) -> do
-	(s',v') <- inventValue v $ (ns, (ns |+| r), s)
-	return (s',Assignment r v')
+	result <- inventValue v $ (ns, (ns |+| r), s)
+	return ( result { node = Assignment r (node result) } )
 
 inventAssignment (Assignment r v) = \(ns,s) -> do
 	case (sfResolv (s,ns,(sfPrefix r))) of
 		Nothing -> Left ( EASSIGN (render r) )
 		Just (_, StoreValue _) -> Left ( EREFNOTOBJ (render r) )
 		Just (ns', _) -> do
-			(s',v') <- inventValue v $ (ns, ns' |+| r, s)
-			return (s',(Assignment r v'))
+			result <- inventValue v $ (ns, ns' |+| r, s)
+			return ( result { node = Assignment r (node result) } )
 
-inventBody :: Body -> (NameSpace,Store) -> Either Error (Store,Body)
+inventBody :: Body -> (NameSpace,Store) -> ResultOrError Body
 
 inventBody (Body (a:b)) = \(ns,s) -> do
-	(fA,a') <- inventAssignment a $ (ns,s)
-	(s',b') <- inventBody (Body b) $ (ns,fA)
-	let (Body as) = b'
-	return (s',Body (a':as))
+	fA <- inventAssignment a $ (ns,s)
+	result <- inventBody (Body b) $ (ns,(store fA))
+	let (Body as) = node result
+	return ( result { node = Body ((node fA):as) } )
 
-inventBody (Body []) = \(ns,s) -> (Right (s,(Body [])))
+inventBody (Body []) = \(ns,s) -> Right ( Result { store = s, node = (Body []) } )
 	
 inventSF :: SFConfig -> Either Error SFConfig
 
 inventSF (SFConfig as) = do
-	(_,(Body as')) <- inventBody (Body as) $ (Reference [], Store [])
+	result <- inventBody (Body as) $ (Reference [], Store [])
+	let (Body as') = node result
 	return (SFConfig as')
