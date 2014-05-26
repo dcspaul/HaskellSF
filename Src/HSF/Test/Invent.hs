@@ -26,23 +26,10 @@ randomV = state random
 
 type ResultOrError a = State StdGen (Result a)
 
-iBind :: (Store,Reference,StoreValue) -> Store
-iBind s = case (s') of
-		Left e -> error "FAIL1"
+noFail :: (a -> StoreOrError) -> (a -> Store)
+noFail f = \x -> case (f x) of
+		Left e -> error "impossible fail!"
 		Right s -> s
-	where s' = sfBind s
-	
-iCopy :: (Store,Store,Reference) -> Store
-iCopy s = case (s') of
-		Left e -> error "FAIL2"
-		Right s -> s
-	where s' = sfCopy s
-
-iInherit :: (Store,NameSpace,Reference,Reference) -> Store
-iInherit s = case (s') of
-		Left e -> error "FAIL3"
-		Right s -> s
-	where s' = sfInherit s
 
 {------------------------------------------------------------------------------
     evaluation functions
@@ -69,7 +56,7 @@ inventProtoList ((BodyProto bp):ps) = \(ns,r,s) -> do
 
 -- a reference to a prototype
 inventProtoList ((RefProto rp):ps) = \(ns,r,s) -> do
-	let s' = iInherit(s,ns,rp,r)
+	let s' = (noFail sfInherit)(s,ns,rp,r)
 	result <- inventProtoList ps $ (ns, r, s')
 	return ( result { node = (RefProto rp):(node result) } )
 
@@ -78,7 +65,7 @@ inventProtoList ([]) = \(ns,r,s) -> return ( Result { store = s, node = [] } )
 inventValue :: Value -> (NameSpace,Reference,Store) -> ResultOrError Value
 
 inventValue (BasicValue bv) = \(ns,r,s) -> do
-	let s' = iBind(s, r, StoreValue bv)
+	let s' = (noFail sfBind)(s, r, StoreValue bv)
 	return ( Result { store = s', node = BasicValue bv } )
 
 inventValue (LinkValue (Reference [Identifier "?ref"])) = \(ns,r,s) -> do
@@ -89,11 +76,11 @@ inventValue (LinkValue lr) = \(ns,r,s) -> do
 	let (ns',v') = case (sfResolv(s, ns, lr)) of
 		Nothing -> error ( "impossible! cannot resolve generated link: " ++ (show lr) )
 		Just (n,v) -> (n,v)
-	let s' = iBind(s, r, v')
+	let s' = (noFail sfBind)(s, r, v')
 	return ( Result { store = s', node = LinkValue lr } )
 
 inventValue (ProtoValue ps) = \(ns,r,s) -> do
-	let s' = iBind(s,r,SubStore (Store []))
+	let s' = (noFail sfBind)(s,r,SubStore (Store []))
 	result <- inventProtoList ps $ (ns,r,s')
 	return ( result { node = (ProtoValue (node result)) } )
 
