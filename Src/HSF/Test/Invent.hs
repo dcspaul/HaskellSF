@@ -28,19 +28,23 @@ type ResultOrError a = Either Error (Result a)
 
 inventProtoList :: [Prototype] -> (NameSpace,Reference,Store) -> ResultOrError [Prototype]
 
+-- invent a reference to a random prototype 
+-- if we can't find one, generate an empty body prototype
+inventProtoList ((RefProto (Reference [Identifier "?ref"])):ps) = \(ns,r,s) -> do
+	let rp = inventProtoRef ns s
+	inventProtoList (rp:ps) $ (ns,r,s)
+	
+-- a body prototype
 inventProtoList ((BodyProto bp):ps) = \(ns,r,s) -> do
 	fB <- inventBody bp $ (r,s)
 	result <- inventProtoList ps $ (ns, r, (store fB))
 	return ( result { node =  (BodyProto (node fB)):(node result) } )
 
-inventProtoList ((RefProto (Reference [Identifier "?ref"])):ps) = \(ns,r,s) -> do
-	let rp = inventProtoRef ns s
+-- a reference to a prototype
+inventProtoList ((RefProto rp):ps) = \(ns,r,s) -> do
 	s' <- sfInherit(s,ns,rp,r)
 	result <- inventProtoList ps $ (ns, r, s')
 	return ( result { node = (RefProto rp):(node result) } )
-
-inventProtoList ((RefProto r):_) =
-	error ( "impossible! generated refproto not ?ref: " ++ (show r) )
 
 inventProtoList ([]) = \(ns,r,s) -> Right ( Result { store = s, node = [] } )
 
@@ -51,15 +55,15 @@ inventValue (BasicValue bv) = \(ns,r,s) -> do
 	return ( Result { store = s', node = BasicValue bv } )
 
 inventValue (LinkValue (Reference [Identifier "?ref"])) = \(ns,r,s) -> do
-	let lr = inventLinkRef ns s
+	let v' = inventLinkRef ns s
+	inventValue v' $ (ns,r,s)
+
+inventValue (LinkValue lr) = \(ns,r,s) -> do
 	(ns',v') <- case (sfResolv(s, ns, lr)) of
 		Nothing -> error ( "impossible! cannot resolve generated link: " ++ (show lr) )
 		Just (n,v) -> Right (n,v)
 	s' <- sfBind(s, r, v')
 	return ( Result { store = s', node = LinkValue lr } )
-
-inventValue (LinkValue r) =
-	error ( "impossible! generated linkvalue not ?ref: " ++ (show r) )
 
 inventValue (ProtoValue ps) = \(ns,r,s) -> do
 	s' <- sfBind(s,r,SubStore (Store []))
@@ -68,16 +72,17 @@ inventValue (ProtoValue ps) = \(ns,r,s) -> do
 
 inventAssignment :: Assignment -> (NameSpace,Store) -> ResultOrError Assignment
 
-inventAssignment (Assignment (Reference [Identifier "?ref"]) v) = inventAssignment' inventLHSRef v
-
-inventAssignment (Assignment (Reference [Identifier "?id"]) v) = inventAssignment' inventLHSId v
-
-inventAssignment (Assignment r v) = inventAssignment' (\ns s -> r) v
-
-inventAssignment' :: (NameSpace -> Store -> Reference) -> Value -> (NameSpace,Store) -> ResultOrError Assignment
-
-inventAssignment' f v = \(ns,s) -> do
-	let r = f ns s
+inventAssignment (Assignment (Reference [Identifier "?ref"]) v) = \(ns,s) -> do
+	let r = inventLHSRef ns s
+	result <- inventValue v $ (ns, (ns |+| r), s)
+	return ( result { node = Assignment r (node result) } )
+	
+inventAssignment (Assignment (Reference [Identifier "?id"]) v) = \(ns,s) -> do
+	let r = inventLHSId
+	result <- inventValue v $ (ns, (ns |+| r), s)
+	return ( result { node = Assignment r (node result) } )
+	
+inventAssignment (Assignment r v) = \(ns,s) -> do
 	result <- inventValue v $ (ns, (ns |+| r), s)
 	return ( result { node = Assignment r (node result) } )
 
@@ -101,7 +106,30 @@ inventSF (SFConfig as) = do
 
 ----------------
 
-inventProtoRef ns s = (Reference [Identifier "fooPROTO"])
-inventLinkRef ns s = (Reference [Identifier "fooLink"])
-inventLHSRef ns s = (Reference [Identifier "fooREF"])
-inventLHSId ns s = (Reference [Identifier "fooID"])
+inventLHSId :: Reference
+inventLHSId = (Reference [Identifier "fooID"])
+-- invent a random ID
+
+inventLHSRef :: NameSpace -> Store -> Reference
+inventLHSRef ns s = inventLHSId
+-- inventLHSRef ns s = (Reference [Identifier "fooREF"])
+-- look in the store for a random reference
+-- if you can't find anything, use inventLHSId
+
+inventProtoRef :: NameSpace -> Store -> Prototype
+inventProtoRef ns s = (BodyProto (Body []))
+-- inventProtoRef ns s = (RefProto (Reference [Identifier "fooPROTO"]))
+-- look in the store for a random reference to a prototype
+-- if you can't find one, then generate an empty body
+
+inventLinkRef :: NameSpace -> Store -> Value
+inventLinkRef ns s = (BasicValue (StringValue "frobble!"))
+-- inventLinkRef ns s = (LinkValue (Reference [Identifier "fooLink"]))
+-- look in the store for a random reference to a prototype or a value
+-- if you can't find one, generate some arbitrary value
+	
+
+
+
+
+
