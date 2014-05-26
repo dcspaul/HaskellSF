@@ -7,6 +7,7 @@ import System.Environment (getArgs)
 import System.IO (hPutStrLn, stderr)
 
 import HSF.Parser
+import HSF.Store
 import HSF.Eval
 import HSF.Utils
 import HSF.Errors

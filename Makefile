@@ -32,10 +32,12 @@ build: $(BUILD_DIR)/hsf-$(PLATFORM)
 $(BUILD_DIR)/hsf-$(PLATFORM): \
 		$(BUILD_DIR)/hsf.hs \
 		$(BUILD_DIR)/HSF/Parser.hs \
+		$(BUILD_DIR)/HSF/Store.hs \
 		$(BUILD_DIR)/HSF/Eval.hs \
 		$(BUILD_DIR)/HSF/Utils.hs \
 		$(BUILD_DIR)/HSF/Errors.hs \
 		$(BUILD_DIR)/HSF/Options.hs \
+		$(BUILD_DIR)/HSF/Test/Invent.hs \
 		$(BUILD_DIR)/HSF/Test/QuickCheck.hs \
 		$(BUILD_DIR)/HSF/Test/RunScalaVersion.hs \
 		$(BUILD_DIR)/HSF/Test/RunOCamlVersion.hs \
