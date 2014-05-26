@@ -33,10 +33,14 @@ inventProtoList ((BodyProto bp):ps) = \(ns,r,s) -> do
 	result <- inventProtoList ps $ (ns, r, (store fB))
 	return ( result { node =  (BodyProto (node fB)):(node result) } )
 
-inventProtoList ((RefProto rp):ps) = \(ns,r,s) -> do
+inventProtoList ((RefProto (Reference [Identifier "?ref"])):ps) = \(ns,r,s) -> do
+	let rp = inventProtoRef ns s
 	s' <- sfInherit(s,ns,rp,r)
 	result <- inventProtoList ps $ (ns, r, s')
 	return ( result { node = (RefProto rp):(node result) } )
+
+inventProtoList ((RefProto r):_) =
+	error ( "impossible! generated refproto not ?ref: " ++ (show r) )
 
 inventProtoList ([]) = \(ns,r,s) -> Right ( Result { store = s, node = [] } )
 
@@ -46,12 +50,16 @@ inventValue (BasicValue bv) = \(ns,r,s) -> do
 	s' <- sfBind(s, r, StoreValue bv)
 	return ( Result { store = s', node = BasicValue bv } )
 
-inventValue (LinkValue lr) = \(ns,r,s) -> do
+inventValue (LinkValue (Reference [Identifier "?ref"])) = \(ns,r,s) -> do
+	let lr = inventLinkRef ns s
 	(ns',v') <- case (sfResolv(s, ns, lr)) of
-		Nothing -> Left ( ENOLR (render lr) )
+		Nothing -> error ( "impossible! cannot resolve generated link: " ++ (show lr) )
 		Just (n,v) -> Right (n,v)
 	s' <- sfBind(s, r, v')
 	return ( Result { store = s', node = LinkValue lr } )
+
+inventValue (LinkValue r) =
+	error ( "impossible! generated linkvalue not ?ref: " ++ (show r) )
 
 inventValue (ProtoValue ps) = \(ns,r,s) -> do
 	s' <- sfBind(s,r,SubStore (Store []))
@@ -60,17 +68,18 @@ inventValue (ProtoValue ps) = \(ns,r,s) -> do
 
 inventAssignment :: Assignment -> (NameSpace,Store) -> ResultOrError Assignment
 
-inventAssignment (Assignment r@(Reference [_]) v) = \(ns,s) -> do
+inventAssignment (Assignment (Reference [Identifier "?ref"]) v) = inventAssignment' inventLHSRef v
+
+inventAssignment (Assignment (Reference [Identifier "?id"]) v) = inventAssignment' inventLHSId v
+
+inventAssignment (Assignment r v) = inventAssignment' (\ns s -> r) v
+
+inventAssignment' :: (NameSpace -> Store -> Reference) -> Value -> (NameSpace,Store) -> ResultOrError Assignment
+
+inventAssignment' f v = \(ns,s) -> do
+	let r = f ns s
 	result <- inventValue v $ (ns, (ns |+| r), s)
 	return ( result { node = Assignment r (node result) } )
-
-inventAssignment (Assignment r v) = \(ns,s) -> do
-	case (sfResolv (s,ns,(sfPrefix r))) of
-		Nothing -> Left ( EASSIGN (render r) )
-		Just (_, StoreValue _) -> Left ( EREFNOTOBJ (render r) )
-		Just (ns', _) -> do
-			result <- inventValue v $ (ns, ns' |+| r, s)
-			return ( result { node = Assignment r (node result) } )
 
 inventBody :: Body -> (NameSpace,Store) -> ResultOrError Body
 
@@ -82,9 +91,17 @@ inventBody (Body (a:b)) = \(ns,s) -> do
 
 inventBody (Body []) = \(ns,s) -> Right ( Result { store = s, node = (Body []) } )
 	
-inventSF :: SFConfig -> Either Error SFConfig
 
+inventSF :: SFConfig -> Either Error SFConfig
+ 
 inventSF (SFConfig as) = do
 	result <- inventBody (Body as) $ (Reference [], Store [])
 	let (Body as') = node result
 	return (SFConfig as')
+
+----------------
+
+inventProtoRef ns s = (Reference [Identifier "fooPROTO"])
+inventLinkRef ns s = (Reference [Identifier "fooLink"])
+inventLHSRef ns s = (Reference [Identifier "fooREF"])
+inventLHSId ns s = (Reference [Identifier "fooID"])

@@ -149,14 +149,12 @@ instance Arbitrary SFConfig where
 		let a = Assignment (Reference [Identifier "sfConfig"]) (ProtoValue (first:rest))
 		right <- ((resize 3) arbitrary)
 		-- we now invent plausible values for the references
-		-- this might fail because of a parse error, in which case,
-		-- we just return the random source, complete with the placeholders,
-		-- in the assumption that the evaluator will fail with the same error ...
-		let spec = SFConfig (left ++ [a] ++ right)
-		let newSpec = case (inventSF spec) of
-			Left e -> spec
-			Right s' -> s'
-		return newSpec
+		let r = (inventSF (SFConfig (left ++ [a] ++ right)))
+		case r of
+			Left e -> return (SFConfig (left ++ [a] ++ right))
+			Right c -> return c
+		-- return (inventSF (SFConfig (left ++ [a] ++ right)))
+		-- return (SFConfig (left ++ [a] ++ right))
 
 {------------------------------------------------------------------------------
     top-level source
