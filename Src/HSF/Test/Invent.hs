@@ -75,11 +75,8 @@ inventBody (Body (a:b)) = \(ns,s) -> do
 
 inventBody (Body []) = \(ns,s) -> (Right (s,(Body [])))
 	
-inventSF :: Body -> Either Error (Store,Body)
+inventSF :: SFConfig -> Either Error SFConfig
 
-inventSF b = do
-	(fB,b') <- inventBody b $ (Reference [], Store [])
-	case (sfFind(fB,Reference [Identifier "sfConfig"])) of
-		Nothing -> Left ENOSPEC
-		Just (StoreValue bv) -> Left ( ESPEC (render bv) )
-		Just (SubStore s) -> return (s,b')
+inventSF (SFConfig as) = do
+	(_,(Body as')) <- inventBody (Body as) $ (Reference [], Store [])
+	return (SFConfig as')

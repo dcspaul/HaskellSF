@@ -89,10 +89,10 @@ evalBody (Body []) = \(ns,s) -> (Right s)
 -- The evaluation of the main sfConfig component is returned & other components are ignored.
 -- It is an error if the main sfConfig element is not a store (eg., if it is a basic value).
 	
-evalSF :: Body -> StoreOrError
+evalSF :: SFConfig -> StoreOrError
 
-evalSF b = do
-	fB <- evalBody b $ (Reference [], Store [])
+evalSF (SFConfig as) = do
+	fB <- evalBody (Body as) $ (Reference [], Store [])
 	case (sfFind(fB,Reference [Identifier "sfConfig"])) of
 		Nothing -> Left ENOSPEC
 		Just (StoreValue bv) -> Left ( ESPEC (render bv) )

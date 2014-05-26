@@ -58,7 +58,7 @@ compile opts srcPath = do
 			Right parseTree -> return (eval parseTree)
 	where
 		
-		eval :: Body -> (Either Error String)
+		eval :: SFConfig -> (Either Error String)
 		eval parseTree =
 			case (evalSF parseTree) of
 				Left e -> Left e

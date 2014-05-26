@@ -5,7 +5,7 @@
 
 module HSF.Parser
 	( Identifier(..), Reference(..) , Body(..) , BasicValue(..)
-	, Value(..), Assignment(..), Prototype(..)
+	, Value(..), Assignment(..), Prototype(..), SFConfig(..)
 	, ParserIO
 	, parseSF
 	, ParseItem, render
@@ -37,6 +37,7 @@ data BasicValue = BoolValue Bool | NumValue Integer | StringValue [Char] | NullV
 data Value = BasicValue BasicValue | LinkValue Reference | ProtoValue [Prototype] deriving(Eq,Show)
 data Assignment = Assignment Reference Value deriving(Eq,Show)
 data Prototype = RefProto Reference | BodyProto Body deriving(Eq,Show)
+data SFConfig = SFConfig [Assignment] deriving(Eq,Show)
 
 {------------------------------------------------------------------------------
     lexer
@@ -137,8 +138,8 @@ prototype = do { ref <- reference ; return (RefProto ref) }
 	<|> do { b <- m_braces body ; return (BodyProto b) }
 
 -- SF ::= B <eof>
-specification :: ParserIO Body
-specification = do { m_whiteSpace; b <- body ; eof; return b }
+specification :: ParserIO SFConfig
+specification = do { m_whiteSpace; as <- statements ; eof; return (SFConfig as) }
 
 {------------------------------------------------------------------------------
     parser state
@@ -255,10 +256,12 @@ instance ParseItem BasicValue where
 	render (NullValue) =  "NULL"
 	render (DataRef ids) = "DATA " ++ (intercalate ":" (map render ids))
 	render (Vector bvs) = "[" ++ (intercalate "," (map render bvs)) ++ "]"
+instance ParseItem SFConfig where
+	render (SFConfig as) = intercalate "\n" (map render as)
 
 {------------------------------------------------------------------------------
     parse SF specification
 ------------------------------------------------------------------------------}
 
-parseSF :: String -> String -> IO (Either ParseError Body)
+parseSF :: String -> String -> IO (Either ParseError SFConfig)
 parseSF sourcePath source = runParserT specification initialState sourcePath source

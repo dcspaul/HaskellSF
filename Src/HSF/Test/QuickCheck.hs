@@ -131,22 +131,11 @@ instance Arbitrary Prototype where
 		, liftM RefProto arbitraryRHSRef
 		]
 
-{------------------------------------------------------------------------------
-    top-level source
-------------------------------------------------------------------------------}
-
 -- the top-level body is slightly different, because ...
 -- the aim here is to generate a list of assignments with at least one sfConfig
 -- TODO: I guess you might want to test configurations with no sfconfig
 -- so we could make this randomly something else ....
 -- you might also want to test an empty top level?
-
-newtype SfSource = SfSource String deriving(Eq)
-
-instance Show SfSource where
-	show (SfSource s) = id s
-
-data SFConfig = SFConfig [Assignment] deriving(Eq,Show)
 
 instance Arbitrary SFConfig where
 	arbitrary = do
@@ -159,21 +148,30 @@ instance Arbitrary SFConfig where
 		-- let a = Assignment (Reference [Identifier "sfConfig"]) (ProtoValue (first:rest))
 		let a = Assignment (Reference [Identifier "sfConfig"]) (ProtoValue (first:rest))
 		right <- ((resize 3) arbitrary)
-		-- XXXXX return (subRefs (left ++ [a] ++ right))
-		return (SFConfig (left ++ [a] ++ right))
-		
-		
-		-- inventSF :: Body -> Either Error (Store,Body)
-		
+		-- we now invent plausible values for the references
+		-- this might fail because of a parse error, in which case,
+		-- we just return the random source, complete with the placeholders,
+		-- in the assumption that the evaluator will fail with the same error ...
+		let spec = SFConfig (left ++ [a] ++ right)
+		let newSpec = case (inventSF spec) of
+			Left e -> spec
+			Right s' -> s'
+		return newSpec
+
+{------------------------------------------------------------------------------
+    top-level source
+------------------------------------------------------------------------------}
+
+newtype SfSource = SfSource String deriving(Eq)
+
+instance Show SfSource where
+	show (SfSource s) = id s
 		
 renderConfig :: SFConfig -> String
 renderConfig = render
 
 instance Arbitrary SfSource where
 	arbitrary = liftM SfSource $ liftM renderConfig arbitrary
-
-instance ParseItem SFConfig where
-	render (SFConfig as) = intercalate "\n" (map render as)
 
 -- see: http://stackoverflow.com/questions/2259926/testing-io-actions-with-monadic-quickcheck
 
