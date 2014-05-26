@@ -149,12 +149,7 @@ instance Arbitrary SFConfig where
 		let a = Assignment (Reference [Identifier "sfConfig"]) (ProtoValue (first:rest))
 		right <- ((resize 3) arbitrary)
 		-- we now invent plausible values for the references
-		let r = (inventSF (SFConfig (left ++ [a] ++ right)))
-		case r of
-			Left e -> return (SFConfig (left ++ [a] ++ right))
-			Right c -> return c
-		-- return (inventSF (SFConfig (left ++ [a] ++ right)))
-		-- return (SFConfig (left ++ [a] ++ right))
+		return (inventSF (SFConfig (left ++ [a] ++ right)))
 
 {------------------------------------------------------------------------------
     top-level source

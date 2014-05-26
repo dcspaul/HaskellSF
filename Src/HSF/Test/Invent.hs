@@ -12,8 +12,37 @@ import HSF.Parser
 import HSF.Errors
 import HSF.Utils
 
--- cabal install Safe
-import Safe (initSafe)
+import System.Random
+import Control.Monad.State
+
+{------------------------------------------------------------------------------
+    new stuff
+------------------------------------------------------------------------------}
+
+-- type ResultOrError a = Either Error (Result a)
+
+randomV :: (RandomGen g, Random a) => State g a
+randomV = state random
+
+type ResultOrError a = State StdGen (Result a)
+
+iBind :: (Store,Reference,StoreValue) -> Store
+iBind s = case (s') of
+		Left e -> error "FAIL1"
+		Right s -> s
+	where s' = sfBind s
+	
+iCopy :: (Store,Store,Reference) -> Store
+iCopy s = case (s') of
+		Left e -> error "FAIL2"
+		Right s -> s
+	where s' = sfCopy s
+
+iInherit :: (Store,NameSpace,Reference,Reference) -> Store
+iInherit s = case (s') of
+		Left e -> error "FAIL3"
+		Right s -> s
+	where s' = sfInherit s
 
 {------------------------------------------------------------------------------
     evaluation functions
@@ -23,8 +52,6 @@ data Result a = Result
 	{ store :: Store
 	, node :: a
 	}
-
-type ResultOrError a = Either Error (Result a)
 
 inventProtoList :: [Prototype] -> (NameSpace,Reference,Store) -> ResultOrError [Prototype]
 
@@ -42,16 +69,16 @@ inventProtoList ((BodyProto bp):ps) = \(ns,r,s) -> do
 
 -- a reference to a prototype
 inventProtoList ((RefProto rp):ps) = \(ns,r,s) -> do
-	s' <- sfInherit(s,ns,rp,r)
+	let s' = iInherit(s,ns,rp,r)
 	result <- inventProtoList ps $ (ns, r, s')
 	return ( result { node = (RefProto rp):(node result) } )
 
-inventProtoList ([]) = \(ns,r,s) -> Right ( Result { store = s, node = [] } )
+inventProtoList ([]) = \(ns,r,s) -> return ( Result { store = s, node = [] } )
 
 inventValue :: Value -> (NameSpace,Reference,Store) -> ResultOrError Value
 
 inventValue (BasicValue bv) = \(ns,r,s) -> do
-	s' <- sfBind(s, r, StoreValue bv)
+	let s' = iBind(s, r, StoreValue bv)
 	return ( Result { store = s', node = BasicValue bv } )
 
 inventValue (LinkValue (Reference [Identifier "?ref"])) = \(ns,r,s) -> do
@@ -59,14 +86,14 @@ inventValue (LinkValue (Reference [Identifier "?ref"])) = \(ns,r,s) -> do
 	inventValue v' $ (ns,r,s)
 
 inventValue (LinkValue lr) = \(ns,r,s) -> do
-	(ns',v') <- case (sfResolv(s, ns, lr)) of
+	let (ns',v') = case (sfResolv(s, ns, lr)) of
 		Nothing -> error ( "impossible! cannot resolve generated link: " ++ (show lr) )
-		Just (n,v) -> Right (n,v)
-	s' <- sfBind(s, r, v')
+		Just (n,v) -> (n,v)
+	let s' = iBind(s, r, v')
 	return ( Result { store = s', node = LinkValue lr } )
 
 inventValue (ProtoValue ps) = \(ns,r,s) -> do
-	s' <- sfBind(s,r,SubStore (Store []))
+	let s' = iBind(s,r,SubStore (Store []))
 	result <- inventProtoList ps $ (ns,r,s')
 	return ( result { node = (ProtoValue (node result)) } )
 
@@ -94,15 +121,14 @@ inventBody (Body (a:b)) = \(ns,s) -> do
 	let (Body as) = node result
 	return ( result { node = Body ((node fA):as) } )
 
-inventBody (Body []) = \(ns,s) -> Right ( Result { store = s, node = (Body []) } )
+inventBody (Body []) = \(ns,s) -> return ( Result { store = s, node = (Body []) } )
 	
 
-inventSF :: SFConfig -> Either Error SFConfig
+inventSF :: SFConfig -> SFConfig
  
-inventSF (SFConfig as) = do
-	result <- inventBody (Body as) $ (Reference [], Store [])
-	let (Body as') = node result
-	return (SFConfig as')
+inventSF (SFConfig as) = (SFConfig as') where
+	(x,y) = runState (inventBody (Body as) $ (Reference [], Store [])) (mkStdGen 33)
+	(Body as') = node x
 
 ----------------
 
