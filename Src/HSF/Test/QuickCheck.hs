@@ -3,6 +3,9 @@
 	Paul Anderson <dcspaul@ed.ac.uk>
 ------------------------------------------------------------------------------}
 
+-- See: http://www.cse.chalmers.se/~rjmh/QuickCheck/manual.html
+-- and: http://stackoverflow.com/questions/2259926/testing-io-actions-with-monadic-quickcheck
+
 module HSF.Test.QuickCheck
 	( checkWithScala, checkWithOCaml, checkWithHP
 	) where
@@ -22,39 +25,17 @@ import Test.QuickCheck.Monadic (assert,monadicIO,run)
 import Control.Monad (liftM,liftM2)
 import System.FilePath.Posix (isAbsolute,(</>))
 
-{--
-    See: http://www.cse.chalmers.se/~rjmh/QuickCheck/manual.html
-
-	Gen a is a generator for type a
-    "arbitrary" is generator
-    
-	class Arbitrary a where
-         arbitrary :: Gen a
-
-    the basic generator is choose(lower,upper) which returns a value between upper & lower (inclusive)
-
-data Identifier = Identifier [Char] deriving(Eq,Show)
-data Reference = Reference [Identifier] deriving(Eq,Show)
-data Body = Body [Assignment] deriving(Eq,Show)
-data BasicValue = BoolValue Bool | NumValue Integer | StringValue [Char] | NullValue
-                | DataRef [Identifier] | Vector [BasicValue] deriving(Eq,Show)
-data Value = BasicValue BasicValue | LinkValue Reference | ProtoValue [Prototype] deriving(Eq,Show)
-data Assignment = Assignment Reference Value deriving(Eq,Show)
-data Prototype = RefProto Reference | BodyProto Body deriving(Eq,Show)
-
---}
-
 {------------------------------------------------------------------------------
     arbitrary items
 ------------------------------------------------------------------------------}
 
 -- TODO: not yet supporting vectors ?
 
--- identifiers are arbitrary (lowercase) letters
+-- identifiers are arbitrary (uppercase) letters
 
 instance Arbitrary Identifier where
 	arbitrary =  oneof (map (return . Identifier) ids)
-		where ids = map (:[]) ['a' .. 'z']
+		where ids = map (:[]) ['A' .. 'Z']
 
 -- we need to have separate generators for references, depending on how
 -- the references are used. so we don't define an Arbitrary instance -
@@ -65,17 +46,18 @@ instance Arbitrary Identifier where
 -- we need to be able to generate sensible values for the references,
 -- so that they point at valid entities. We can't do that yet because
 -- the AST has not yet been created, so we simply insert placeholders
--- which we will populate later.
+-- (?ref) which we will populate later.
 -- TODO: think about the frequencies later
 
 arbitraryLHSRef :: Gen Reference
-arbitraryLHSRef = frequency [(2,return dummyId),(1,return dummyRef)]
+arbitraryLHSRef = frequency [(2,dummyId),(1, return dummyRef)]
 	where
 		dummyRef = (Reference [Identifier "?ref"]) 
-		dummyId = (Reference [Identifier "?id"]) 
+		dummyId = liftM Reference $ liftM (:[]) arbitrary
 
 -- a reference appearing on the RHS of an assignment must refer to something
--- we just generate a marker so we can substitute them with something valid later on
+-- we just generate a placeholder (?ref) so we can substitute them with something
+-- valid later on
 
 arbitraryRHSRef :: Gen Reference
 arbitraryRHSRef = do
@@ -118,12 +100,12 @@ instance Arbitrary Value where
 			return (ProtoValue (first:rest))
 		]
 
--- assignment is an arbitrary (?lhs or ?id) Reference and an arbitrary Value
+-- assignment is a (?ref or arbitrary id) and an arbitrary Value
 
 instance Arbitrary Assignment where
 	arbitrary = liftM2 Assignment arbitraryLHSRef arbitrary
 
--- prototype is an arbitrary Body, or an arbitrary (?rhs) Reference
+-- prototype is an arbitrary Body, or a (?ref)
 
 instance Arbitrary Prototype where
 	arbitrary = oneof
@@ -165,8 +147,6 @@ renderConfig = render
 
 instance Arbitrary SfSource where
 	arbitrary = liftM SfSource $ liftM renderConfig arbitrary
-
--- see: http://stackoverflow.com/questions/2259926/testing-io-actions-with-monadic-quickcheck
 
 {------------------------------------------------------------------------------
     compile tests with both compilers & compare the result

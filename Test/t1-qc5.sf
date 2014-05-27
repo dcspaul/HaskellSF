@@ -1,847 +1,102 @@
-u 1234;
+u "noref";
 sfConfig extends {
-  x extends {
-    q extends sfConfig:x, {}
-    o extends sfConfig:x:q:q, sfConfig:x:o, sfConfig:x:q:q, sfConfig:x:q:q
-    l sfConfig:x:q:q;
-    u false;
-    r extends {
-      y sfConfig:x;
-      e extends {
-        y 1234;
-        m extends {
-          l "string";
-          w extends {
-            g DATA g:j;
-          }, {}, sfConfig:x:r:y:q, sfConfig:x:r:y:q:q
-          u sfConfig:x:o;
-          z false;
-          a extends sfConfig:x:q, sfConfig:x:r:y:r, {
-            k extends {
-              j sfConfig:x:r:y:q;
-            }, sfConfig:x:r:e
-            p sfConfig:x:r:e:m:a:k:m:z;
-            x sfConfig:x:r:e:m:a:k;
-          }
-        }, {
-          u sfConfig:x:r:e:m:a:k;
-        }, {
-          j sfConfig:x:r:e:m:a:x:m;
-        }, sfConfig:x:r:e:m:j:u
-        t sfConfig:x:r:e:m:j:a:q;
-        t DATA x:s:b;
-        p extends sfConfig:x:r:e:m:a:x:m:u, {
-          p DATA l;
-          g extends sfConfig:x:r:e:m:a:k:m:a:k:j:q, sfConfig:x:r:y:q:q
-        }, {}, {
-          t false;
-        }
-        d 1234;
-        i sfConfig:x:u;
-        j extends {
-          c sfConfig:x:r:e:m:a:k:m:w;
-          h DATA d:l:p:u;
-          h extends sfConfig:x:r:e:m:a:k:m:a:q, sfConfig:x:r:y:q, {}
-          h false;
-          c DATA g:q;
-          k extends {
-            v sfConfig:x:r:e:m:a:x:m:a:q;
-            y sfConfig:x:r:e:m:a:x:m:l;
-            i true;
-            s extends sfConfig:x:r:e:m:u:m:a
-            z extends {}, {
-              t sfConfig:x:r:e:j:k:y;
-            }, sfConfig:x:r:e:m:a:q
-            r true;
-            a sfConfig:x:r:e:m:a:k;
-          }, sfConfig:x:r:e:m:a:x:m:a:q, sfConfig:x:r:e:j:k:s:k
-        }, {
-          k extends {
-            l extends sfConfig:x:r:e:m:j:a:k, {}, sfConfig:x:r:e
-            l "string";
-            s sfConfig:x:r;
-          }, sfConfig:x:r:e:j:k:s:y:r, {
-            i false;
-            i true;
-            x "string";
-          }
-          j extends {
-            a true;
-            o sfConfig:x:r:e:m:u:m:w;
-          }
-          i extends sfConfig:x:r:e:j:k:s:e:m:w:q
-        }, sfConfig:x:r:e:j:k:s:e:m:a:x:j:q, sfConfig:x:r:e:j:k:s:e:m:a:k:m:w
-        s extends {
-          n sfConfig:x:r:e:m:a:k:m:a:k;
-          d DATA v;
-          a extends sfConfig:x:r:e:j:k:s:e:m, sfConfig:x:r:e:m:u:m:w:q, sfConfig:x:r:e:m:j:a:k:j
-          i extends sfConfig:x:r:e:s:a:a:k:m:w:q, sfConfig:x:r:e:m:j:a:k:j:q, sfConfig:x:r:e:j:k:s:e:m:a:x:m:a:k:j:q, sfConfig:x:r:y
-        }
-        m 1234;
-      }
+  q extends {
+    q 1234;
+    o extends {
+      i extends {
+        z "string";
+      }, {
+        g extends sfConfig:q:o:i, sfConfig:q:o:i
+        sfConfig:q:q sfConfig:q:o:i:g:g;
+      }, {
+        r DATA m:o;
+      }, sfConfig:q:o:i
+      p sfConfig:q:o:i;
       y extends {
-        a true;
-        j sfConfig:x:r:e:j:k:s:e:m:a:k:m:w:g;
-        a extends sfConfig:x:r:e:j:k:s:e:m:a:k:j, sfConfig:x:r:e:j:k:s:e:m:a
-        a sfConfig:x:r:e:s:a:a:x:m;
-      }
-    }, sfConfig:x:r:e:s:a:a:x:m:a:q, {
-      q extends sfConfig:x:r:e:j:k:s:e:m:u:m:w, {
-        d 1234;
-        g extends sfConfig:x:r:e:j:k:s:y:q:q
-      }, sfConfig:x:r:e:j:k:s:e:m:j:a:k:j:q
-      l extends sfConfig:x:r:e:j:k:s:e:m:a:k:j:q
-      v sfConfig:x:r:e:s:a:a:k:m:a:k:j:q;
-    }
-    k "string";
-    q extends {
-      y sfConfig:x:r:e:s:a:u:m:z;
-      v DATA u;
-      u extends sfConfig:x:r:e:j:k:s:e:j:k, sfConfig:x:r:e:j:k
-      t sfConfig:x:r:e:s:a:a:x:m:w:q;
-      h extends {
-        f extends {
-          p extends {
-            a DATA o;
-            o 1234;
-            v true;
-            v sfConfig:x:r:e:s:a:a:k:m:a:k:j:q;
-            x extends {
-              h false;
-              v sfConfig:x:q:h:f;
-              n sfConfig:x:q:h:f:p:x:h;
-              v sfConfig:x:q:u:s:e:p:t;
-              w extends {
-                s sfConfig:x:q:u:s:e:m:a:x:m:a:k:j:q;
-                q sfConfig:x:r:y:a:a:k:j;
-                y extends {
-                  j 1234;
-                  i extends {
-                    o DATA d:b:c;
-                  }, sfConfig:x:o, sfConfig:x:r:e:j:k:s:e:m:j:a:k:j, sfConfig:x:q:h:f:p:x:w:q:q
-                  g extends {
-                    y sfConfig:x:q:u:s:e:m:a;
-                    h sfConfig:x:q:h:f:p:x:w:y:g:y:k:m:l;
-                    h extends {
-                      o true;
-                      g extends sfConfig:x:q:h:f:p:x:w:y:g:y:x:j, {}, sfConfig:x:q:h:f:p:x:w:y:g:y:k:m:u, {
-                        f sfConfig:x:r:q:q;
-                        n "string";
-                        w extends {}
-                      }
-                      w sfConfig:x:r:e:s:a:w:g;
-                      g extends {
-                        r 1234;
-                      }
-                      h extends {
-                        v "string";
-                        o sfConfig:x:q:h:f:p:x:w:y;
-                      }, {
-                        v DATA x:u:r:q;
-                        n extends sfConfig:x:q:h:f:p:x:w:y:g:y:k:m:a:q, sfConfig:x:q:u:s:e:m:a, {
-                          x extends sfConfig:x:q:u:s:e:m:a:x:m:u, sfConfig:x:r:e:s:a:a:k:m:u
-                        }
-                        w extends sfConfig:x:r:e:j:k:s:y:l, sfConfig:x:r:e:j:k:s:e:m:a:x, {
-                          c sfConfig:x:q:h:f:p:x:w:y:g:y:k:m:a:q;
-                          s sfConfig:x:r:e:j:k:s:e;
-                          y sfConfig:x:q:h:f:p:x:w:y:g:h:h:w:s:m:u:m:a:k:j;
-                        }, {
-                          z extends sfConfig:x:r:e:j:k:s:e:m:a:k:j, sfConfig:x:r:e:j:k:s:e:m:a:x:m:a:k:j:q
-                          v extends {
-                            o sfConfig:x:q:h:f:p:x:w:y:g:y;
-                            r extends {
-                              z "string";
-                              l sfConfig:x:r:e:j:k:s:e:m:w:q;
-                            }, sfConfig:x:q:h:f:p:x:w:y:g:h:h:w:v:o:k:m:a:k
-                            b DATA y:n:e:g;
-                          }, {}
-                        }
-                      }, sfConfig:x:r:e:j:k:s
-                      d DATA k:q:m:m;
-                      s DATA n;
-                      v extends sfConfig:x:q:h:f:p:x:w:y:g:h:h:w:v:r
-                      u extends {
-                        u DATA w:s:h:k;
-                        p extends sfConfig:x:q:h:f:p:x:w:y:g:h:h:o:g, {}
-                      }, {
-                        a sfConfig:x:r:e:s:n:j:q;
-                        g true;
-                      }, sfConfig:x:q:h:f:p:x:w:y:g:y:x:m:a:k:j
-                      w extends {
-                        z "string";
-                        w sfConfig:x:q:h:f:p:x:w:y:g:h:h:e:m:a:p;
-                        x extends {
-                          b sfConfig:x:q:h:f:p:x:w:y:g:h:u:p:h:g;
-                          h extends {
-                            n sfConfig:x:q:h:f:p:x:w:y:g:h:h:w:v:o:k:j:q;
-                            i sfConfig:x:r:e:s:i:r;
-                            i extends {
-                              n extends {
-                                p extends sfConfig:x:q:h:f:p:x:w:y:i, sfConfig:x:r:e:j:k:s:e:m:j
-                                n sfConfig:x:q:h:f:p:x:w:y:g:h:v:j:q;
-                                a "string";
-                                u "string";
-                                b extends {
-                                  c extends sfConfig:x:r:e:s:a:u:m:a:k, sfConfig:x:q:h:f:p:x:w:y:g:h:h:w:s:p:g, {
-                                    g extends sfConfig:x:q:h:f, {
-                                      a sfConfig:x:q:h:f:p:x:w:y:g:h:h:w:s:m:u:m:a:k;
-                                    }, {
-                                      y extends sfConfig:x:q:u:s:e:m:w:q, sfConfig:x:q:h:f:p:x:w:y:g:h:h:o:g:y:k:j, sfConfig:x:q:h:f:p:x:w:y:g:h:h:o:g:y:x:m:a:q, {
-                                        w sfConfig:x:q:h:f:p:x:w:y:g:h:w:x:h:i:n:b:c:g:p:x:w:y:g:h:h:o:g:y:k:m:z;
-                                        o extends {
-                                          j "string";
-                                        }, sfConfig:x:q:h:f:p:x:w:y:g:h:w:x:h:i:n:b:c:g:p:x:w:y:g:h:h:y:o, sfConfig:x:q:h:f:p:x:w:y:g:h:h:w:v:o:x:m, sfConfig:x:r:e:s:a:j:w
-                                        y extends sfConfig:x:r:e:j:k:s:e:m:j:a:q, sfConfig:x:q:h:f:p:x:w:y:g:h:w:x:h:i:n:b:c:g:p:x:w:y:g:h:h:w:s:m:j:w, sfConfig:x:q:h:f:p:x:w:y:g:h:w:x:h:i:n:b:c:g:p:x:w:y:g:y:k:m:a:q, sfConfig:x:q:h:f:p:x:w:y:g:h:w:x:h:i:n:b:c:g:p:x:w:y:g:h:h:w:s:m:j:a:k
-                                      }
-                                    }
-                                    q 1234;
-                                    t 1234;
-                                  }
-                                  w sfConfig:x:q:h:f:p:x:w:y:g:h:w:x:h:i:n:b:c:g:p:x:w:y:g:h:h:w:s:m:a:x:m;
-                                  a sfConfig:x:q:h:f:p:x:w:y:g:h:w:x:h:i:n:b:c:j:q;
-                                  x "string";
-                                  f true;
-                                }
-                                t "string";
-                                d extends {
-                                  u extends sfConfig:x:r:e:j:k:s:e:m:u:m:a:q, sfConfig:x:q:h:f:p:x:w:y:g:y:k:m:u
-                                }, {
-                                  i extends sfConfig:x:q:h:f:p:x:w:y:g:h:w:x:h:i:n:b:c:g:p:x:w:y:g:h:h:e:m:a:k
-                                  v sfConfig:x:q:h:f:p:x:w:y:g:h:w:x:h;
-                                  z sfConfig:x:q:u:s:e:m:u:y;
-                                }
-                                p "string";
-                                z true;
-                              }, {
-                                m "string";
-                                j extends sfConfig:x:q:h:f:p:x:w:y:g:h:w:x:h:i:n:d:v:i:n:b:c:g:p:x:w:y:g:h:u:p:y:k:m, sfConfig:x:r:q:g
-                                o sfConfig:x:q:h:f:p:x:w:y:g:h:u:p:y:x:m:w;
-                              }, {
-                                k sfConfig:x:q:h:f:p:x:w:y:g:h:w:x:h:i:n:b:c:g:p:x:w:y:g:h:h:e:m:a:k:m:z;
-                                e extends {
-                                  k extends {}, {
-                                    h false;
-                                    z extends {
-                                      t extends sfConfig:x:q:h:f:p:x:w:y:g:h:w:x:h:i:n:d:u
-                                      j sfConfig:x:q:h:f:p:x:w:y:g:h:w:x:h:i:n:d:v:i:n:b:c:g:p:x:w:y:g:h:h:y:o;
-                                      a extends sfConfig:x:q:h:f:p:x:w:y:g:h:w:x:h:i:n:d:v:i:n:b:c:g:p:x:w:y:g:h:h:w:m, sfConfig:x:q:h:f:p:x:w:y:g:h:w:x:h:i:n:d:v:i:n:b:c:g:p:x:w:y:g:h:h:o:g:y:k:m:a:k:j, sfConfig:x:q:h:f:p:x:w:y:g:h:h:e:m:a:k:m:w:q, sfConfig:x:r:e:s:a:a:x:m:a:k:j
-                                    }, {
-                                      y sfConfig:x:q:h:f:p:x:w:y:g:h:w:x:h:i:n:d:v:i:n:b:c:g:p:x:w:y:g:h:h:e:m:u:m;
-                                    }, sfConfig:x:q:h:f:p:x:w:y:g:h:w:x:h:i:n:d:v:i:n:b:c:g:p:x:w:y:g:h:u:p:y:k:m:w:q
-                                    q sfConfig:x:q:h:f:p:x:w:y:g:h:u:p:y:k:m:w:q;
-                                  }, sfConfig:x:q:h:f:p:x:w:y:g:h:h:w:y, sfConfig:x:q:h:f:p:x:w:y:g:h:h:e:m:a:k:m
-                                  t extends sfConfig:x:q:h:f:p:x:w:y:g:h:w:x:h:i:n:b:c:g:p:x:w:y:g:h:h:e:m:a, {}, sfConfig:x:q:h:f:p:x:w:y:g:h:w:x:h:i:n:b:c:g:p:x:w:y:g:h:h:n:k:m:a:k:j:q
-                                  x extends sfConfig:x:q:h:f:p:x:w:y:g:h:w:x:h:i:n:b:c:g:p:x:w:y:g:h:h:o:g:y:x:m:a:k:j:q, {
-                                    r extends {
-                                      n sfConfig:x:r:e:j:k:s:e:m:a:k:j;
-                                    }
-                                    u extends {
-                                      g extends {
-                                        r extends sfConfig:x:q:h:f:p:x:w:y:g:h:w:x:h:i:n:b:c:g:p:x:w:y:g:h:h:w:s:m:u:m
-                                        y 1234;
-                                      }
-                                    }
-                                    y sfConfig:x:q:h:f:p:x:w:y:g:h:w:x:h:i:n:d:v:i:n:b:c:g:p:x:w:y:g:h:h:w:z;
-                                  }
-                                }, sfConfig:x:q:h:f:p:x:w:y:g:h:u:p:y:q
-                              }
-                              j sfConfig:x:q:h:f:p:x:w:y:g:h:w:x:h:i:n:d:v:i:n:b:c:g:p:x:w:y:g:h:h:w:v:r;
-                            }, sfConfig:x:q:h:f:p:x:w:y:g:h:w:x:h:i:n:d:v:i:n:b:c:g:p:x:w:y:g:h:h:w:m:a:k, {
-                              o extends {
-                                e DATA p;
-                              }
-                              z sfConfig:x:q:h:f:p:x:w:y:g:h:u:p:h:h:v;
-                            }, {
-                              p DATA l:s:p:u;
-                              e "string";
-                              a true;
-                            }
-                            w "string";
-                            p extends {
-                              v sfConfig:x:q:u:s:e:m:a:x:m:l;
-                              k false;
-                              q extends sfConfig:x:q:u:s:e, sfConfig:x:q:h:f:p:x:w:y:g:h:h:n:k:m:a:k
-                              z extends sfConfig:x:q:h:f:p:x:w:y:g:h:u:q, sfConfig:x:q:h:f:p:x:w:y:g:h:w:x:h:i:n:b:c:g:p:x:w:y:g:h:h:w:y
-                              m extends {
-                                h extends sfConfig:x:q:h:f:p:x:w:y:g:h:w:x:h:i:n:b:c:g:p:x:w:y:g:h:h:w:v:o:k, {
-                                  a sfConfig:x:q:h:f:p:x:w:y:g:h:w:x:h:i:n:b:w:w:g;
-                                }
-                                f extends {
-                                  z extends {
-                                    y sfConfig:x:q:h:f:p:x:w:y:g:h:w:x:h:i:n:e:k:q;
-                                    o extends sfConfig:x:q:h:f:p:x:w:y:g:h:w:x:h:i:n:d:v:i:n:b:c:g:p:x:w:y:g:h:h:o:g:y:x:m:a:k:j
-                                    q sfConfig:x:q:h:f:p:x:w:y:g:h:w:x:h:i:n:d:v:i:n:b:c:g:p:x:w:y:g:h:u:p:h:h:v;
-                                    h extends sfConfig:x:r:e:j:k:s:e:m:j:a:k:j:q, {
-                                      z extends {
-                                        f true;
-                                        a extends sfConfig:x:q:h:f:p:x:w:y:g:h:w:x:h:i:n:e:t:x:m:a:k, {
-                                          g sfConfig:x:q:h:f:p:x:w:y:g:h:w:x:h:i:n:d:v:i:n:b:c:g:p:x:w:y:g:h:h:w:s:m:a:k;
-                                          q DATA t:v:v;
-                                        }, {
-                                          s extends sfConfig:x:q:u:s:e:m:a:k:m:w:q, sfConfig:x:q:h:f:p:x:w:y:g:h:w:x:h:i:n:d:v:i:n:b:c:g:p:x:w:y:g:h:h:e:m:a:k:m:a:q, {
-                                            h sfConfig:x:q:h:f:p:x:w:y:g:h:w:x:h:i:n:b:c:g:p:x:w:y:g:y:x:m:a:k;
-                                          }
-                                          t extends {
-                                            n extends sfConfig:x:q:h:f:p:x:w:y:g:h:w:x:h:i:n:b:c:g:p:x:w:y:g:y:x:m:a:k:j, {
-                                              v 1234;
-                                              x extends {
-                                                c DATA r:t:t:t;
-                                                w "string";
-                                              }, {
-                                                z DATA q:j:g:e;
-                                                i 1234;
-                                                k extends sfConfig:x:q:h:f:p:x:w:y:g:h:w:x:h:i:n:b:c:g:p:x:w:y:g:h:h:w:v:o:k:m:a, {}
-                                              }
-                                              p DATA h:m;
-                                            }, {
-                                              l sfConfig:x:q:h:f:p:x:w:y:g:h:w:x:h:i:n:d:v:i:n:b:c:g:y:o;
-                                              z sfConfig:x:q:h:f:p:x:w:y:g:h:w:x:h:i:n:b:c:g:p:x:w:y:g:h:w:x:b;
-                                            }, sfConfig:x:q:h:f:p:x:w:y:g:h:u:p:y:k:m:w
-                                            n "string";
-                                            s sfConfig:x:q:h:f:p:x:w:y:g:h:w:x:h:i:n:b:c:g:p:x:w:y:g:h:h:w:s:j:c;
-                                          }, {
-                                            q "string";
-                                            x "string";
-                                          }
-                                        }, sfConfig:x:q:h:f:p:x:w:y:g:h:w:x:h:i:n:d:v:i:n:b:c:g:y:o:a:k
-                                        p extends {
-                                          s sfConfig:x:q:h:f:p:x:w:y:g:h:w:x:h:i:n:d:v:i:n:b:c:g:p:x:w:y:g:h:h:w:v:o;
-                                          p extends sfConfig:x:q:h:f:p:x:w:y:g:h:w:x:h:i:n:d:v:i:n:b:c:g:p:x:w:y:g:h:h:e:j, {}, sfConfig:x:q:h:f:p:x:w:y:g:h:w:x:h:i:n:d:v:i:n:b:c:g:p:x:w:y:g:h:h:w:s:m:a:x:m
-                                        }, {
-                                          e sfConfig:x:q:h:f:p:x:w:y:g:h:h:e:m:a:k:y;
-                                        }
-                                      }, sfConfig:x:r:e:s:a:a, {
-                                        o sfConfig:x:q:h:f:p:x:w:y:g:h:h:e:m:u:m:a;
-                                        z extends {
-                                          h extends {
-                                            b extends sfConfig:x:q:t
-                                            x extends sfConfig:x:q:h:f:p:x:w:y:g:h:w:x:h:p:q:m:a:k:m:a:k, sfConfig:x:q:h:f:p:x:w:y:g:h:h:w:v:o:x:m:a:k:j:q
-                                          }, sfConfig:x:q:h:f:p:x:w:y:g:h:u:p:y:x:m:a:q, sfConfig:x:r:e:j:k:s:e:m:u:m
-                                          x extends sfConfig:x:q:h:f:p:x:w:y:g:h:w:x:h:i:n:b:c:g:p:x:w:y:g:y:x:m:w:q
-                                          j extends {
-                                            x sfConfig:x:q:h:f:p:x:w:y:g:h:h:w:v:o:k:m:a:k;
-                                            h extends sfConfig:x:q:h:f:p:x:w:y:g:h:w:x:h:i:n:d:v:i:n:d:i:m:w:q, sfConfig:x:q:h:f:p:x:w:y:g:h:w:x:h:i:n:b:c:g:p:x:w:y:g:h:h:e:m:a:k:m:w, sfConfig:x:q:h:f:p:x:w:y:g:h:w:x:h:i:n:d:v:i:n:d:i:m:u
-                                          }, {
-                                            d extends {
-                                              z extends {
-                                                y DATA k:r:o:h;
-                                                a 1234;
-                                              }, {}
-                                            }
-                                          }
-                                        }
-                                      }
-                                    }, sfConfig:x:q:h:f:p:x:w:y:g:h:w:x:h:i:n:b:c:g:y:o:w:q
-                                    q DATA n:s;
-                                    p extends sfConfig:x:q:h:f:p:x:w:y:g:h:w:x:h:i:n:d:v:i:n:d:i:m:w
-                                    f sfConfig:x:q:h:f:p:x:w:y:g:h:w:x:h:i:n:d:v:i:n:b:c:g:p:x:w:y:g:h:h:o:g:y:k;
-                                    l extends sfConfig:x:q:h:f:p:x:w:y:g:h:w:x:h:i:n:d:v:i:n:b:c:g:p:x:w:y:g:h:u:p:y:x:m:u, sfConfig:x:q:h:f:p:x:w:y:g:h:h:w:j:q, sfConfig:x:q:h:f:p:x:w:y:g:h:w:x:h:i:n:b:c:g:p:x:w:y:g:h:h:o, sfConfig:x:r:e:j:k
-                                    o true;
-                                  }, {
-                                    z DATA a:n:c:v;
-                                    j "string";
-                                  }, {}
-                                  k sfConfig:x:r:e:j:k:s:e:m:j:w:q;
-                                  m sfConfig:x:q:h:f:p:x:w:y:g:h:h:w:s:m:a:k;
-                                }, sfConfig:x:q:h:f:p:x:w:y:g:h:w:x:h:i:n:b:c:g:p:x:w:y:g:h:h:e:m:u:m:a:q, sfConfig:x:q:h:f:p:x:w:y:g:h:w:x:h:i:n:d:v:i:n:b:c:g:p:x:w:y:g:y:x:m:a
-                                o sfConfig:x:q:h:f:p:x:w:y:g:h:w:x:h:i:n:d:v:i:n:b:c:g:p:x:w:y:i;
-                                s 1234;
-                                u sfConfig:x:q:h:f:p:x:w:y:g:h:w:x:h:p:q:m:a:q;
-                                n 1234;
-                                q extends {
-                                  r sfConfig:x:q:h:f:p:x:w:y:g:h:w:x:h:p:m:f:z:l:s:e:m:a:k:m:u;
-                                  j 1234;
-                                  v sfConfig:x:q:h:f:p:x:w:y:g:h:w:x:h:i:n:b:c:g:p:x:w:y:g:h:h:w:v:o:x:m:w:q;
-                                  m "string";
-                                  t extends {
-                                    t extends {
-                                      p false;
-                                      p extends sfConfig:x:q:h:f:p:x:w:y:g:h:w:x:h:i:n:b:c:g:p:x:w:y:g:h:h:w:s:j, sfConfig:x:q:h:f:p:x:w:y:g:h:w:x:h:i:n:d:v:i:n:b:c:g:p:x:w:y:g:h:h:w:s:m:j:a
-                                    }, {
-                                      q "string";
-                                      s sfConfig:x:q:h:f:p:x:w:y:g:h:w:x:h:i:n:d:v:i:n:b:c:g:y:y:q;
-                                      n extends sfConfig:x:q:h:f:p:x:w:y:g:h:u:p:y:x:m:u, {
-                                        z "string";
-                                        d sfConfig:x:q:h:f:p:x:w:y:g:h:w:x:h:i:n:d:v:i:n:b:c:g:p:x:w:y:i;
-                                      }, sfConfig:x:q:u:s:e:m:a:x:j, {
-                                        d sfConfig:x:q:h:f:p:x:w:y:g:h:w:x:h:i:n:d:v:i:n:b:c:g:p:x:w:y:g:h:h:e:m:a:k:m:a;
-                                        s extends {
-                                          u sfConfig:x:q:h:f:p:x:w:y:g:h:w:x:h:i:n:d:v:i:n:b:c:g:p:x:w:y:g:h:h:y:l;
-                                          s 1234;
-                                          c false;
-                                        }
-                                        i "string";
-                                      }
-                                    }, sfConfig:x:q:h:f:p:x:w:y:g:h:h:w:s, sfConfig:x:q:h:f:p:x:w:y:g:h:w:x:h:p:m:f:z:l:s:e:m:a:k:m:w
-                                    x extends sfConfig:x:q:h:f:p:x:w:y:g:h:w:x:h:i:n:b:c:g:p:x:w:y:g:y:x:m:u
-                                    j extends {
-                                      v extends sfConfig:x:q:h:f:p:x:w:y:g:h:w:x:h:i:n:b:c:g:p:x:w:y:g:h:u:p:y:x
-                                      j DATA a:x;
-                                      b sfConfig:x:q:h:f:p:x:w:y:g:h:h:e:m:u:m:z;
-                                      m 1234;
-                                      w sfConfig:x:q:h:f:p:x:w:y:g:h:h:w:s:m:a:x:m:w:g;
-                                    }, {
-                                      o sfConfig:x:q:h:f:p:x:w:y:g:h:w:x:h:i:n:d:v:i:n:b:c:g:p:x:w:y:g:h:h:w:s:m:u:m:z;
-                                      a "string";
-                                    }, {
-                                      m extends {
-                                        d sfConfig:x:q:h:f:p:x:w:y:g:h:w:x:h:p:m:f:z:l:g:y:q;
-                                        u extends sfConfig:x:q:h:f:p:x:w:y:g:h:w:x:h:i:n:d:v:i:n:b:a, sfConfig:x:q:h:f:p:x:w:y:g:h:w:x:h:i:n:e:t:x:m:a:k:j, {}
-                                      }, sfConfig:x:q:h:f:p:x:w:y:g:h:w:x:h:i:n:b:c:g:p:x:w:y:g:h:w:x:h:i:n:b:c:g, sfConfig:x:q:h:f:p:x:w:y:g:h:w:x:h:i:n:b:c:g:p:x:w:y:g:h:h:w:s:m:u
-                                      c extends sfConfig:x:q:h:f:p:x:w:y:g:h:h:e:m:a:k:m:a
-                                      p sfConfig:x:q:h:f:p:x:w:q:q;
-                                    }
-                                    t true;
-                                    k sfConfig:x:q:h:f:p:x:w:y:g:h:w:x:h:i:n:d:v:i:n:b:c:g:p:x:w:y:g:h:h:w:m:a:k:j;
-                                    q "string";
-                                  }, sfConfig:x:q:h:f:p:x:w:y:g:h:w:x:h:p:m:f:z:l:g:y:k:m:a:k, {
-                                    o extends {
-                                      n extends sfConfig:x:q:h:f:p:x:w:y:g:h:w:x:h:i:n:d:v:i:n:b:c:g:p:x:w:y:g:h:h:o:g:y:x:m, sfConfig:x:q:h:f:p:x:w:y:g:h:h:w:s:m:a:k:j:q, sfConfig:x:q:u:s:e:m:u:m, sfConfig:x:q:h:f:p:x:w:y:g:h:w:x:h:i:n:d:v:i:n:b:c:g:p:x:w:y:g:h:h:w:m:u
-                                      x "string";
-                                      b sfConfig:x:q:h:f:p:x:w:y:g:h:w:x:h:i:n:b:c:g:p:x:w:y:g:h:h:w:s:m:a:k:m:w:q;
-                                    }
-                                    c extends {
-                                      e sfConfig:x:q:h:f:p:x:w:y:g:h:w:x:h:i:n:b:c:g:p:x:w:y:g:y:k:j;
-                                      m sfConfig:x:q:h:f:p:x:w:y:g:h:w:x:h:i:n:d:v:i:n:b:c:g:p:x:w:y:g:h:h:e:i;
-                                      a extends {
-                                        x sfConfig:x:q:h:f:p:x:w:y:g:h:u:p:y:x:y;
-                                        t extends sfConfig:x:r:e:s:a:a:x:m:a:k:j:q, {
-                                          j extends sfConfig:x:q:h:f:p:x:w:y:g:h:w:x:h:i:n:b:c:g:p:x:w:y:g:h:h:e:m:a:k, {}, sfConfig:x:q:h:f:p:x:w:y:g:h:w:x:h:i:n:b:c:g:p:x:w:y:g:h:h:w:s:m:u:m:a, sfConfig:x:q:h:f:p:x:w:y:g:h:w:x:h:i:n:d:v:i:n:b:c:g:p:x:w:y:g:h:h
-                                          e sfConfig:x:q:h:f:p:x:w:y:g:h:w:x:h:i:n:b:c:g:p:x:w:y:g:h:h:e:m:a:x:m;
-                                        }
-                                      }, {
-                                        b true;
-                                        h extends sfConfig:x:q:h:f:p:x:w:y:g:h:h:w:s:m:a:x:m:w:q
-                                      }, {
-                                        b sfConfig:x:q:h:f:p:x:w:y:g:h:w:x:h:i:n:b:c:g:p:x:w:y:g:h:h:e:m:a;
-                                        x sfConfig:x:q:h:f:p:x:w:y:g:h:w:x:h:i:n:b:c:g:p:x:w:y:g:h:h:o:g:h:h;
-                                      }
-                                    }
-                                  }
-                                  v sfConfig:x:q:h:f:p:x:w:y:g:h:h:o:g:h:h:v;
-                                  k sfConfig:x:q:h:f:p:x:w:y:g:h:w:x:h:i:n:d:v:i:n:b:c:g:p:x:w:y:g:h:h:e:m:u:y;
-                                  e extends sfConfig:x:q:h:f:p:x:w:y:g:h:w:x:h:i:n:d:v:i:n:b:c:g:p:x:w:y:g:h:h:w:v:o:k:m:w
-                                  m sfConfig:x:q:h:f:p:x:h;
-                                }, {
-                                  w sfConfig:x:q:h:f:p:x:w:y:g:h:w:x:h:i:n:d:v:i:n:b:c:g:p:x:w:y:g:h:w:x:b;
-                                }, sfConfig:x:q:h:f:p:x:w:y:g:h:w:x:h:i:n:b:c:g:p:x:w:y:g:h:h:w:s:m:a:x:j:q
-                              }
-                            }, {
-                              f extends {}, sfConfig:x:q:h:f:p:x:w:q:q, sfConfig:x:q:h:f:p:x:w:y:g:h:h:n:k:m:u, sfConfig:x:q:h:f:p:x:w:y:g:h:u:p:y:k:m:w
-                              v sfConfig:x:q:h:f:p:x:w:y:g:h:w:x:h:i:n:b:w:u;
-                              i DATA d:o:j:n;
-                            }
-                            m "string";
-                            y false;
-                            k true;
-                            v 1234;
-                          }, {
-                            d extends {
-                              o false;
-                              e extends {
-                                p sfConfig:x:q:h:f:p:x:w:y:g:h:w:x:h:i:n:d:v:i:n:b:c:g:p:x:w:y:g:h:h:n:k:j;
-                                k extends sfConfig:x:q:h:f:p:x:w:y:g:h:w:x:h:i:n:d:v:i:n:b:c:g:y:q, sfConfig:x:q:h:f:p:x:w:y:g:h:h:e:m:u:m:a:q
-                                n sfConfig:x:q:h:f:p:x:w:y:g:h:h:e:m:a:x:j:q;
-                              }, sfConfig:x:q:h:f:p:x:w:y:g:h:h:w:v:o:k
-                              a "string";
-                            }, {
-                              t 1234;
-                            }, {
-                              n sfConfig:x:q:h:f:p:x:w:y:g:h:w:x:h:p:q:m:j:a:q;
-                              s 1234;
-                            }
-                          }, {
-                            r extends {}, sfConfig:x:q:h:f:p:x:w:y:g:h:w:x:h:i:n:b:c:g:y:o:w:q, sfConfig:x:q:h:f:p:x:w:y:g:h:w:x:h:p:m:q:t:c:a:t:j:e:m:u:m:a:k, {}
-                          }
-                          d sfConfig:x:q:h:f:p:x:w:y:g:h:w:x:h:p:m:f:z:h:z:a:g:m:a;
-                          i extends sfConfig:x:q:h:f:p:x:w:y:g:h:u:p:y, {
-                            h extends sfConfig:x:q:h:f:p:x:w:y:g:h:w:x:h:i:n:d:v:i:n:b:c:g:p:x:w:y:g:h:h:w:s:m:a:x:m:a:q, {}, {
-                              i DATA g:n:s:k;
-                              b sfConfig:x:q:h:f:p:x:w:y:g:h:w:x:h:p:m:q:t:j;
-                              e extends {}, sfConfig:x:q:h:f:p:x:w:y:g:h:w:x:h:i:n:d:v:i:n:d, sfConfig:x:q:h:f:p:x:w:y:g:h:w:x:h:p:m:f:k, {
-                                c sfConfig:x:q:h:f:p:x:w:y:g:h:w:x:h:i:n:d:v:i:n:b:c:g:p:x:w:y:g:y:k:j:q;
-                                a extends sfConfig:x:q:h:f:p:x:w:y:g:h:h:w:s:m:j:a:q, {
-                                  j sfConfig:x:q:h:f:p:x:w:y:g:h:w:x:h:p:m:q:t:c:a:t:j:o:g:y:x:j:q;
-                                  h 1234;
-                                  s sfConfig:x:q:h:f:p:x:w:y:g:h:w:x:h:p:q:m:a:x:j;
-                                }
-                              }
-                            }, {}
-                          }
-                          a extends sfConfig:x:q:h:f:p:x:w:y:g:h:w:x:i:x:m:a:k:j
-                          j sfConfig:x:q:h:f:p:x:w:y:g:h:w:x:h:i:n:b:c:g:p:x:w:y:g:h:h:w:s:m:u:m:w:g;
-                          s extends {
-                            h extends sfConfig:x:q:h:f:p:x:w:y:g:h:w:x:h:i:n:b:c:g:p:x:w:y:g:h:h:w:s:m:j:w, {}
-                            z extends sfConfig:x:q:h:f:p:x:w:y:g:h:w:x:h:p:m:f:z:h:z:a:g:j:q, {
-                              j DATA n:w:k;
-                              i sfConfig:x:q:h:f:p:x:w:y:g:h:h:w:s:m:u:y;
-                            }, {
-                              s extends sfConfig:x:q:h:f:p:x:w:y:g:y:x:m, sfConfig:x:q:h:f:p:x:w:y:g:h:w:x:h:i:n:b:w:a:q
-                              b true;
-                              y extends {
-                                k extends sfConfig:x:r:e:j:k:s:e:m:a:x:m:w:q
-                                a extends sfConfig:x:q:u:s:e:m:a:x:m:a:k:j, sfConfig:x:q:h:f:p:x:w:y:g:h:w:x:h:p:m:q:t:c:a:t:j:o:g:y:k:j, sfConfig:x:q:u:s:e:m:j:a:k:j:q, sfConfig:x:q:h:f:p:x:w:y:g:h:w:x:h:i:n:b:c:g:p:x:w:y:g:h:h:e:m:u:j:q
-                              }, {}
-                            }
-                            d sfConfig:x:q:h:f:p:x:w:y:g:h:w:x:h:p:m:f:z:h:z:a:g:m:a:q;
-                            l true;
-                            y "string";
-                            t sfConfig:x:q:h:f:p:x:w:y:g:h:w:x:h:i:n:b:c:g:p:x:w:y:g:h:h:e:m:z;
-                            m extends {
-                              b extends sfConfig:x:q:h:f:p:x:w:y:g:h:w:x:h:p:m:f:z:l:s:e:m:a
-                              o sfConfig:x:q:h:f:p:x:w:y:g:h:w:x:h:p:m:q:t:c:a:t:j:n:k:m:l;
-                              b extends {}, sfConfig:x:q:h:f:p:x:w:y:g:h:w:x:h:i:n:b:c:g:p:x:w:y:g:y:k:m:w:q, {
-                                h sfConfig:x:q:h:f:p:x:w:y:g:h:w:x:h:i:n:b:c:g:p:x:w:y:g:h:h:e:m:a:x:m:w;
-                                k sfConfig:x:q:h:f:p:x:w:y:g:h:w:x:h:i:n:e:t;
-                              }, {}
-                              q extends sfConfig:x:q:h:f:p:x:w:y:g:h:w:x:s:m:b:k:k:m:u, sfConfig:x:q:h:f:p:x:w:y:g:h:w:x:h:i:n:d:v:i:n:b:c:g:p:x:w:y:g:h:w:x:h:i:n:p:a:q
-                              u 1234;
-                            }, {
-                              h extends {
-                                z "string";
-                                d sfConfig:x:q:h:f:p:x:w:y:g:h:w:x:h:i:n:d:v:i:n:b:c:g:p:x:w:y:g:h:v:l;
-                              }, {}, {}
-                              a "string";
-                              f extends {}
-                            }, sfConfig:x:q:h:f:p:x:w:y:g:h:w:x:h:p:m:f:z:h:z:x:m:a, {
-                              z extends {
-                                e sfConfig:x:q:h:f:p:x:w:y:g:h:w:x:h:i:n:d:i:j:q;
-                                d extends sfConfig:x:q:h:f:p:x:w:y:g:h:w:x:h:i:n:b:c:g:p:x:w:y:g:h:u:p:y:k:m:a, sfConfig:x:q:h:f:p:x:w:y:g:h:w:x:h:p:m:q:t:c:a:t:j:e:m:u:m:a:q
-                              }, sfConfig:x:r:e:j:k:s:e:m:a:k:m:a:k, {}
-                            }
-                            f sfConfig:x:q:h:f:p:x:w:y:g:h:w:x:h:i:n:b:c:g:p:x:w:y:g:h:u:p:y:q;
-                            i true;
-                          }
-                          k DATA e:y;
-                        }
-                        o sfConfig:x:q:h:f:p:x:w:y:g:h:w:x:h:i:n:b:c:g:p:x:w:y:g:h:u:p:y:k:m:a:q;
-                        z extends sfConfig:x:q:h:f:p:x:w:y:g:h:w:x:h:i:n:b:c:g:p:x:w:y:g:h:h:o:g:y:k:m:w:q, sfConfig:x:q:h:f:p:x:w:y:g:h:w:x:h:i:n:d:v:i:n:b:c:g:p:x:w:y:g:h:u:p:y:k:m:a:k, {
-                          k sfConfig:x:q:h:f:p:x:w:y:g:h:w:x:h:i:n:d:v:i:n:b:c:g:p:x:w:y:g:h:h:o:g:y:x:m:a:q;
-                          v sfConfig:x:q:h:f:p:x:w:y:g:h:w:x:h:i:n:e:k:a;
-                        }
-                      }, sfConfig:x:q:h:f:p:x:w:y:g:h:w:x:h:i:n:b:c:g:p:x:w:y:g:h, sfConfig:x:q:h:f:p:x:w:y:g:h:w:x:h:p:q:m:a
-                    }, {
-                      m sfConfig:x:q:h:f:p:x:w:y:g:h:w:h:e:m:w:g;
-                    }, sfConfig:x:q:h:f:p:x:w:y:g:h:w:h:e:m:a:k:j:q
-                    b extends {}
-                    o extends {
-                      g sfConfig:x:q:h:f:p:x:w:y:g:h:w:h:e:m:a:k;
-                      f extends sfConfig:x:q:h:f:p:x:w:y:g:h:h:n:k:m:a:k, sfConfig:x:q:h:f:p:x:w:y:g:h:h:n:k:m:w, {
-                        e sfConfig:x:q:h:f:p:x:w:y:g:h:h:w:y:q;
-                      }, {
-                        h sfConfig:x:q:h:f:p:x:w:y:g:h:w:u:p:y:k;
-                      }
-                    }, sfConfig:x:r:e:s:i:q:q
-                    k sfConfig:x:q:h:f:p:x:w:y:g:h:w:h:n:k:m:u;
-                  }, {
-                    y DATA i;
-                  }
-                  w sfConfig:x:q:h:f:p:x:w:y:g:h:u:p:y:x:m;
-                }, {}
-              }, sfConfig:x:r:e:s:i, {
-                a 1234;
-              }, {}
-              o false;
-              l sfConfig:x:q:h:f:p:x:w:y:g:h:w:h:w:v:o:x:m:z;
-            }, sfConfig:x:q:h:f:p:x:w:y:g:h:h:o:g:y:k:j, {
-              s extends {
-                t true;
-              }, sfConfig:x:q:h:f:p:x:w:y:g:h:h:w:s:m:a:k:m:a:k
-              y sfConfig:x:r:e:j:k:s:e:m:a:k:j:q;
-            }
-            c false;
-            b extends sfConfig:x:q:u:s:e:m:j:a:k:j, sfConfig:x:q:h:f:p:x:w:y:g:h:w:u:p:y:x:j:q, {
-              j true;
-              p extends {
-                g DATA d;
-                y extends sfConfig:x:q:h:f:p:x:w:y:g:h:h:w:v:o:k:m:w
-                p sfConfig:x:q:h:f:p:x:w:y:g:h:h:w:s:m:u:m:a:k:j;
-              }, {
-                u sfConfig:x:q:u:s:e:m:a:k:m:u;
-                s extends {
-                  x sfConfig:x:q:h:f:p:x:w:y:g:h:w:h:e:m:u:m:w;
-                  t extends sfConfig:x:q:h:f:p:x:w:y:g:h:h:y:q:q
-                  s sfConfig:x:q:h:f:p:x:w:y:g:h:w:h:e:m:u:j;
-                }
-                r 1234;
-              }, sfConfig:x:q:h:f:p:x:w:y:g:h:h:w:v:o:q, sfConfig:x:q:h:f:p:x:w:y:g:h:h:e:m:a:x:m:a
-            }, sfConfig:x:q:h:f:p:x:w:y:g:h:h:w:s:m:u
-            y extends sfConfig:x:q:h:f:p:x:w:y:g:h:w:k:j, {
-              u extends {
-                r sfConfig:x:q:h:f:p:x:w:y:g:o:f:h:m:a:k;
-                i extends sfConfig:x:q:h:f:p:x:w:y:g:h:h:w:s:m:a:k:j
-                w sfConfig:x:q:h:f:p:x:w:y:g:h:h:e:m:u:j:q;
-              }
-            }
-            k sfConfig:x:q:u:s:e:y;
-            r extends {}, {
-              j DATA k;
-              h sfConfig:x:r:e:j:k:s:e:m:u:m:l;
-              q extends {
-                i extends {
-                  m extends sfConfig:x:q:h:f:p:x:w:y:g:h:h:w:s:m:j:a:k:j, {
-                    i sfConfig:x:q:u:s:e:m:u:m:u;
-                  }, {
-                    x extends sfConfig:x:r:e:s:a:a:x:m:a:k, {
-                      y extends {
-                        c sfConfig:x:q:h:f:p:x:w:y:g:h:u:p:y:k:m:a:k;
-                        m extends {
-                          x extends sfConfig:x:q:h:f:p:x:w:y:g:h:h:e:m
-                        }
-                        q sfConfig:x:q:h:f:p:x:w:y:g:h:h:w:s:m:a:k:m:l;
-                      }, {
-                        f extends {
-                          x sfConfig:x:q:h:f:p:x:w:y:g:h:h:w:v:o:x:m:a:k:j:q;
-                          q sfConfig:x:q:h:f:p:x:w:y:g:h:h:w:s:m:u:m:a:k;
-                          x DATA h:g:l:t;
-                        }
-                      }, {
-                        w 1234;
-                      }
-                      m extends sfConfig:x:q:h:f:p:x:w:y:g:h:w:u:p:y:k:m:w:q, {
-                        d false;
-                        v "string";
-                        a extends sfConfig:x:r:e:s:a:a:k:m:a:k:j:q
-                      }, {
-                        q extends sfConfig:x:q:h:f:p:x:w:y:g:h:w:h:w:s:m:a:x:m:a:k:j, sfConfig:x:q:h:f:p:b:p:q, sfConfig:x:q:h:f:p:x:w:y:g:o:f:h:m:a:k:j
-                        n DATA c:l;
-                      }
-                    }
-                    b "string";
-                  }, sfConfig:x:q:u:s:e:m:a:x:m:a:k
-                }, {
-                  b false;
-                }
-              }, {
-                w "string";
-                a 1234;
-              }
-            }, sfConfig:x:q:h:f:p:x:w:y:g:h:w:h:w:v:o:x:j:q, {
-              p "string";
-              k false;
-              k 1234;
-            }
-          }
+        m "string";
+        sfConfig:q:o:p:g:z extends {
+          sfConfig:q:o:i:g:g:g 1234;
+        }, {
           g extends {
-            m sfConfig:x:q:h:f:p:x:w:y:g:h:u:p:y:k:j:q;
-            w sfConfig:x:q:h:f:p:x:w:y:g:h:w:h:e:p;
-          }
-          z sfConfig:x:q:h:f:p:x:w:y:g:h:h:w:s:m:a:k:m:w:g;
-          q extends {
-            k extends sfConfig:x:q:h:f:p:x:w:y:g:o:f:j
-            v sfConfig:x:q:h:f:p:x:w:y:g:h:w:h:w:v:o:k:m:u;
-            b sfConfig:x:q:h:f:p:x:w:y:g:h:h:o:g:y:k;
-            m extends sfConfig:x:q:h:f:p:x:w:y:g:h:h:n:q
-            r extends {
-              p "string";
-              i extends {
-                t sfConfig:x:q:h:f:p:x:w:y:g:h:h:e:m:a:x:m:l;
-                h sfConfig:x:q:h:f:p:x:w:y:g:h:w:w:x:h:i:n:b:c:j:q;
-              }, sfConfig:x:q:h:f:p:x:w:y:g:h:v
-              q extends sfConfig:x:q:h:f:p:x:w:y:g:h:w:h:w, sfConfig:x:q:h:f:p:x:w:y:g:h:w:h:o:g:y:k:m:w:q, sfConfig:x:q:h:f:p:x:w:y:g:h:w:h:w:s:m:u:m:u, {
-                o false;
-              }
-              o extends {
-                x sfConfig:x:q:h:f:p:x:w:y:g:h:w:h:w:j:q;
-                o "string";
-                f extends sfConfig:x:q:h:f:p:x:w:y:g:h:h:e:m:u:m:w:q, {
-                  m extends sfConfig:x:q:h:f:p:r:q:i:m:x:y:m:x:j:a:k:j, {
-                    j sfConfig:x:q:h:f:p:x:w:y:g:h:u:p:y:x:j;
-                    q 1234;
-                  }
-                  x extends sfConfig:x:q:h:f:p:x:w:y:g:h:h:w:s:m:a:x:m:a:q, sfConfig:x:q:h:f:p:x, sfConfig:x:q:h:f:q:r:o:f:x:w:y:g:h:w:h:e:m:j:a:q
-                }
-                u extends sfConfig:x:q:h:f:p:x:w:y:g:h:h:w:s:m:u, {
-                  x 1234;
-                  z false;
-                  c DATA i:u;
-                }, {
-                  r sfConfig:x:q:h:f:q:r:o:f:x:w:y:g:h:h:e:m:a:k:m:w:g;
-                }, {
-                  w sfConfig:x:r:e:s:a:j:w:g;
-                  m sfConfig:x:r:e:p:g;
-                }
-                v "string";
-                u "string";
-                q DATA m:e:q;
-                f DATA l;
-              }
-              o sfConfig:x:r:e:j:k:s:e:y;
+            u extends {
+              k "string";
+              sfConfig:q:o:i:r false;
+              u sfConfig:q:o:y:m;
             }, {
-              s extends sfConfig:x:q:t, sfConfig:x:q:h:f:p:x:w:y:g:h:h:n:k:m:a:k, {
-                m extends {
-                  y "string";
-                  s DATA e:c:l;
-                }, {
-                  q extends sfConfig:x:q:h:f:q:r:q:v:r:l, sfConfig:x:q:h:f:p:x:w:y:g:h:h:e:m:a:k:m:a:q
-                }, sfConfig:x:q:h:f:p:x:w:y:g:h:u:p:y:k:m:u, {
-                  s sfConfig:x:q:h:f:g;
-                  i extends {
-                    q extends sfConfig:x:q:h:f:p:x:w:y:g:h:h:w:s:m:a:k:m:a:q, {
-                      l "string";
-                    }, sfConfig:x:q:h:f:p:x:w:y:g:h:h:y:q:q
-                    o sfConfig:x:q:h:f:p:x:w:y:g:k;
-                  }, sfConfig:x:r:e:j:k:s:e:m:a:k:m:u, {
-                    y "string";
-                    f extends sfConfig:x:r:e:j:k:s:e:m:a:k:m:a:q
-                  }
-                }
-                u sfConfig:x:q:u:s:e:m:w:q;
-                y extends {
-                  v sfConfig:x:q:h:f:p:x:w:y:g:h:w:h:e:m:a;
-                  g "string";
-                  w extends {
-                    k sfConfig:x:q:u:s:e:m:a:k:y;
-                    z sfConfig:x:q:u:s:e:m:a:k:m:z;
-                  }
-                }, {
-                  q extends sfConfig:x:q:h:f:p:x:w:y:g:h:w:h:e:m:a:k:m:a, {
-                    l extends sfConfig:x:q:h:f:p:x:w:y:g:h:h:w:v:o:k:j, sfConfig:x:q:h:f:p:x:w:y:g:h:w:h:n:q, sfConfig:x:q:h:f:p:x:w:y:g:h:h:w:s:m:a:x:m:a:k
-                  }, sfConfig:x:q:h:f:p:x:w:y:g:h:h:o:g:y:k
-                  x sfConfig:x:q:h:f:p:x:w:y:g:h:w:h:e:m:a:x:m:u;
-                }
+              sfConfig:q:o:p:g:g:z sfConfig:q:q;
+              h sfConfig:q:o:i:g;
+              sfConfig:q:o:p:g:z:g:u:u sfConfig:q:o:p:g:g:z;
+            }, sfConfig:q:o:i:g:g
+            sfConfig:q:o:p:g:z:g:u:z 1234;
+          }, {
+            s sfConfig:q:o:i:g;
+          }, {
+            f extends {
+              u extends sfConfig:q, {
+                j true;
+              }, {
+                sfConfig:q:o:p:g:z:g:f:u:o:p:g:z:g:u sfConfig:q:o:p:g:z:g:f:u:o:p:g:z:g:u;
+                t 1234;
               }
-              x sfConfig:x:r:e:s:a:a:x:m:u;
-            }, {}
-            g sfConfig:x:q:h:f:p:x:w:y:g:h:h:w:s:p:t;
-            p 1234;
-            j sfConfig:x:q:h:f:p:x:w:y:g:h:w:h:n:k;
-            j extends {
-              f 1234;
-              z sfConfig:x:q:h:f:p:r:q:i:m:x:y:m:x:a:x:m:w:q;
-              t extends {
-                y extends {
-                  o sfConfig:x:q:h:f:q:k;
-                  r extends {
-                    g extends sfConfig:x:r:e:s:a:a:x:m:w, sfConfig:x:q:h:f:q:r:s:m:s, sfConfig:x:r:e:s:a:a:x:m:a:k
-                    x sfConfig:x:q:h:f:p:x:w:y:g:h:h:e:m:j;
-                    l extends sfConfig:x:q:h:f:p:x:w:y:g:h:w:h:w:m:a:k:j, sfConfig:x:q:h:f:p:x:w:y:g:h:h:w:s:m:a:x:j
-                    v DATA h:n:x:m;
-                    n extends sfConfig:x:r:e:j:k:s:y, {}, {
-                      z sfConfig:x:q:h:f:p:x:w:y:g:h:u:p:y:k:m:a:k:j:q;
-                      n sfConfig:x:q:h:f:p:x:w:y:g:h:h:e:m:j:w;
-                    }
-                    s extends {
-                      e "string";
-                      z extends sfConfig:x:q:h:f:p:x:w:y:g:h:w:w:x:h:i:n:n, {
-                        f extends sfConfig:x:q:h:f:p:x:w:y:g:h:u:p:y
-                        y sfConfig:x:q:h:f:p:x:w:y:g:h:w:h:w:s:m:a:k:y;
-                        d sfConfig:x:q:h:f:p:r:q:i:m:x:y:m:x:a:k:m:z;
-                      }
-                      c extends sfConfig:x:q:h:f:q:j:t:y:r:s:z:f:k:m:a:k:j:q
-                      c DATA k:x;
-                      x sfConfig:x:q:h:f:p:x:w:y:g:h:h:e:m:a:k;
-                      u extends sfConfig:x:q:h:f:p:b:m:a:q, {}
-                    }, {
-                      j false;
-                      l extends sfConfig:x:q:h:f:p:x:w:y:g:h:w:h:w:s:m:u, {
-                        v sfConfig:x:q:h:f:q:j:t:y:o:q;
-                      }
-                      g extends {}
-                    }, {}, {
-                      p extends sfConfig:x:r:e:s:a:a
-                      f sfConfig:x:r:e:j:k:s:e:m:u:m;
-                      z sfConfig:x:q:h:f:p:x:w:y:g:h:w:u:p:y:x:m:z;
-                    }
-                  }, {}, {}, {
-                    p sfConfig:x:q:h:f:p:x:w:y:g:h:w:h:e:m:u:m:l;
-                    n 1234;
-                    t sfConfig:x:r:e:j:k:s:e:p:p;
-                  }
-                  o sfConfig:x:q:h:f:p:x:w:y:g:h:w:h:w:s:m:j:a:k:j;
-                  z extends sfConfig:x:q:h:f:p:x:w:y:g:h:w:h:e:m:a:x:m:w:q, sfConfig:x:q:h:f:p:x:w:y:g:o:g:m:a:q
-                  x sfConfig:x:q:h:f:p:x:w:y:g:h:w:k:m:a:k:j:q;
-                  b "string";
-                }
-                s 1234;
-                n sfConfig:x:q:h:f:p:x:w:y:g:h:h:e:m:j:a:k:j;
-                x DATA j:x;
-                t DATA y:x:c;
-                s sfConfig:x:q:h:f:p:x:w:y:g:h:w:h:e:m:a:x:m:a:k;
-              }, sfConfig:x:r:e:j:k:s:e:m:u:m:a:k:j
+              x "string";
             }, {
               t extends {
-                e DATA o;
-              }, {
-                d sfConfig:x:q:h:f:p:x:w:y:g:h:w:h:o:g:y:x:m:a:k:j;
-                t false;
-              }, {
-                r sfConfig:x:q:h:f:p:x:w:y:g:h:w:h:w:v:o:k;
-                f sfConfig:x:q:h:f:q:r:q:s:m:w;
-              }, {
-                f 1234;
+                p sfConfig:q:o:p:g:z:g:u:h;
+                p sfConfig:q:o:p:g:z:g:s;
+                c sfConfig:q;
+              }, sfConfig:q:o:p:g:z:g:f:t:c:o:p:g:z:g:f:u:o:i:g, {
+                d extends {
+                  i "string";
+                  sfConfig:q:o:p:g:z:g:f:u:o:i:g:g:g extends {
+                    sfConfig:q:o:p:g:z:g:f:t:c:o:p:g:z:g:f:u:o:i:r true;
+                  }, {
+                    c sfConfig:q:o:p:g:z:g:f:u:q:z;
+                    h sfConfig:q:o:p:r;
+                  }, sfConfig:q:q:g, {
+                    v true;
+                    sfConfig:q:o:p:g:z:g:u:h:g:z sfConfig:q:o:p:g:z:g:f:t:c:o:p:g:z:g:f:t:p:g:z;
+                    k 1234;
+                  }
+                }
+                sfConfig:q:o:p:g:z:g:f:u:o:p:g:z:g:u:u:z extends sfConfig:q:o:p:g:z:g:f:t:c:o:p:g:z:g:u:u:g
               }
+              y sfConfig:q:o:p:g:z:g:f:u:o:p:g:z;
+              i "string";
+            }, {
+              s DATA q:n:f:t;
+              p extends sfConfig:q:o:p:g:z:g:f:t:c:o:p:g:z:g:s:g, sfConfig:q:o:p:g:z:g:f:t:c:o:p:g:g:g
             }
-          }, sfConfig:x:q:h:f:q:r:q:s:m:u:m:w:q, sfConfig:x:q:h:f:p:x:w:y:g:h:h:n:k:m:a:k:j
-          i sfConfig:x:q:h:f:p:x:w:y:g:h:w:h:o:g:y:k;
-          d sfConfig:x:q:h:f:p:x:w:y:g:h:w:h:e:m:u:m:z;
-          n sfConfig:x:q:h:f:p:x:w:y:g:h:h:w:s:d;
-          s sfConfig:x:q:h:f:p:r:q:i:m:x:y:q;
-        }
-        b DATA v;
-        x DATA b:u:v:j;
-        q sfConfig:x:q:h:f:q:r:s:y:q:l:q;
-        p sfConfig:x:q:h:f:p:x:w:y:g:h:h:w:s:m:u:m:w;
-        j sfConfig:x:q:h:f:p:x:w:y:g:h:w:h:w:s:m:u:m:w;
-        m extends {
-          p sfConfig:x:q:h:f:p:x:w:y:g:h:w:h:e:m:z;
-        }, sfConfig:x
-      }, {
-        e 1234;
-        o extends sfConfig:x:r:e:j:i, {
-          a true;
-          y sfConfig:x:q:h:p:g;
-          j 1234;
-        }, sfConfig:x:q:h:m:q:h:f:q:b:j:q, {
-          o sfConfig:x:q:h:m:q:h:f:p:x:w:y:g:h:w:h:w:v:o:k:m:l;
-          f DATA l:j;
-        }
-        n extends sfConfig:x:q:h:m:q:h:f:q:r:q:s:m:a:k, sfConfig:x:q:h:f:i:m:u
-      }, {
-        u sfConfig:x:q:h:f:p:x:w:y:w:a:k;
-        f 1234;
-        d sfConfig:x:q:h:m:q:h:f:p:x:w:y:g:h:h:w:s:m:a:k:m:a:q;
-      }
-      x sfConfig:x:q:h:m:q:h:f:p:x:w:y:g:h:v;
-      i sfConfig:x:q:h:m:q:h:f:p:x:w:y:g:h:w:u:p:y:x:y;
-      t DATA o;
-    }, sfConfig:x:q:h:m:q:h:f:p:x:w:y:g:h:w:h:w:v:r:j, {}, sfConfig:x:q:h:m:q:u:s:e:m:a:x:m:w:q
-    x sfConfig:x:q:h:m:q:u:s:e:m:w:q;
-    w "string";
-  }, {
-    v sfConfig:x:q:h:m:q:h:f:q:r:q:s:m:j;
-    b sfConfig:x:q:u:s:e:t;
-  }, sfConfig:x:q:h:m:q:h:f:i, sfConfig:x:q:h:m:q:h:f:p:x:w:y:g:h:h:o:g:h
-  f DATA e:s;
-  x sfConfig:x:q:h:m:q:h:f:p:x:w:y:g:h:h:e:m:a:x:m:a;
-  o sfConfig:f;
-  b "string";
-  o extends {
-    t DATA j:u:s:a;
-    k extends sfConfig:o
-    n extends sfConfig:x, sfConfig:x:k:j
-    n extends sfConfig:o, {
-      a extends {}, sfConfig:o, {}, {
-        z sfConfig:o:n:a:k;
-        c extends sfConfig:o:n:a:n:k, {}, {}
-      }
-      p extends sfConfig:x:k:j, sfConfig:o:n
-    }, sfConfig:o:n:a:n
-    t extends sfConfig:o:n:p:a:n:a, sfConfig:o:n:p:k, {
-      a extends sfConfig:o:n:p:a:z:k, sfConfig:o:n:p:a:n:n
-      r extends {
-        o true;
-        u sfConfig:o:n:p:n;
-      }, {}, sfConfig:o:k
+            sfConfig:q:o:p:g:z:g:f:u:o:p:z sfConfig:q:o:p:g:z:g:f:t:c:o:p:g:z:g:f:u:o:p:g:z:g:u:u:g;
+            sfConfig:q:o:p:g:z:g:f:y:g:u:h:g extends {
+              sfConfig:q:o:p:g:z:g:f:t:c:o:p:g:z:g:u:h:g:z sfConfig:q:o:p:g:z:g:f:u:o:i:g:g:g:k;
+              sfConfig:q:o:p:g:z:g:f:t:c:o:p:g:z:g:u:u sfConfig:q:o:p:g:z:g:f:y:g:u:z;
+            }
+          }, sfConfig:q:o:p:g:z:g:f:t:c:o:p:g:z:g:f:u:o:p
+          l DATA d:v;
+        }, sfConfig:q:o:p:g:z:g:f:t:c:o:p:g:z:g
+        a extends sfConfig:q:o:p:g:z:g:g:z:g:s:g
+      }, sfConfig:q:o:p:g:z:u:h:g
+    }, sfConfig:q:o:p:g:z:f:u:o:i:g, {
+      s sfConfig:q:o:p:g:z:g:f:t:c:o:p:g:z:g:f:u:o:p:g:z:g:u:u:z;
+      i extends {}, sfConfig:q:o:p:g:z:g:f:t:c:o:i:g
     }
-    a extends sfConfig:o:n:p:a:n:n, sfConfig:o:n:p:a:z:k, sfConfig:x:k, {}
-    f sfConfig:o:n:p:a:n:t;
-    r sfConfig:x:k;
-    m sfConfig:o:t:k;
-  }, sfConfig:o:n:p:a:n:k:k, {}, sfConfig:o:n:p:p:q
-  m sfConfig:o:t;
-  e sfConfig:o:n:p:a:k;
+    j 1234;
+  }, {
+    a sfConfig:q:o:p:g:z:g:f:t:c:o:p:g:z:g:f:u:o:i:g:g;
+    s extends {
+      sfConfig:q:o:p:g:z:g:f:t:c:o:p:g:z:g:f:u:o:p:g:g:z:g sfConfig:q:q;
+    }, sfConfig:q:o:p:g:z:g:f:u:o:p:g, {}
+  }
+}, sfConfig:q:o:p:g:z:s, {
+  s sfConfig:q:o:p:g:z:g:f:u:o:p:g:z:g:u:k;
+  sfConfig:q:o:p:g:z:g:u:g extends sfConfig:q:o:p:g:z:g:f:u:o:p
+}
+sfConfig:q:o:p:g:z:g:f:u:o:p:g:z:g:u:z sfConfig:q:o:p:g:z:g:g:z:g:u:h:z;
+sfConfig:q:o:p:g:z:g:f:t:c:o:p:g:z:g:f:u:o:p:g:z:g:f "string";
+sfConfig:q:o:p:g:z:g:f:t:c:o:p:g:z:g:s:g:g extends {}, {
+  i 1234;
+  u sfConfig:q:o:p:g:z:g:f:u:o:y;
 }, {
-  u sfConfig:o:n:k:t;
-  q sfConfig:o;
-}, sfConfig:o:n:p:a:z
+  l extends sfConfig:q:o:p:g:z:g:f:t:c:o:p:g:z:g:u
+  m extends {}, sfConfig:q:o:p:g:z:g:u:g:z
+}, sfConfig:q:o:p:g:z:g:f:t:c:o:p:g:z:g:f:u:o:p:g:g:z:g:g

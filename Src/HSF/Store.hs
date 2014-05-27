@@ -169,4 +169,8 @@ instance StoreItem BasicValue where
 	renderCompactJSON (NullValue) = "Null"
 	renderCompactJSON (DataRef ids) = "\"$." ++ ( intercalate ":" $ map renderJSON ids ) ++ "\""
 	renderCompactJSON (Vector bvs) = "[" ++ (intercalate "," $ map renderCompactJSON bvs) ++ "]"
-
+instance StoreItem StoreValue where
+	renderJSON (StoreValue bv) = (renderJSON bv)
+	renderJSON (SubStore s) = "{" ++ (indentBlock $ renderJSON s)  ++ "}"
+	renderCompactJSON (StoreValue bv) = (renderCompactJSON bv)
+	renderCompactJSON (SubStore s) = "{" ++ (renderCompactJSON s)  ++ "}"

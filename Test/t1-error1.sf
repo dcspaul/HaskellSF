@@ -1,0 +1,6 @@
+sfConfig extends {
+  A extends {
+    sfConfig:A true;
+    O 99;
+  }
+}
