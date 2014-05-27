@@ -1,20 +1,15 @@
-b extends {
-  b DATA c:a:b:c;
-  foo "string";
-}, foo
-b extends e, {
-  e extends {}, b, a, {
-    foo false;
-    e DATA d:c:b:e;
-    b true;
+sfConfig extends {}, {
+  u extends sfConfig:u, {
+    q extends {}
+    q sfConfig:u;
+  }, {
+    i true;
+    z sfConfig:u:q:q;
+  }, {
+    a 1234;
   }
-  d c;
-}, {
-  e "string";
+  l sfConfig:u:q:q;
 }
-c 1234;
-sfConfig extends a
-e extends b, {
-  b "string";
-  d d;
-}
+u "string";
+r 1234;
+y sfConfig:u;

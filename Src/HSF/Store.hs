@@ -26,8 +26,8 @@ import Safe (initSafe)
 -- ordering defined in the semantics.
 -- (note that the JSON standard says that the order of records is not significant)
 
-data StoreValue = StoreValue BasicValue | SubStore Store deriving(Eq)
-data Store = Store [(Identifier,StoreValue)] deriving(Eq)
+data StoreValue = StoreValue BasicValue | SubStore Store deriving(Eq,Show)
+data Store = Store [(Identifier,StoreValue)] deriving(Eq,Show)
 
 {------------------------------------------------------------------------------
     semantic functions

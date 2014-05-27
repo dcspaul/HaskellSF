@@ -26,10 +26,10 @@ randomV = state random
 
 type RandomResult a = State StdGen (Result a)
 
-noFail :: (a -> StoreOrError) -> (a -> Store)
-noFail f = \x -> case (f x) of
-		Left e -> error "impossible fail!"
-		Right s -> s
+noFail :: (Show a) => (a -> StoreOrError) -> String -> Store -> (a -> Store)
+noFail f name s = \x -> case (f x) of
+		Left e -> error (name ++ " fail!\nx: " ++ (show x) ++ "\ns: " ++ (show s))
+		Right s' -> s'
 
 {------------------------------------------------------------------------------
     evaluation functions
@@ -56,7 +56,7 @@ inventProtoList ((BodyProto bp):ps) = \(ns,r,s) -> do
 
 -- a reference to a prototype
 inventProtoList ((RefProto rp):ps) = \(ns,r,s) -> do
-	let s' = (noFail sfInherit)(s,ns,rp,r)
+	let s' = (noFail sfInherit "sfInherit" s)(s,ns,rp,r)
 	result <- inventProtoList ps $ (ns, r, s')
 	return ( result { node = (RefProto rp):(node result) } )
 
@@ -65,7 +65,7 @@ inventProtoList ([]) = \(ns,r,s) -> return ( Result { store = s, node = [] } )
 inventValue :: Value -> (NameSpace,Reference,Store) -> RandomResult Value
 
 inventValue (BasicValue bv) = \(ns,r,s) -> do
-	let s' = (noFail sfBind)(s, r, StoreValue bv)
+	let s' = (noFail sfBind "sfBind" s)(s, r, StoreValue bv)
 	return ( Result { store = s', node = BasicValue bv } )
 
 inventValue (LinkValue (Reference [Identifier "?ref"])) = \(ns,r,s) -> do
@@ -76,11 +76,11 @@ inventValue (LinkValue lr) = \(ns,r,s) -> do
 	let (ns',v') = case (sfResolv(s, ns, lr)) of
 		Nothing -> error ( "impossible! cannot resolve generated link: " ++ (show lr) )
 		Just (n,v) -> (n,v)
-	let s' = (noFail sfBind)(s, r, v')
+	let s' = (noFail sfBind "sfBind" s)(s, r, v')
 	return ( Result { store = s', node = LinkValue lr } )
 
 inventValue (ProtoValue ps) = \(ns,r,s) -> do
-	let s' = (noFail sfBind)(s,r,SubStore (Store []))
+	let s' = (noFail sfBind "sfBind" s)(s,r,SubStore (Store []))
 	result <- inventProtoList ps $ (ns,r,s')
 	return ( result { node = (ProtoValue (node result)) } )
 
@@ -88,6 +88,12 @@ inventAssignment :: Assignment -> (NameSpace,Store) -> RandomResult Assignment
 
 inventAssignment (Assignment (Reference [Identifier "?ref"]) v) = \(ns,s) -> do
 	r <- inventLHSRef ns s
+	
+	XXXXXXX
+	-- TODO: this just wants to be r - not ns |+| r
+	-- but only if we find a real reference
+	-- if we give up and create a simple symbol, then we need to add the namespace ....
+	
 	result <- inventValue v $ (ns, (ns |+| r), s)
 	return ( result { node = Assignment r (node result) } )
 	
@@ -119,38 +125,70 @@ inventSF (SFConfig as) = (SFConfig as') where
 
 ----------------
 
+-- TODO: at some point, we need to (partially, randomly) strip the absolute reference paths
+
 inventLHSId :: State StdGen Reference
 -- invent a random ID
 inventLHSId = do
-	n <- randomV
-	return (Reference [Identifier (randomId n)]) where
-
-randomId :: Int -> String
-randomId i = ids !! (i `mod` (length ids))
-	where ids = map (:[]) ['a' .. 'z']
+	r <- randomV
+	let candidates = map (:[]) ['a' .. 'z']
+	let n = length candidates
+	return (Reference [Identifier (candidates !! (r `mod` n))]) where
 
 inventLHSRef :: NameSpace -> Store -> State StdGen Reference
-inventLHSRef ns s = inventLHSId
--- inventLHSRef ns s = (Reference [Identifier "fooREF"])
--- look in the store for a random reference
--- if you can't find anything, use inventLHSId
+inventLHSRef ns s = do
+	inventLHSId
+{--
+	r <- randomV
+	let candidates = (blockRefs s) ++ (valueRefs s)
+	let n = length candidates
+	if (n > 0)
+		then return (candidates !! (r `mod` n))
+		else inventLHSId
+--}
 
 inventProtoRef :: NameSpace -> Store -> State StdGen Prototype
 inventProtoRef ns s = do
-	return (BodyProto (Body []))
--- inventProtoRef ns s = (RefProto (Reference [Identifier "fooPROTO"]))
--- look in the store for a random reference to a prototype
--- if you can't find one, then generate an empty body
+	r <- randomV
+	let candidates = blockRefs s
+	let n = length candidates
+	if (n > 0)
+		then return (RefProto (candidates !! (r `mod` n)))
+		else return (BodyProto (Body []))
 
 inventLinkRef :: NameSpace -> Store -> State StdGen Value
 inventLinkRef ns s = do
-	return (BasicValue (StringValue "frobble!"))
+	r <- randomV
+	let candidates = (blockRefs s) ++ (valueRefs s)
+	let n = length candidates
+	if (n > 0)
+		then return (LinkValue (candidates !! (r `mod` n)))
+		else return (BasicValue (StringValue "noref"))
+
 -- inventLinkRef ns s = (LinkValue (Reference [Identifier "fooLink"]))
 -- look in the store for a random reference to a prototype or a value
 -- if you can't find one, generate some arbitrary value
 	
 
+-- data StoreValue = StoreValue BasicValue | SubStore Store deriving(Eq)
+-- data Store = Store [(Identifier,StoreValue)] deriving(Eq)
 
+-- return a list of all valid value references (not blocks)
+valueRefs :: Store -> [Reference]
+valueRefs s = map Reference $ filter (\r -> (length r)>1) (valueRefs' [] s)
+valueRefs' path (Store []) = []
+valueRefs' path (Store ((Identifier i, StoreValue _):s')) =
+	(path++[Identifier i]):(valueRefs' path (Store s'))
+valueRefs' path (Store ((Identifier i, SubStore s):s')) =
+	(valueRefs' (path++[Identifier i]) s) ++ (valueRefs' path (Store s'))
 
+-- return a list of all valid block references (not basic values)
+blockRefs :: Store -> [Reference]
+blockRefs s = map Reference $ filter (\r -> (length r)>1) (blockRefs' [] s)
+blockRefs' path (Store []) = []
+blockRefs' path (Store ((Identifier i, StoreValue _):s')) = blockRefs' path (Store s')
+blockRefs' path (Store ((Identifier i, SubStore s):s')) =
+	(path++[Identifier i]) : 
+	( (blockRefs' (path++[Identifier i]) s) ++ (blockRefs' path (Store s')) )
 
 

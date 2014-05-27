@@ -1,0 +1,10 @@
+sfConfig extends {}, {}, {
+  q "noref";
+  o extends {
+    i sfConfig:q;
+  }, sfConfig:o, sfConfig:o, {
+    l extends sfConfig:o
+    u true;
+  }
+  r sfConfig:o;
+}, sfConfig:r:l:l
