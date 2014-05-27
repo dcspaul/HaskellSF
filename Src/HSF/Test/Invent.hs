@@ -101,12 +101,11 @@ inventBody (Body (a:b)) = \(ns,s) -> do
 	return ( result { node = Body ((node fA):as) } )
 
 inventBody (Body []) = \(ns,s) -> return ( Result { store = s, node = (Body []) } )
-	
+
 inventSF :: SFConfig -> SFConfig
  
 inventSF (SFConfig as) = (SFConfig as') where
-	s = sfPut (Store [], Identifier "ORIGINAL", StoreValue (StringValue (render (SFConfig as))))
-	(x,y) = runState (inventBody (Body as) $ (Reference [], s)) (mkStdGen 33)
+	(x,y) = runState (inventBody (Body as) $ (Reference [], Store [])) (mkStdGen 33)
 	(Body as') = node x
 
 {------------------------------------------------------------------------------

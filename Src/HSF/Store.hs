@@ -1,5 +1,5 @@
 {------------------------------------------------------------------------------
-    HSF - SmartFrog Core Language Compiler: Store & semantic functions
+    HSF - SmartFrog Core Language Compiler: Store management
 	Paul Anderson <dcspaul@ed.ac.uk>
 ------------------------------------------------------------------------------}
 

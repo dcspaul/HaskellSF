@@ -31,11 +31,11 @@ import System.FilePath.Posix (isAbsolute,(</>))
 
 -- TODO: not yet supporting vectors ?
 
--- identifiers are arbitrary (uppercase) letters
+-- identifiers are arbitrary letters
 
 instance Arbitrary Identifier where
 	arbitrary =  oneof (map (return . Identifier) ids)
-		where ids = map (:[]) ['A' .. 'Z']
+		where ids = map (:[]) ['a' .. 'z']
 
 -- we need to have separate generators for references, depending on how
 -- the references are used. so we don't define an Arbitrary instance -
@@ -50,10 +50,10 @@ instance Arbitrary Identifier where
 -- TODO: think about the frequencies later
 
 arbitraryLHSRef :: Gen Reference
-arbitraryLHSRef = frequency [(2,dummyId),(1, return dummyRef)]
+arbitraryLHSRef = frequency [(2,i),(1,r)]
 	where
-		dummyRef = (Reference [Identifier "?ref"]) 
-		dummyId = liftM Reference $ liftM (:[]) arbitrary
+		r = return $ Reference [Identifier "?ref"]
+		i = liftM Reference $ liftM (:[]) arbitrary
 
 -- a reference appearing on the RHS of an assignment must refer to something
 -- we just generate a placeholder (?ref) so we can substitute them with something
@@ -64,18 +64,45 @@ arbitraryRHSRef = do
 	return (Reference [Identifier "?ref"])
 
 -- a body is a non-empty list of assignments, of the appropriate size
--- TODO: think about the frequencies later
--- TODO: should we allow it to be empty?
 
-instance Arbitrary Body where
-	arbitrary = sized body' where
-		body' n
-			| n<=1 = liftM Body ((resize 1) arbitrary)
-			| n>1  = liftM Body ((resize n) arbitrary)
+arbitraryBody :: Gen Body
+arbitraryBody = sized arbitraryBody'
+
+arbitraryBody' n 
+	| n<=0 = return (Body [])
+	| n>0 = do
+		i <- sized $ \n -> choose(1,n)        -- choose the size of the first assignment (1..size)
+		let ref = arbitraryLHSRef             -- no size restriction on the lhs
+		let value = (resize i) arbitrary      -- the "size" of the value part
+		(Body b') <- arbitraryBody' (n-i)	  -- the "size" of the remaining body
+		a <- liftM2 Assignment ref value
+		return (Body (a:b'))
+
+-- a value is a BasicValue or an (?rhs) Reference, or a list of Prototypes
+
+instance Arbitrary Value where
+	arbitrary = frequency [(1,bv),(1,l),(1,p)]
+		where
+			bv = liftM BasicValue arbitrary
+			l = liftM LinkValue arbitraryRHSRef
+			p = liftM ProtoValue arbitraryProtoList
+
+-- a list of prototypes
+
+arbitraryProtoList = sized arbitraryProtoList'
+
+arbitraryProtoList' n
+	| n<=0 = return [BodyProto (Body [])]
+	| n>0 = do
+		i <- sized $ \n -> choose(1,n)     -- choose the size of the first prototype (1..size)
+		p <- (resize i) arbitrary          -- the "size" of the first prototype
+		ps <- arbitraryProtoList' (n-i)	   -- the "size" of the remaining list
+		return (p:ps)
 
 -- arbitrary basic values
 -- data references are not evaluated, so we can just generate an arbitrary (non-empty)
 -- list of Identifiers
+-- we don't really care about the frequency of these
 	
 instance Arbitrary BasicValue where
 	arbitrary = oneof
@@ -88,18 +115,6 @@ instance Arbitrary BasicValue where
 			return (DataRef (first:rest))
 		]
 
--- a value is a BasicValue or an (?rhs) Reference, or a list of Prototypes
-
-instance Arbitrary Value where
-	arbitrary = oneof
-		[ liftM BasicValue arbitrary
-		, liftM LinkValue arbitraryRHSRef
-		, do
-			first <- arbitrary
-			rest <- (resize 3) arbitrary
-			return (ProtoValue (first:rest))
-		]
-
 -- assignment is a (?ref or arbitrary id) and an arbitrary Value
 
 instance Arbitrary Assignment where
@@ -109,7 +124,7 @@ instance Arbitrary Assignment where
 
 instance Arbitrary Prototype where
 	arbitrary = oneof
-		[ liftM BodyProto arbitrary
+		[ liftM BodyProto arbitraryBody
 		, liftM RefProto arbitraryRHSRef
 		]
 
@@ -119,17 +134,19 @@ instance Arbitrary Prototype where
 -- so we could make this randomly something else ....
 -- you might also want to test an empty top level?
 
-instance Arbitrary SFConfig where
-	arbitrary = do
-		left <- ((resize 3) arbitrary)
+arbitrarySFConfig = sized arbitrarySFConfig'
+arbitrarySFConfig' n = do
+		lsize <- sized $ \n -> choose(1,n)
+		let rsize = (n-lsize)
+		left <- ((resize lsize) arbitrary)
 		first <- arbitrary
-		rest <- (resize 3) arbitrary
+		rest <- (resize 10) arbitrary
 		-- TODO: this forces sfConfig to be a block
 		-- occasionally we might want to make it a value to test the error condition
 		-- the following line makes it arbitrary (but that is abit too frequent)
 		-- let a = Assignment (Reference [Identifier "sfConfig"]) (ProtoValue (first:rest))
 		let a = Assignment (Reference [Identifier "sfConfig"]) (ProtoValue (first:rest))
-		right <- ((resize 3) arbitrary)
+		right <- ((resize rsize) arbitrary)
 		-- we now invent plausible values for the references
 		return (inventSF (SFConfig (left ++ [a] ++ right)))
 
@@ -146,7 +163,7 @@ renderConfig :: SFConfig -> String
 renderConfig = render
 
 instance Arbitrary SfSource where
-	arbitrary = liftM SfSource $ liftM renderConfig arbitrary
+	arbitrary = liftM SfSource $ liftM renderConfig arbitrarySFConfig
 
 {------------------------------------------------------------------------------
     compile tests with both compilers & compare the result
