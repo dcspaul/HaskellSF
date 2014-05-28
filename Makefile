@@ -3,7 +3,7 @@
 PLATFORM := $(shell echo `uname`-`arch`)
 VERSION := 76
 REMOTE_VERSION := 78
-TEST_PREFIX := t1-error
+TEST_PREFIX := t1
 QCFLAGS := -d
 
 TOP_DIR := $(shell pwd)
@@ -57,7 +57,7 @@ $(BUILD_DIR)/hsf.hs: $(SRC_DIR)/hsf.hs Makefile
 $(BUILD_DIR)/HSF/%.hs: $(SRC_DIR)/HSF/%.hs Makefile
 	@mkdir -p $(BUILD_DIR)/HSF $(BUILD_DIR)/HSF/Test || exit 1
 	@rm -f $@ || exit 1
-	@cp $< $@ 
+	@cp $< $@
 
 # this target compiles all of the test files
 
@@ -72,12 +72,12 @@ compile-tests: install
 test: install
 	@echo comparing output ...
 	@mkdir -p $(SCRATCH_DIR) || exit 1
-	#@echo ">>>>> comparing with scala compiler"
-	#@$(BIN_DIR)/hsf$(VERSION)-$(PLATFORM) -c scala -o $(SCRATCH_DIR) $(TEST_DIR)/$(TEST_PREFIX)*.sf
-	#@echo ">>>>> comparing with ocaml compiler"
-	#@$(BIN_DIR)/hsf$(VERSION)-$(PLATFORM) -c ocaml -o $(SCRATCH_DIR) $(TEST_DIR)/$(TEST_PREFIX)*.sf
-	@echo ">>>>> comparing with hp compiler"
-	@$(BIN_DIR)/hsf$(VERSION)-$(PLATFORM) -c hp -o $(SCRATCH_DIR) $(TEST_DIR)/$(TEST_PREFIX)*.sf
+	@echo ">>>>> comparing with scala compiler"
+	@$(BIN_DIR)/hsf$(VERSION)-$(PLATFORM) -c scala -o $(SCRATCH_DIR) $(TEST_DIR)/$(TEST_PREFIX)*.sf
+	@echo ">>>>> comparing with ocaml compiler"
+	@$(BIN_DIR)/hsf$(VERSION)-$(PLATFORM) -c ocaml -o $(SCRATCH_DIR) $(TEST_DIR)/$(TEST_PREFIX)*.sf
+	#@echo ">>>>> comparing with hp compiler"
+	#@$(BIN_DIR)/hsf$(VERSION)-$(PLATFORM) -c hp -o $(SCRATCH_DIR) $(TEST_DIR)/$(TEST_PREFIX)*.sf
 
 # this target runs quickcheck comparing the output with sfParser
 # you need to define SFPARSER & CSF (unless the external compilers are in your PATH)
@@ -87,10 +87,10 @@ quickcheck: install
 	@mkdir -p $(SCRATCH_DIR) || exit 1
 	@echo ">>>>> quickcheck with scala compiler"
 	@$(BIN_DIR)/hsf$(VERSION)-$(PLATFORM) $(QCFLAGS) -q scala -o $(SCRATCH_DIR)
-	@echo ">>>>> quickcheck with ocaml compiler"
-	@$(BIN_DIR)/hsf$(VERSION)-$(PLATFORM) $(QCFLAGS) -q ocaml -o $(SCRATCH_DIR)
-	@echo ">>>>> quickcheck with hp compiler"
-	@$(BIN_DIR)/hsf$(VERSION)-$(PLATFORM) $(QCFLAGS) -q hp -o $(SCRATCH_DIR)
+	#@echo ">>>>> quickcheck with ocaml compiler"
+	#@$(BIN_DIR)/hsf$(VERSION)-$(PLATFORM) $(QCFLAGS) -q ocaml -o $(SCRATCH_DIR)
+	#@echo ">>>>> quickcheck with hp compiler"
+	#@$(BIN_DIR)/hsf$(VERSION)-$(PLATFORM) $(QCFLAGS) -q hp -o $(SCRATCH_DIR)
 
 # this target does a build on a remote machine
 # using the given REMOTE_VERSION of the Haskell compiler

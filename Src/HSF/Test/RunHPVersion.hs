@@ -85,7 +85,6 @@ data H_Error
 	| H_ERR3 String
 	| H_ERR4 String
 	| H_ERR5 String
-	| H_ERR6 String
 	| H_ERR7 String
 
 stringToErrorOrResult :: String -> (Either H_Error String)
@@ -111,8 +110,6 @@ matchCsf (Left EREPLACEROOTSTORE) (Left (H_ERR3 _)) = True
 matchCsf (Left (ENOPROTO _)) (Left (H_ERR4 _)) = True
 matchCsf (Left (EPROTONOTSTORE _)) (Left (H_ERR4 _)) = True
 matchCsf (Left (ENOLR _)) (Left (H_ERR5 _)) = True
-matchCsf (Left (EASSIGN _)) (Left (H_ERR6 _)) = True
-matchCsf (Left (EREFNOTOBJ _)) (Left (H_ERR6 _)) = True
 matchCsf (Left ENOSPEC) (Left (H_ERR7 _)) = True
 matchCsf (Left (ESPEC _)) (Left (H_ERR7 _)) = True
 matchCsf _ _ = False
@@ -125,7 +122,6 @@ instance ErrorMessage H_Error where
 	errorString (H_ERR3 s) = s
 	errorString (H_ERR4 s) = s
 	errorString (H_ERR5 s) = s
-	errorString (H_ERR6 s) = s
 	errorString (H_ERR7 s) = s
 
 {------------------------------------------------------------------------------

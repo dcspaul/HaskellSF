@@ -61,14 +61,8 @@ evalValue (ProtoValue ps) = \(ns,r,s) -> do
 
 evalAssignment :: Assignment -> (NameSpace,Store) -> StoreOrError
 
-evalAssignment (Assignment r@(Reference [_]) v) = \(ns,s) -> do
-	evalValue v $ (ns, (ns |+| r), s)
-
 evalAssignment (Assignment r v) = \(ns,s) -> do
-	case (sfResolv (s,ns,(sfPrefix r))) of
-		Nothing -> Left ( EASSIGN (render r) )
-		Just (_, StoreValue _) -> Left ( EREFNOTOBJ (render r) )
-		Just (ns', _) -> evalValue v $ (ns, ns' |+| r, s)
+	evalValue v $ (ns, (ns |+| r), s)
 
 -- 6.26
 -- A body is a sequence of assignments.

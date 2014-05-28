@@ -85,7 +85,6 @@ data O_Error
 	| O_ERR3 String
 	| O_ERR4 String
 	| O_ERR5 String
-	| O_ERR6 String
 	| O_ERR7 String
 
 stringToErrorOrResult :: String -> (Either O_Error String)
@@ -95,7 +94,6 @@ stringToErrorOrResult s
 		| isError s "^Fatal error:.*\\[err3\\]" = Left (O_ERR3 s)
 		| isError s "^Fatal error:.*\\[err4\\]" = Left (O_ERR4 s)
 		| isError s "^Fatal error:.*\\[err5\\]" = Left (O_ERR5 s)
-		| isError s "^Fatal error:.*\\[err6\\]" = Left (O_ERR6 s)
 		| isError s "^Fatal error:.*\\[err7\\]" = Left (O_ERR7 s)
 		| isError s "^Fatal error: exception Failure" = Left (O_EPARSEFAIL s)
 		| otherwise = Right (rstrip s)
@@ -116,8 +114,6 @@ matchCsf (Left EREPLACEROOTSTORE) (Left (O_ERR3 _)) = True
 matchCsf (Left (ENOPROTO _)) (Left (O_ERR4 _)) = True
 matchCsf (Left (EPROTONOTSTORE _)) (Left (O_ERR4 _)) = True
 matchCsf (Left (ENOLR _)) (Left (O_ERR5 _)) = True
-matchCsf (Left (EASSIGN _)) (Left (O_ERR6 _)) = True
-matchCsf (Left (EREFNOTOBJ _)) (Left (O_ERR6 _)) = True
 matchCsf (Left ENOSPEC) (Left (O_ERR7 _)) = True
 matchCsf (Left (ESPEC _)) (Left (O_ERR7 _)) = True
 matchCsf _ _ = False
@@ -130,7 +126,6 @@ instance ErrorMessage O_Error where
 	errorString (O_ERR3 s) = s
 	errorString (O_ERR4 s) = s
 	errorString (O_ERR5 s) = s
-	errorString (O_ERR6 s) = s
 	errorString (O_ERR7 s) = s
 
 {------------------------------------------------------------------------------

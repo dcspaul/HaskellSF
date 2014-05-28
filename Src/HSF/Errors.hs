@@ -26,8 +26,6 @@ data Error
 	| ENOPROTO String
 	| EPROTONOTSTORE String
 	| ENOLR String
-	| EASSIGN String
-	| EREFNOTOBJ String
 	| ENOSPEC
 	| ESPEC String
 
@@ -45,8 +43,6 @@ instance ErrorMessage Error where
 	errorString (ENOPROTO s) = "can't resolve prototype [error 4]: " ++ s
 	errorString (EPROTONOTSTORE s) = "prototype is not a store [error 4]: " ++ s
 	errorString (ENOLR s) = "can't resolve link value [error 5]: " ++ s
-	errorString (EASSIGN s) = "can't resolve reference [error 6]: " ++ s
-	errorString (EREFNOTOBJ s) = "reference not an object [error 6]: " ++ s
 	errorString ENOSPEC = "no sfConfig at top level of specification [error 7]"
 	errorString (ESPEC s) = "sfConfig cannot be a basic value [error 7]: " ++ s
 

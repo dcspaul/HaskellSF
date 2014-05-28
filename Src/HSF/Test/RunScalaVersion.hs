@@ -85,7 +85,6 @@ data S_Error
 	| S_ERR3 String
 	| S_ERR4 String
 	| S_ERR5 String
-	| S_ERR6 String
 	| S_ERR7 String
 
 stringToErrorOrResult :: String -> (Either S_Error String)
@@ -95,7 +94,6 @@ stringToErrorOrResult s
 		| isError s "^\\[err3\\]" = Left (S_ERR3 s)
 		| isError s "^\\[err4\\]" = Left (S_ERR4 s)
 		| isError s "^\\[err5\\]" = Left (S_ERR5 s)
-		| isError s "^\\[err6\\]" = Left (S_ERR6 s)
 		| isError s "^\\[err7\\]" = Left (S_ERR7 s)
 		| isError s "^Exception in thread \"main\" java.lang.StackOverflowError" = Left (S_EPARSEFAIL s)
 		| isError s "\\(Is a directory\\)$" = Left (S_EPARSEFAIL s)
@@ -118,8 +116,6 @@ matchSfParser (Left EREPLACEROOTSTORE) (Left (S_ERR3 _)) = True
 matchSfParser (Left (ENOPROTO _)) (Left (S_ERR4 _)) = True
 matchSfParser (Left (EPROTONOTSTORE _)) (Left (S_ERR4 _)) = True
 matchSfParser (Left (ENOLR _)) (Left (S_ERR5 _)) = True
-matchSfParser (Left (EASSIGN _)) (Left (S_ERR6 _)) = True
-matchSfParser (Left (EREFNOTOBJ _)) (Left (S_ERR6 _)) = True
 matchSfParser (Left ENOSPEC) (Left (S_ERR7 _)) = True
 matchSfParser (Left (ESPEC _)) (Left (S_ERR7 _)) = True
 matchSfParser _ _ = False
@@ -132,7 +128,6 @@ instance ErrorMessage S_Error where
 	errorString (S_ERR3 s) = s
 	errorString (S_ERR4 s) = s
 	errorString (S_ERR5 s) = s
-	errorString (S_ERR6 s) = s
 	errorString (S_ERR7 s) = s
 
 {------------------------------------------------------------------------------
