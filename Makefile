@@ -3,7 +3,7 @@
 PLATFORM := $(shell echo `uname`-`arch`)
 VERSION := 76
 REMOTE_VERSION := 78
-TEST_PREFIX := t1
+TEST_PREFIX := t1-error
 QCFLAGS := -d
 
 TOP_DIR := $(shell pwd)
@@ -72,13 +72,15 @@ compile-tests: install
 test: install
 	@echo comparing output ...
 	@mkdir -p $(SCRATCH_DIR) || exit 1
-	@echo ">>>>> comparing with scala compiler"
-	@$(BIN_DIR)/hsf$(VERSION)-$(PLATFORM) -c scala -o $(SCRATCH_DIR) $(TEST_DIR)/$(TEST_PREFIX)*.sf
-	@echo ">>>>> comparing with ocaml compiler"
-	@$(BIN_DIR)/hsf$(VERSION)-$(PLATFORM) -c ocaml -o $(SCRATCH_DIR) $(TEST_DIR)/$(TEST_PREFIX)*.sf
+	#@echo ">>>>> comparing with scala compiler"
+	#@$(BIN_DIR)/hsf$(VERSION)-$(PLATFORM) -c scala -o $(SCRATCH_DIR) $(TEST_DIR)/$(TEST_PREFIX)*.sf
+	#@echo ">>>>> comparing with ocaml compiler"
+	#@$(BIN_DIR)/hsf$(VERSION)-$(PLATFORM) -c ocaml -o $(SCRATCH_DIR) $(TEST_DIR)/$(TEST_PREFIX)*.sf
+	@echo ">>>>> comparing with hp compiler"
+	@$(BIN_DIR)/hsf$(VERSION)-$(PLATFORM) -c hp -o $(SCRATCH_DIR) $(TEST_DIR)/$(TEST_PREFIX)*.sf
 
 # this target runs quickcheck comparing the output with sfParser
-# you need to define: SFPARSER=location-of-sfparser (unless it is in your PATH)
+# you need to define SFPARSER & CSF (unless the external compilers are in your PATH)
 
 quickcheck: install
 	@echo quickcheck ...
@@ -87,6 +89,8 @@ quickcheck: install
 	@$(BIN_DIR)/hsf$(VERSION)-$(PLATFORM) $(QCFLAGS) -q scala -o $(SCRATCH_DIR)
 	@echo ">>>>> quickcheck with ocaml compiler"
 	@$(BIN_DIR)/hsf$(VERSION)-$(PLATFORM) $(QCFLAGS) -q ocaml -o $(SCRATCH_DIR)
+	@echo ">>>>> quickcheck with hp compiler"
+	@$(BIN_DIR)/hsf$(VERSION)-$(PLATFORM) $(QCFLAGS) -q hp -o $(SCRATCH_DIR)
 
 # this target does a build on a remote machine
 # using the given REMOTE_VERSION of the Haskell compiler

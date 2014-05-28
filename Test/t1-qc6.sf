@@ -1,0 +1,252 @@
+n "noref";
+e extends {
+  g 1234;
+  e:g e:g;
+  h e:g;
+}
+q e:g;
+m e:h;
+m false;
+b extends {
+  d e:g;
+}, {
+  b b:d;
+  e:h DATA h;
+  r "string";
+}
+g extends {}
+e:g e:h;
+e extends {}
+b extends {
+  x "noref";
+  b:x extends {
+    s extends {
+      j 1234;
+    }
+    v extends {
+      r extends {
+        r b:x:v:r;
+      }, {
+        a extends {
+          d extends {
+            b true;
+          }
+        }
+        h b:x:v;
+        y 1234;
+      }
+      f extends b:x:v:r:a:d, b:x:v:r:h
+    }
+  }, {
+    s false;
+    y b:x:v:r:h:r:r;
+  }
+  b:x:v:r:a b:x:v:r:y;
+}, {
+  z extends b:x:v, b:x:v:r
+  e DATA f;
+}, {
+  s extends {
+    b:z:f DATA r:c:o;
+    u b:x:v:f:r:a:d;
+    o extends {
+      k extends {
+        b:x:s extends {
+          y b:z:y;
+        }
+      }
+    }, {
+      w "string";
+      b:x:v:r:h 1234;
+    }
+  }, b:z:r
+  f b:x:v:r;
+}
+l b:s:o:w;
+t DATA s;
+b:z:h:r:a:d extends b:z:h, {
+  b:z:h:r:a:d:r:a b:x;
+  v DATA l:a:o;
+}
+b extends {
+  y 1234;
+}, {
+  g extends b:g
+  p extends {
+    o extends {
+      v extends b:g, b:g, {
+        b:y b:y;
+        h b:p:o;
+      }
+      b:y b:p:o:v:h:v;
+    }, {
+      d DATA s:h;
+      j extends {
+        i extends {
+          b:p:o:j 1234;
+        }
+        b:g extends {
+          b:p:o:j 1234;
+        }, {
+          d b:p:o:v:h:v;
+        }, {
+          f DATA k;
+          u b:g:d;
+        }
+      }, {
+        m b:p:o:j;
+        x extends {
+          e b:g:d;
+        }, b:p:o
+      }
+    }
+    w "string";
+    b:g:f 1234;
+  }, b:y, b:g, b:p
+  b:p:o extends b:g:u, b:g
+}, b:p:o:u
+k "string";
+v "string";
+b:g:f b:y;
+q DATA z:a:j:f;
+p 1234;
+i DATA w:t:r;
+b:p extends b:g:d, {
+  y b:g:d;
+  n b:g;
+  o b:p:n:u;
+}, {
+  b:g:d DATA g:t:l:d;
+  m extends b:p:y, b:p:m
+}
+p extends b:p:n:d, {
+  n 1234;
+  w b:p:y;
+}, b:p:o
+b:y 1234;
+t p:w;
+u DATA g:v:n;
+b:p:n:d b:p:n:f;
+d extends b:g:u, {
+  f p:n;
+  j b:p;
+  e false;
+}, {
+  v extends {
+    j extends d:v
+    r "string";
+  }, {
+    v b:p:n:u;
+    p d:j:y;
+  }, {
+    h extends {
+      a d:j:n;
+    }
+    c d:e;
+  }, {
+    q "string";
+  }
+  e b:y;
+}, {
+  b:p:y d:v:p;
+  m b:p:n;
+}
+z extends {
+  b extends {
+    d:m:d DATA t:c:s:e;
+  }, d:m, d:j
+  m extends {
+    y d:v:c;
+  }, {
+    a DATA o:q:e;
+  }, d:v:p, {
+    d:v:j extends {
+      x extends {
+        b extends {
+          k d:e;
+        }
+      }
+      l extends b:g, {
+        z:m:y d:v:h;
+      }
+      t extends z:b:y
+    }, z:b:f
+  }
+  d extends d:v:p
+}, {
+  a d:v:j:t;
+  l "string";
+}, d:v:h:a:f
+w z:l;
+j false;
+x p:n;
+p extends z:b:y, d:v:j:x:b
+y extends d:v:h:a, z:b:m
+k false;
+d:v:h:a:f extends d:j:m
+b:g z:b:n;
+s DATA t;
+sfConfig extends {
+  x z:b:o;
+  z d:j:n:u;
+}, {
+  f b:y;
+  f d:v:j:t;
+}
+b z:m:y:a;
+v z:b:d;
+p sfConfig:z;
+f 1234;
+p false;
+i true;
+v extends {
+  l z:b:f;
+  n "string";
+  w extends {
+    k DATA l:h;
+  }
+  q 1234;
+}, {
+  r DATA z:i:q:v;
+  l extends d:j:o, {
+    z:b:d v:w:k;
+    e extends {
+      v d:v:j:x:b:k;
+    }, d:m:f
+    d:v:j:x:b 1234;
+    s false;
+  }
+}, {
+  m z:b:o;
+  x extends {
+    r true;
+  }
+  w DATA v:j:v:e;
+}
+e "string";
+l b:f;
+g 1234;
+f extends d:j:y, {
+  z:b:n d:m:d;
+  g extends {
+    w true;
+    p extends {
+      d:v:c DATA y;
+    }, {
+      r y:d;
+      d:v:j:x d:j:y;
+    }
+    d:j:n:u z:b:u;
+    w extends z:m:y, z:b:o
+  }
+}, z:b:m
+p v:m;
+q DATA i:q;
+a z:m:y:a:d;
+f:g false;
+l v:x;
+r v:l;
+p d:v:r;
+c DATA l:n:t;
+d:v true;
+r 1234;

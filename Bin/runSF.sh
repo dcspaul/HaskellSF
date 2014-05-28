@@ -33,6 +33,19 @@ doOCaml() {
 	rm -f $DSTFILE# || exit 2
 }
 
+doHP() {
+
+	$CPATH $SRCFILE 2>$DSTFILE# \
+		|grep -v "at org.smartfrog." \
+		|grep -v "Parser - SmartFrog" \
+		| grep -v "(C) Copyright" \
+		|grep -v "SFHOME undefined" \
+		|grep -v "^ *$" \
+		>$DSTFILE
+	cat $DSTFILE# >>$DSTFILE || exit 2
+	rm -f $DSTFILE# || exit 2
+}
+
 test -z "$SRCFILE" && usage
 test -z "$DSTFILE" && usage
 test -z "$CPATH" && usage
@@ -46,6 +59,7 @@ cd `dirname $SRCFILE`
 case $COMPILER in
 	scala)	doScala ;;
 	ocaml)	doOCaml ;;
+	hp)		doHP ;;
 	*)		usage ;;
 esac
 
