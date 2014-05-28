@@ -7,7 +7,7 @@
 -- and: http://stackoverflow.com/questions/2259926/testing-io-actions-with-monadic-quickcheck
 
 module HSF.Test.QuickCheck
-	( checkWithScala, checkWithOCaml, checkWithHP
+	( doCompare
 	) where
 
 import HSF.Options
@@ -170,20 +170,21 @@ instance Arbitrary SfSource where
     compile tests with both compilers & compare the result
 ------------------------------------------------------------------------------}
 
-type Compile = Opts -> String -> IO (Either Error String)
+type CompileFn = Opts -> String -> IO (Either Error String)
+type CompareFn = Opts -> CompileFn -> String -> IO (Bool)
 
-prop_CompareScala :: Opts -> Compile -> SfSource -> Property
-prop_CompareScala opts compile (SfSource source) = not (null source) ==> monadicIO test where
+prop_Compare :: Opts -> CompileFn -> CompareFn -> SfSource -> Property
+prop_Compare opts compile comp (SfSource source) = not (null source) ==> monadicIO test where
 	test = do
-		isSame <- run $ compileForTest opts compile source
+		isSame <- run $ compileForTest opts compile comp source
 		assert $ isSame
 
-compileForTest :: Opts -> Compile -> String -> IO (Bool)
-compileForTest opts compile source = do
+compileForTest :: Opts -> CompileFn -> CompareFn -> String -> IO (Bool)
+compileForTest opts compile comp source = do
 
 		let srcPath = tmpPath opts
 		writeFile srcPath source
-		compareWithScala opts compile srcPath
+		comp opts compile srcPath
 
 tmpPath :: Opts -> String
 tmpPath opts =
@@ -192,18 +193,8 @@ tmpPath opts =
 		else "/tmp" </> "quickcheck.sf"
 	where outDir = outputPath opts
 
-checkWithScala :: Opts -> Compile -> IO()
-checkWithScala opts compile = do
+doCompare :: Opts -> CompileFn -> CompareFn -> IO()
+doCompare opts compile comp = do
 	if (verbosity opts >= Debug)
-		then verboseCheck (prop_CompareScala opts compile)
-		else quickCheck (prop_CompareScala opts compile)
-
-{------------------------------------------------------------------------------
-    these not yet implemented
-------------------------------------------------------------------------------}
-
-checkWithOCaml :: Opts -> Compile -> IO()
-checkWithOCaml opts compile = undefined
-
-checkWithHP :: Opts -> Compile -> IO()
-checkWithHP opts compile = undefined
+		then verboseCheck (prop_Compare opts compile comp)
+		else quickCheck (prop_Compare opts compile comp)

@@ -1,6 +1,7 @@
 sfConfig extends {
   A extends {
-    sfConfig:A extends { B 37; }
-    C 99;
+    B 11;
+    sfConfig:A extends { C 22; }
+    D 33;
   }
 }

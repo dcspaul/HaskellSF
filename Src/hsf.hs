@@ -30,9 +30,9 @@ main = do
 	do
 		case (checkWith opts) of
 			NoCompare -> return ()
-			ScalaCompiler -> checkWithScala opts compile
-			OCamlCompiler -> checkWithOCaml opts compile
-			HPCompiler -> checkWithHP opts compile
+			ScalaCompiler -> doCompare opts compile compareWithScala
+			OCamlCompiler -> doCompare opts compile compareWithOCaml
+			HPCompiler -> doCompare opts compile compareWithHP
 
 	-- process each file on the command line
 	mapM_ (processFile opts) files

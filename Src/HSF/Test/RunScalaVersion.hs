@@ -60,8 +60,8 @@ runSfParser opts srcPath = do
 	let dstPath = jsonPath srcPath opts ("-s")
 	execPath <- getExecutablePath
 	parserPath <- getSfParserPath opts
-	let scriptPath = (takeDirectory execPath) </> "runSfParser.sh"
-	ph <- runProcess scriptPath [ srcPath, dstPath, parserPath  ]
+	let scriptPath = (takeDirectory execPath) </> "runSF.sh"
+	ph <- runProcess scriptPath [ "scala", srcPath, dstPath, parserPath  ]
 		Nothing Nothing Nothing Nothing Nothing
 	exitCode <- waitForProcess ph
 	case (exitCode) of
