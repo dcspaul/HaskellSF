@@ -15,6 +15,7 @@ import HSF.Parser
 import HSF.Store
 import HSF.Eval
 import HSF.Errors
+import HSF.Test.Frequencies
 import HSF.Test.Invent
 import HSF.Test.RunScalaVersion
 
@@ -42,18 +43,18 @@ instance Arbitrary Identifier where
 -- use one of the following functions instead:
 
 -- a reference appearing on the LHS of an assignment is
--- either a single identifier (foo) or a compound reference (a:b:foo)
--- we need to be able to generate sensible values for the references,
+-- either a single identifier (foo) or a "placement" (a:b:foo)
+-- we need to be able to generate sensible values for the placements,
 -- so that they point at valid entities. We can't do that yet because
 -- the AST has not yet been created, so we simply insert placeholders
 -- (?ref) which we will populate later.
--- TODO: think about the frequencies later
 
 arbitraryLHSRef :: Gen Reference
-arbitraryLHSRef = frequency [(2,i),(1,r)]
+arbitraryLHSRef = frequency [(iFreq,i),(rFreq,r)]
 	where
-		r = return $ Reference [Identifier "?ref"]
+		(iFreq,rFreq) = lhsFreq
 		i = liftM Reference $ liftM (:[]) arbitrary
+		r = return $ Reference [Identifier "?ref"]
 
 -- a reference appearing on the RHS of an assignment must refer to something
 -- we just generate a placeholder (?ref) so we can substitute them with something

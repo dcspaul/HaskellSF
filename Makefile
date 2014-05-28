@@ -39,6 +39,7 @@ $(BUILD_DIR)/hsf-$(PLATFORM): \
 		$(BUILD_DIR)/HSF/Options.hs \
 		$(BUILD_DIR)/HSF/Test/Invent.hs \
 		$(BUILD_DIR)/HSF/Test/QuickCheck.hs \
+		$(BUILD_DIR)/HSF/Test/Frequencies.hs \
 		$(BUILD_DIR)/HSF/Test/RunScalaVersion.hs \
 		$(BUILD_DIR)/HSF/Test/RunOCamlVersion.hs \
 		$(BUILD_DIR)/HSF/Test/RunHPVersion.hs \

@@ -11,6 +11,7 @@ import HSF.Store
 import HSF.Parser
 import HSF.Errors
 import HSF.Utils
+import HSF.Test.Frequencies
 
 import System.Random
 import Control.Monad.State
@@ -77,8 +78,22 @@ inventValue (LinkValue lr) = \(ns,r,s) -> do
 
 inventValue (ProtoValue ps) = \(ns,r,s) -> do
 	let s' = (iBind "pv")(s,r,SubStore (Store []))
-	result <- inventProtoList ps $ (ns,r,s')
+	result <- trimProtoList $ inventProtoList ps $ (ns,r,s')
+	-- result <- inventProtoList ps $ (ns,r,s')
 	return ( result { node = (ProtoValue (node result)) } )
+
+-- remove excess empty blocks from the prototype list
+trimProtoList :: RandomResult [Prototype] -> RandomResult [Prototype]
+trimProtoList ps = do
+	result <- ps
+	return result { node = trimProtoList' (node result) }
+	where
+		trimProtoList' ps = if (null trimmed) then [BodyProto (Body [])] else trimmed
+			where trimmed = trimProtoList'' ps
+		trimProtoList'' [] = []
+		trimProtoList'' ((BodyProto (Body [])):ps) = (trimProtoList'' ps)
+		-- trimProtoList' ((BodyProto (Body [])):ps) = (BodyProto (Body [Assignment (Reference [Identifier "FOO"])  (BasicValue (NumValue 99)) ])):(trimProtoList' ps)
+		trimProtoList'' (p:ps) = p:(trimProtoList'' ps)
 
 inventAssignment :: Assignment -> (NameSpace,Store) -> RandomResult Assignment
 
@@ -142,7 +157,7 @@ inventLHSRef ns s = do
 -- invent a reference to a prototype
 -- eg: foo extends { .. }, REF, { ..} ...
 -- if there is none, return an empty block
--- TODO: perhaps we should filter out (most of?) these empty blocks sometime ...
+-- (most of these empty blocks get filtered out later)
 inventProtoRef :: NameSpace -> Store -> State StdGen Prototype
 inventProtoRef ns s = do
 	r <- randomV
