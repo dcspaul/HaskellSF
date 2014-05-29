@@ -71,6 +71,13 @@ cd `dirname $SRCFILE`
 # then use the relative filename
 SRCFILE=`basename $SRCFILE`
 
+# check for excluded tests
+# this is necessary because soem compilers fail to terminate
+# for some inputs (eg. the HP compiler on recursive includes)
+if grep "<<<< not $COMPILER >>>>" $SRCFILE >$DSTFILE ; then
+	exit 0
+fi
+
 # execute the compiler
 case $COMPILER in
 	scala)	doScala ;;

@@ -30,21 +30,26 @@ compareWithHP :: Opts -> Compile -> String -> IO (Bool)
 compareWithHP opts compile srcPath = do
 
 	haskellResult <- compile (opts { format=CompactJSON } ) srcPath
-	hpResult <- runHP opts srcPath
+	otherResult <- runHP opts srcPath
 
-	if (matchHP haskellResult hpResult)
+	let (s1,s2) = (s haskellResult, s otherResult)
+		where s r = case r of
+			(Left e) -> errorCode e
+			(Right _) -> "ok"
+			
+	let status = " (" ++ s1 ++ "/" ++ s2 ++ ")"
+
+	if (matchHP haskellResult otherResult)
 		then do
-			let status = case hpResult of
-				(Left e) -> " (" ++ (errorCode e) ++ ")"
-				(Right _) -> " (ok)"
 			if (verbosity opts >= Verbose)
 				then putStrLn ( ">> match ok: " ++ (takeBaseName srcPath) ++ status )
 				else return ()
 			return True
 		else do
-			putStrLn ( "** match failed: " ++ indentMsg ((takeBaseName srcPath) ++ "\n"	
+			putStrLn ( "** match failed: " ++ indentMsg ((takeBaseName srcPath) 
+				++ status ++ "\n"	
 				++ "Haskell: " ++ (outputOrError haskellResult) ++ "\n"
-				++ "HP:      " ++ (outputOrError hpResult) ))
+				++ "HP:      " ++ (outputOrError otherResult) ))
 			return False
 
 {------------------------------------------------------------------------------
@@ -79,16 +84,18 @@ runHP opts srcPath = do
 data H_Error
 
 	= H_ESYSFAIL String
-	| H_EPARSEFAIL String
-	| H_ERR4 String
+	| H_ERR2or4orP String
+	| H_ERR5 String
 	| H_ERR7 String
 
 stringToErrorOrResult :: String -> (Either H_Error String)
 stringToErrorOrResult s
-		| isError s ( "cannot be cast to org.smartfrog.sfcore.languages.sf." ++ 
-						"sfcomponentdescription.SFComponentDescription" ) = Left (H_ERR4 s)
+		| isError s ( "Unresolved Reference during phase type resolution" ) = Left (H_ERR2or4orP s)
+		| isError s ( "Reference not found] during phase place resolution" ) = Left (H_ERR2or4orP s)
+		| isError s ( "Unresolved Reference during phase link resolution" ) = Left (H_ERR5 s)
 		| isError s ( "HERE sfConfig, Reference not found" ) = Left (H_ERR7 s)
-		| isError s ( "org.smartfrog.sfcore.languages.sf.ParseException" ) = Left (H_EPARSEFAIL s)
+		| isError s ( "org.smartfrog.sfcore.languages.sf.ParseException" ) = Left (H_ERR2or4orP s)
+		| isError s ( "Lexical error at line" ) = Left (H_ERR2or4orP s)
 		| otherwise = Right (rstrip s)
 	where isError s r =
 		case (matchRegex (mkRegex r) s) of
@@ -99,19 +106,23 @@ stringToErrorOrResult s
 
 matchHP :: (Either Error String) -> (Either H_Error String) -> Bool
 matchHP (Right h) (Right hp) = (h==hp)
+matchHP (Left (EPARSEFAIL _)) (Left (H_ERR2or4orP _)) = True
+matchHP (Left (ENOPARENT _)) (Left (H_ERR2or4orP _)) = True
+matchHP (Left (ENOPROTO _)) (Left (H_ERR2or4orP _)) = True
+matchHP (Left (EPROTONOTSTORE _)) (Left (H_ERR2or4orP _)) = True
 matchHP (Left e) (Left h) = (errorCode e) == (errorCode h)
 matchHP _ _ = False
 
 instance ErrorMessage H_Error where
 
 	errorString (H_ESYSFAIL s) = s
-	errorString (H_EPARSEFAIL s) = s
-	errorString (H_ERR4 s) = s
+	errorString (H_ERR2or4orP s) = s
+	errorString (H_ERR5 s) = s
 	errorString (H_ERR7 s) = s
 
 	errorCode (H_ESYSFAIL s) = "sys fail"
-	errorCode (H_EPARSEFAIL s) = "parse fail"
-	errorCode (H_ERR4 s) = "err4"
+	errorCode (H_ERR2or4orP s) = "err2,4,p"
+	errorCode (H_ERR5 s) = "err5"
 	errorCode (H_ERR7 s) = "err7"
 
 {------------------------------------------------------------------------------

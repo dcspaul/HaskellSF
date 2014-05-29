@@ -30,21 +30,26 @@ compareWithScala :: Opts -> Compile -> String -> IO (Bool)
 compareWithScala opts compile srcPath = do
 
 	haskellResult <- compile (opts { format=CompactJSON } ) srcPath
-	scalaResult <- runSfParser opts srcPath
+	otherResult <- runSfParser opts srcPath
 
-	if (matchSfParser haskellResult scalaResult)
+	let (s1,s2) = (s haskellResult, s otherResult)
+		where s r = case r of
+			(Left e) -> errorCode e
+			(Right _) -> "ok"
+			
+	let status = " (" ++ s1 ++ "/" ++ s2 ++ ")"
+
+	if (matchSfParser haskellResult otherResult)
 		then do
-			let status = case scalaResult of
-				(Left e) -> " (" ++ (errorCode e) ++ ")"
-				(Right _) -> " (ok)"
 			if (verbosity opts >= Verbose)
 				then putStrLn ( ">> match ok: " ++ (takeBaseName srcPath) ++ status )
 				else return ()
 			return True
 		else do
-			putStrLn ( "** match failed: " ++ indentMsg ((takeBaseName srcPath) ++ "\n"	
+			putStrLn ( "** match failed: " ++ indentMsg ((takeBaseName srcPath) 
+				++ status ++ "\n"	
 				++ "Haskell: " ++ (outputOrError haskellResult) ++ "\n"
-				++ "Scala:   " ++ (outputOrError scalaResult) ))
+				++ "Scala:   " ++ (outputOrError otherResult) ))
 			return False
 
 {------------------------------------------------------------------------------

@@ -30,21 +30,26 @@ compareWithOCaml :: Opts -> Compile -> String -> IO (Bool)
 compareWithOCaml opts compile srcPath = do
 
 	haskellResult <- compile (opts { format=CompactJSON } ) srcPath
-	ocamlResult <- runCsf opts srcPath
+	otherResult <- runCsf opts srcPath
 
-	if (matchCsf haskellResult ocamlResult)
+	let (s1,s2) = (s haskellResult, s otherResult)
+		where s r = case r of
+			(Left e) -> errorCode e
+			(Right _) -> "ok"
+			
+	let status = " (" ++ s1 ++ "/" ++ s2 ++ ")"
+
+	if (matchCsf haskellResult otherResult)
 		then do
-			let status = case ocamlResult of
-				(Left e) -> " (" ++ (errorCode e) ++ ")"
-				(Right _) -> " (ok)"
 			if (verbosity opts >= Verbose)
 				then putStrLn ( ">> match ok: " ++ (takeBaseName srcPath) ++ status )
 				else return ()
 			return True
 		else do
-			putStrLn ( "** match failed: " ++ indentMsg ((takeBaseName srcPath) ++ "\n"	
+			putStrLn ( "** match failed: " ++ indentMsg ((takeBaseName srcPath) 
+				++ status ++ "\n"	
 				++ "Haskell: " ++ (outputOrError haskellResult) ++ "\n"
-				++ "OCaml:   " ++ (outputOrError ocamlResult) ))
+				++ "OCaml:   " ++ (outputOrError otherResult) ))
 			return False
 
 {------------------------------------------------------------------------------

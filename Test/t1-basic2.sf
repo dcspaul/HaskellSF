@@ -15,6 +15,6 @@ sfConfig extends {
 
 	b extends a, {
 	}, c, {
-		c 3;
+		d 3;
 	}
 }
