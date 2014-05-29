@@ -32,11 +32,11 @@ compareWithHP opts compile srcPath = do
 	haskellResult <- compile (opts { format=CompactJSON } ) srcPath
 	hpResult <- runHP opts srcPath
 
-	if (matchCsf haskellResult hpResult)
+	if (matchHP haskellResult hpResult)
 		then do
 			let status = case hpResult of
-				(Left e) -> "\n" ++ (errorString e)
-				(Right _) -> ""
+				(Left e) -> " (" ++ (errorCode e) ++ ")"
+				(Right _) -> " (ok)"
 			if (verbosity opts >= Verbose)
 				then putStrLn ( ">> match ok: " ++ (takeBaseName srcPath) ++ status )
 				else return ()
@@ -57,7 +57,7 @@ compareWithHP opts compile srcPath = do
 
 runHP :: Opts -> String -> IO (Either H_Error String)
 runHP opts srcPath = do
-	let dstPath = jsonPath srcPath opts ("-s")
+	let dstPath = jsonPath srcPath opts ("-hp")
 	execPath <- getExecutablePath
 	parserPath <- getCsfPath opts
 	let scriptPath = (takeDirectory execPath) </> "runSF.sh"
@@ -69,7 +69,7 @@ runHP opts srcPath = do
 			result <- readFile dstPath
 			return (stringToErrorOrResult result)
 		ExitFailure code ->
-			return (Left ( H_ESYSFAIL ( scriptPath ++
+			return (Left ( H_ESYSFAIL ( "command failed: " ++ scriptPath ++
 			 	" " ++ srcPath ++ " " ++ dstPath ++ " " ++ parserPath )))
 
 {------------------------------------------------------------------------------
@@ -80,11 +80,7 @@ data H_Error
 
 	= H_ESYSFAIL String
 	| H_EPARSEFAIL String
-	| H_ERR1 String
-	| H_ERR2 String
-	| H_ERR3 String
 	| H_ERR4 String
-	| H_ERR5 String
 	| H_ERR7 String
 
 stringToErrorOrResult :: String -> (Either H_Error String)
@@ -92,6 +88,7 @@ stringToErrorOrResult s
 		| isError s ( "cannot be cast to org.smartfrog.sfcore.languages.sf." ++ 
 						"sfcomponentdescription.SFComponentDescription" ) = Left (H_ERR4 s)
 		| isError s ( "HERE sfConfig, Reference not found" ) = Left (H_ERR7 s)
+		| isError s ( "org.smartfrog.sfcore.languages.sf.ParseException" ) = Left (H_EPARSEFAIL s)
 		| otherwise = Right (rstrip s)
 	where isError s r =
 		case (matchRegex (mkRegex r) s) of
@@ -100,41 +97,33 @@ stringToErrorOrResult s
 
 -- match with hsf error codes
 
-matchCsf :: (Either Error String) -> (Either H_Error String) -> Bool
-matchCsf (Right _) (Right _) = True
-matchCsf (Left (ESYSFAIL _)) (Left (H_ESYSFAIL _)) = True
-matchCsf (Left (EPARSEFAIL _)) (Left (H_EPARSEFAIL _)) = True
-matchCsf (Left (EPARENTNOTSTORE _)) (Left (H_ERR1 _)) = True
-matchCsf (Left (ENOPARENT _)) (Left (H_ERR2 _)) = True
-matchCsf (Left EREPLACEROOTSTORE) (Left (H_ERR3 _)) = True
-matchCsf (Left (ENOPROTO _)) (Left (H_ERR4 _)) = True
-matchCsf (Left (EPROTONOTSTORE _)) (Left (H_ERR4 _)) = True
-matchCsf (Left (ENOLR _)) (Left (H_ERR5 _)) = True
-matchCsf (Left ENOSPEC) (Left (H_ERR7 _)) = True
-matchCsf (Left (ESPEC _)) (Left (H_ERR7 _)) = True
-matchCsf _ _ = False
+matchHP :: (Either Error String) -> (Either H_Error String) -> Bool
+matchHP (Right h) (Right hp) = (h==hp)
+matchHP (Left e) (Left h) = (errorCode e) == (errorCode h)
+matchHP _ _ = False
 
 instance ErrorMessage H_Error where
+
 	errorString (H_ESYSFAIL s) = s
 	errorString (H_EPARSEFAIL s) = s
-	errorString (H_ERR1 s) = s
-	errorString (H_ERR2 s) = s
-	errorString (H_ERR3 s) = s
 	errorString (H_ERR4 s) = s
-	errorString (H_ERR5 s) = s
 	errorString (H_ERR7 s) = s
+
+	errorCode (H_ESYSFAIL s) = "sys fail"
+	errorCode (H_EPARSEFAIL s) = "parse fail"
+	errorCode (H_ERR4 s) = "err4"
+	errorCode (H_ERR7 s) = "err7"
 
 {------------------------------------------------------------------------------
     get the path to the compiler
 ------------------------------------------------------------------------------}
 
--- try the command line arguments (-s PATHNAME) first
--- then try the environment (HPSF)
+-- try the environment (HPSF)
 -- otherwise return the default (sfParse)
 
 getCsfPath :: Opts -> IO (String)
 getCsfPath opts = do
-	sfParserEnv <- lookupEnv "HPSF"
+	sfParserEnv <- lookupEnv "SF_HP_COMPILER"
 	case (sfParserEnv) of
 		Just s -> return s
 		Nothing -> return "sfParse"

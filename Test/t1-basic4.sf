@@ -1,0 +1,4 @@
+A extends { a 1; }
+B extends { b 2; }
+
+sfConfig extends A, B, { c 3; }

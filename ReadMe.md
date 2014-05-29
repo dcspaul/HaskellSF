@@ -1,6 +1,7 @@
 ## Haskell SmartFrog Compiler (hsf)
 
-hsf is compiler which implements the formal semantics of the core [SmartFrog](http://smartfrog.org) configuration language. hsf is a Haskell implementation which is intended to be compatible with the [Scala implementation](https://github.com/herry13/smartfrog-lang/blob/master/README.md) sfparser. The output can be compared with the output of sfparser to validate the semantics and the implementations.
+hsf is compiler which implements the formal semantics of the core [SmartFrog](http://smartfrog.org) configuration language. hsf is a Haskell implementation which is intended to be compatible with the [Scala implementation](https://github.com/herry13/smartfrog-lang/blob/master/README.md) sfParser.
+The output can be automatically compared with the output of various other compilers to validate the semantics and the implementations.
 
 ### Compiling SmartFrog files
 
@@ -23,13 +24,18 @@ The "-c COMPILER" option compiles each source file using the external COMPILER, 
 
 In this mode, any error messages are placed in the output file allowing them to be compared with the corresponding messages from the external compiler.
 
-The script runSF.sh is used to run the external compilers and must be in the same directory as the hsf binary. If external compiler is not in the path, the locations can be specified with the environment variables SFPARSER, CSF, and HPSF.
+The script runSF.sh is used to run the external compilers and must be in the same directory as the hsf binary.
+If the external compilers are not in the path, the locations can be specified with the environment variables SF_SCALA_COMPILER, SF_OCAML_COMPILER, or SF_HP_COMPILER.
 
 ### Quickcheck
 
 The "-q scala" option generates random SF source files and compares the output of two compilers using quickcheck:
 
 	hsf -q scala
+
+### The Makefile
+
+As well as building hsf, the makefile supports some targets for doing quickcheck and comparisons using the supplied test files. This is configurable in the Makefile - read the first section of the Makefile, and create an "options.mk" file to override any variables you want to change.
 
 ### Building hsf
 
@@ -40,6 +46,8 @@ hsf requires some additional Haskell modules to build. These can be installed wi
 	cabal install Safe
 
 The Bin directory may contain binaries for different platforms & different versions of Haskell.
+
+### Remote builds
 
 The default Makefile target builds on the current platform. The "remote" target can do a build on
 a remote machine (and retrieve the result). Platform-specific Build directories are created for

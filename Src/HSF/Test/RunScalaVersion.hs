@@ -35,8 +35,8 @@ compareWithScala opts compile srcPath = do
 	if (matchSfParser haskellResult scalaResult)
 		then do
 			let status = case scalaResult of
-				(Left e) -> "\n" ++ (errorString e)
-				(Right _) -> ""
+				(Left e) -> " (" ++ (errorCode e) ++ ")"
+				(Right _) -> " (ok)"
 			if (verbosity opts >= Verbose)
 				then putStrLn ( ">> match ok: " ++ (takeBaseName srcPath) ++ status )
 				else return ()
@@ -57,7 +57,7 @@ compareWithScala opts compile srcPath = do
 
 runSfParser :: Opts -> String -> IO (Either S_Error String)
 runSfParser opts srcPath = do
-	let dstPath = jsonPath srcPath opts ("-s")
+	let dstPath = jsonPath srcPath opts ("-scala")
 	execPath <- getExecutablePath
 	parserPath <- getSfParserPath opts
 	let scriptPath = (takeDirectory execPath) </> "runSF.sh"
@@ -107,20 +107,12 @@ stringToErrorOrResult s
 -- match with hsf error codes
 
 matchSfParser :: (Either Error String) -> (Either S_Error String) -> Bool
-matchSfParser (Right _) (Right _) = True
-matchSfParser (Left (ESYSFAIL _)) (Left (S_ESYSFAIL _)) = True
-matchSfParser (Left (EPARSEFAIL _)) (Left (S_EPARSEFAIL _)) = True
-matchSfParser (Left (EPARENTNOTSTORE _)) (Left (S_ERR1 _)) = True
-matchSfParser (Left (ENOPARENT _)) (Left (S_ERR2 _)) = True
-matchSfParser (Left EREPLACEROOTSTORE) (Left (S_ERR3 _)) = True
-matchSfParser (Left (ENOPROTO _)) (Left (S_ERR4 _)) = True
-matchSfParser (Left (EPROTONOTSTORE _)) (Left (S_ERR4 _)) = True
-matchSfParser (Left (ENOLR _)) (Left (S_ERR5 _)) = True
-matchSfParser (Left ENOSPEC) (Left (S_ERR7 _)) = True
-matchSfParser (Left (ESPEC _)) (Left (S_ERR7 _)) = True
+matchSfParser (Right h) (Right s) = h==s
+matchSfParser (Left e) (Left s) = (errorCode e) == (errorCode s)
 matchSfParser _ _ = False
 
 instance ErrorMessage S_Error where
+
 	errorString (S_ESYSFAIL s) = s
 	errorString (S_EPARSEFAIL s) = s
 	errorString (S_ERR1 s) = s
@@ -130,17 +122,25 @@ instance ErrorMessage S_Error where
 	errorString (S_ERR5 s) = s
 	errorString (S_ERR7 s) = s
 
+	errorCode (S_ESYSFAIL s) = "sys fail"
+	errorCode (S_EPARSEFAIL s) = "parse fail"
+	errorCode (S_ERR1 s) = "err1"
+	errorCode (S_ERR2 s) = "err2"
+	errorCode (S_ERR3 s) = "err3"
+	errorCode (S_ERR4 s) = "err4"
+	errorCode (S_ERR5 s) = "err5"
+	errorCode (S_ERR7 s) = "err7"
+
 {------------------------------------------------------------------------------
     get the path to the sfParser compiler
 ------------------------------------------------------------------------------}
 
--- try the command line arguments (-s PATHNAME) first
--- then try the environment (SFPARSER)
+-- try the environment (SFPARSER)
 -- otherwise return the default (sfparser)
 
 getSfParserPath :: Opts -> IO (String)
 getSfParserPath opts = do
-	sfParserEnv <- lookupEnv "SFPARSER"
+	sfParserEnv <- lookupEnv "SF_SCALA_COMPILER"
 	case (sfParserEnv) of
 		Just s -> return s
-		Nothing -> return "sfparser"
+		Nothing -> return "sfParser"

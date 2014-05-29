@@ -1,0 +1,12 @@
+// evaluation of vectors
+
+
+sfConfig extends {
+	a extends {
+		v1 [3,4];
+	}
+
+	b extends a, {
+		v ["one",3,"two"];
+	}
+}

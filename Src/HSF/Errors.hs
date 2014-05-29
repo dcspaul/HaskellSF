@@ -5,7 +5,7 @@
 
 module HSF.Errors
 	( Error(..), ErrorMessage
-	, errorString, parseError, outputOrError
+	, errorString, errorCode, parseError, outputOrError
 	) where
 
 import Data.String.Utils (rstrip)
@@ -33,8 +33,10 @@ data Error
 
 class ErrorMessage a where
 	errorString :: a -> String 
+	errorCode :: a -> String 
 	
 instance ErrorMessage Error where
+
 	errorString (ESYSFAIL s) = "command failed: " ++ s
 	errorString (EPARSEFAIL s) = s
 	errorString (EPARENTNOTSTORE s) = "parent not a store [error 1]: " ++ s
@@ -44,7 +46,17 @@ instance ErrorMessage Error where
 	errorString (EPROTONOTSTORE s) = "prototype is not a store [error 4]: " ++ s
 	errorString (ENOLR s) = "can't resolve link value [error 5]: " ++ s
 	errorString ENOSPEC = "no sfConfig at top level of specification [error 7]"
-	errorString (ESPEC s) = "sfConfig cannot be a basic value [error 7]: " ++ s
+	
+	errorCode (ESYSFAIL s) = "sys fail"
+	errorCode (EPARSEFAIL s) = "parse fail"
+	errorCode (EPARENTNOTSTORE s) = "err1"
+	errorCode (ENOPARENT s) = "err2"
+	errorCode EREPLACEROOTSTORE = "err3"
+	errorCode (ENOPROTO s) = "err4"
+	errorCode (EPROTONOTSTORE s) = "err4"
+	errorCode (ENOLR s) = "err5"
+	errorCode ENOSPEC = "err7"
+	errorCode (ESPEC s) = "err7"
 
 {------------------------------------------------------------------------------
     parser error messages

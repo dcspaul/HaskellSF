@@ -35,8 +35,8 @@ compareWithOCaml opts compile srcPath = do
 	if (matchCsf haskellResult ocamlResult)
 		then do
 			let status = case ocamlResult of
-				(Left e) -> "\n" ++ (errorString e)
-				(Right _) -> ""
+				(Left e) -> " (" ++ (errorCode e) ++ ")"
+				(Right _) -> " (ok)"
 			if (verbosity opts >= Verbose)
 				then putStrLn ( ">> match ok: " ++ (takeBaseName srcPath) ++ status )
 				else return ()
@@ -57,7 +57,7 @@ compareWithOCaml opts compile srcPath = do
 
 runCsf :: Opts -> String -> IO (Either O_Error String)
 runCsf opts srcPath = do
-	let dstPath = jsonPath srcPath opts ("-s")
+	let dstPath = jsonPath srcPath opts ("-ocaml")
 	execPath <- getExecutablePath
 	parserPath <- getCsfPath opts
 	let scriptPath = (takeDirectory execPath) </> "runSF.sh"
@@ -105,20 +105,12 @@ stringToErrorOrResult s
 -- match with hsf error codes
 
 matchCsf :: (Either Error String) -> (Either O_Error String) -> Bool
-matchCsf (Right _) (Right _) = True
-matchCsf (Left (ESYSFAIL _)) (Left (O_ESYSFAIL _)) = True
-matchCsf (Left (EPARSEFAIL _)) (Left (O_EPARSEFAIL _)) = True
-matchCsf (Left (EPARENTNOTSTORE _)) (Left (O_ERR1 _)) = True
-matchCsf (Left (ENOPARENT _)) (Left (O_ERR2 _)) = True
-matchCsf (Left EREPLACEROOTSTORE) (Left (O_ERR3 _)) = True
-matchCsf (Left (ENOPROTO _)) (Left (O_ERR4 _)) = True
-matchCsf (Left (EPROTONOTSTORE _)) (Left (O_ERR4 _)) = True
-matchCsf (Left (ENOLR _)) (Left (O_ERR5 _)) = True
-matchCsf (Left ENOSPEC) (Left (O_ERR7 _)) = True
-matchCsf (Left (ESPEC _)) (Left (O_ERR7 _)) = True
+matchCsf (Right h) (Right o) = (h==o)
+matchCsf (Left e) (Left o) = (errorCode e) == (errorCode o)
 matchCsf _ _ = False
 
 instance ErrorMessage O_Error where
+	
 	errorString (O_ESYSFAIL s) = s
 	errorString (O_EPARSEFAIL s) = s
 	errorString (O_ERR1 s) = s
@@ -128,17 +120,25 @@ instance ErrorMessage O_Error where
 	errorString (O_ERR5 s) = s
 	errorString (O_ERR7 s) = s
 
+	errorCode (O_ESYSFAIL s) = "sys fail"
+	errorCode (O_EPARSEFAIL s) = "parse fail"
+	errorCode (O_ERR1 s) = "err1"
+	errorCode (O_ERR2 s) = "err2"
+	errorCode (O_ERR3 s) = "err3"
+	errorCode (O_ERR4 s) = "err4"
+	errorCode (O_ERR5 s) = "err5"
+	errorCode (O_ERR7 s) = "err7"
+
 {------------------------------------------------------------------------------
     get the path to the compiler
 ------------------------------------------------------------------------------}
 
--- try the command line arguments (-s PATHNAME) first
--- then try the environment (CSF)
+-- try the environment (CSF)
 -- otherwise return the default (csf)
 
 getCsfPath :: Opts -> IO (String)
 getCsfPath opts = do
-	sfParserEnv <- lookupEnv "CSF"
+	sfParserEnv <- lookupEnv "SF_OCAML_COMPILER"
 	case (sfParserEnv) of
 		Just s -> return s
 		Nothing -> return "csf"

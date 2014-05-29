@@ -38,7 +38,7 @@ doHP() {
 	$CPATH $SRCFILE 2>$DSTFILE# \
 		|grep -v "at org.smartfrog." \
 		|grep -v "Parser - SmartFrog" \
-		| grep -v "(C) Copyright" \
+		|grep -v "(C) Copyright" \
 		|grep -v "SFHOME undefined" \
 		|grep -v "^ *$" \
 		>$DSTFILE
@@ -46,14 +46,30 @@ doHP() {
 	rm -f $DSTFILE# || exit 2
 }
 
+noCompiler() {
+
+	case $COMPILER in
+		scala)	TYPE=scala ; VAR=SF_SCALA_COMPILER ;;
+		ocaml)	TYPE=ocaml ; VAR=SF_OCAML_COMPILER ;;
+		hp)	TYPE=hp ; VAR=SF_HP_COMPILER ;;
+	esac
+		
+	echo "can't find executable \"$1\" for external $TYPE compiler" >&2
+	echo "try setting $VAR in options.mk or the environment" >&2
+	exit 2
+}
+
 test -z "$SRCFILE" && usage
 test -z "$DSTFILE" && usage
 test -z "$CPATH" && usage
-test ! -x "$CPATH" && echo "can't find executable \"$CPATH\"" >&2 && exit 2
+test ! -x "$CPATH" && noCompiler "$CPATH"
 
 # change to the directory containing the source file
 # so that #includes get interpreted in the same way
 cd `dirname $SRCFILE`
+
+# then use the relative filename
+SRCFILE=`basename $SRCFILE`
 
 # execute the compiler
 case $COMPILER in

@@ -1,0 +1,7 @@
+/*
+ * a block comment
+ */
+blob 34 ; a:b NULL; foo23 "stuff" ; _boolvar false;
+
+p extends { q 2; } proto extends p:q  myref DATA x:y:zzz; // eol comment
+v [true,95,[1,2],"foo"];
