@@ -29,7 +29,7 @@ type Compile = Opts -> String -> IO (Either Error String)
 compareWithHP :: Opts -> Compile -> String -> IO (Bool)
 compareWithHP opts compile srcPath = do
 
-	haskellResult <- compile (opts { format=CompactJSON } ) srcPath
+	haskellResult <- compile (opts { format=HPSF } ) srcPath
 	otherResult <- runHP opts srcPath
 
 	let (s1,s2) = (s haskellResult, s otherResult)
@@ -124,10 +124,10 @@ matchHP _ _ = False
 
 instance ErrorMessage H_Error where
 
-	errorString (H_ESYSFAIL s) = rstrip $ s
-	errorString (H_ERR2or4orP s) = rstrip $ s
-	errorString (H_ERR5 s) = rstrip $ s
-	errorString (H_ERR7 s) = rstrip $ s
+	errorString (H_ESYSFAIL s) = s
+	errorString (H_ERR2or4orP s) = s
+	errorString (H_ERR5 s) = s
+	errorString (H_ERR7 s) = s
 
 	errorCode (H_ESYSFAIL s) = "sys fail"
 	errorCode (H_ERR2or4orP s) = "err2,4,p"

@@ -22,7 +22,7 @@ import System.Exit (exitWith,ExitCode(..))
 ------------------------------------------------------------------------------}
 
 -- the output format
-data Format = JSON | CompactJSON | UnknownFormat String deriving(Show,Eq)
+data Format = JSON | CompactJSON | HPSF | UnknownFormat String deriving(Show,Eq)
 
 -- possible alternative compilers that we can compare output with
 data Compiler = ScalaCompiler | OCamlCompiler | HPCompiler | NoCompare deriving(Show,Eq)
@@ -56,7 +56,7 @@ options :: [OptDescr OptionFlag]
 options =
 	[ Option ['c'] ["compare"]	(ReqArg Compare "scala|ocaml|hp")	"compare with output of other compiler"
 	, Option ['d'] ["debug"]	(NoArg DebugOpt)					"debug logging"
-	, Option ['f'] ["format"] 	(ReqArg Format "json|compact")		"output format"
+	, Option ['f'] ["format"] 	(ReqArg Format "json|compact|hpsf")	"output format"
 	, Option ['o'] ["output"]	(ReqArg Output "DIR")				"directory for json output"
 	, Option ['q'] ["quickcheck"] (ReqArg Check "scala|ocaml|hp") 	"quickcheck"
 	, Option ['v'] ["verbose"]	(NoArg VerboseOpt)					"verbose"
@@ -86,6 +86,7 @@ extractOptions (f:fs) = do
 		(Format fmt) -> case fmt of
 			"json" -> return $ o { format = JSON }
 			"compact" -> return $ o { format = CompactJSON }
+			"hpsf" -> return $ o { format = HPSF }
 			otherwise -> Left ( "invalid format: \"" ++ fmt ++ "\"" )
 		(Compare c) -> case c of
 			"scala" -> return $ o { compareWith = ScalaCompiler }

@@ -69,6 +69,7 @@ compile opts srcPath = do
 			where s = case (format opts) of
 				JSON -> ( renderJSON store )
 				CompactJSON -> ( renderCompactJSON store )
+				HPSF -> ( renderHPSF store )
 
 {------------------------------------------------------------------------------
     compile and save to file

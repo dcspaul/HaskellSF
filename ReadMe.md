@@ -13,7 +13,7 @@ The output files can be generated in a different directory (relative to the sour
 
 	hsf -o ../output-dir file1.sf file2.sf ...
 	
-The output format can be set with "-f json" or "-f compact"
+The output format can be set with "-f json" or "-f compact" or "-f hpsf"
 The output logging can be increased with "-v" (verbose) or "-d" (debug)
 
 ### Comparing output

@@ -6,7 +6,7 @@
 module HSF.Store
 	( Store(..), StoreValue(..), NameSpace, StoreOrError
 	, (|+|), sfPrefix, sfPut, sfBind, sfFind, sfResolv, sfCopy, sfInherit
-	, renderJSON, renderCompactJSON
+	, renderJSON, renderCompactJSON, renderHPSF
 	) where
 
 import HSF.Parser
@@ -134,32 +134,53 @@ sfInherit (s, ns, p, r) =
     store rendering
 ------------------------------------------------------------------------------}
 
--- two versions of the store rendering ...
+-- two versions of the JSON store rendering ...
 -- the compact one is compatible with the scala compiler (so we can compare them)
 -- the other one is more suitable for human consumption
 
 class StoreItem a where
 	renderJSON :: a -> String 
 	renderCompactJSON :: a -> String
+	renderHPSF :: a -> String
 	
 instance StoreItem Identifier where
+
+	renderHPSF (Identifier i) = id i
 	renderJSON (Identifier i) = id i
 	renderCompactJSON (Identifier i) = "\"" ++ (id i) ++ "\""
+
 instance StoreItem Store where
+	
+	renderHPSF (Store as) = (intercalate "\n" (map renderHPEntry as)) where
+		renderHPEntry (i, StoreValue bv) = (renderHPSF i) ++ " " ++ (renderHPSF bv) ++ ";"
+		renderHPEntry (i, SubStore s) = (renderHPSF i) ++ " extends  {" ++ (indentBlock $ renderHPSF s)  ++ "}"
+		
 	renderJSON (Store as) = (intercalate ",\n" (map renderJSONEntry as)) where
 		renderJSONEntry (i, StoreValue bv) = (renderJSON i) ++ ": " ++ (renderJSON bv)
 		renderJSONEntry (i, SubStore s) = (renderJSON i) ++ ": {" ++ (indentBlock $ renderJSON s)  ++ "}"
+		
 	renderCompactJSON (Store as) = "{" ++ (intercalate "," (map renderCompactJSONEntry as)) ++ "}" where
 		renderCompactJSONEntry (i, StoreValue bv) = (renderCompactJSON i) ++ ":" ++ (renderCompactJSON bv)
 		renderCompactJSONEntry (i, SubStore s) = (renderCompactJSON i) ++ ":" ++ (renderCompactJSON s)
+
 instance StoreItem BasicValue where
+	
+	renderHPSF (BoolValue True) = "true"
+	renderHPSF (BoolValue False) = "false"
+	renderHPSF (NumValue n) = show n
+	renderHPSF (StringValue str) = show str
+	renderHPSF (NullValue) = "Null"
+	renderHPSF (DataRef ids) = "DATA " ++ (intercalate ":" $ map renderHPSF ids)
+	renderHPSF (Vector bvs) = "[|" ++ (intercalate ", " $ map renderHPSF bvs) ++ "|]"
+		
 	renderJSON (BoolValue True) = "true"
 	renderJSON (BoolValue False) = "false"
 	renderJSON (NumValue n) = show n
 	renderJSON (StringValue str) = show str
 	renderJSON (NullValue) = "Null"
-	renderJSON (DataRef ids) = intercalate ":" $ map renderJSON ids
-	renderJSON (Vector bvs) = "[" ++ (intercalate ", " $ map renderJSON bvs) ++ "]"
+	renderJSON (DataRef ids) = intercalate ":" $ map renderHPSF ids
+	renderJSON (Vector bvs) = "[" ++ (intercalate ", " $ map renderHPSF bvs) ++ "]"
+	
 	-- this version puts each element on a new line
 	-- renderJSON (Vector bvs) = "[" ++ (indentBlock (intercalate ",\n" (map renderJSON bvs)))  ++ "]"
 	renderCompactJSON (BoolValue True) = "true"
@@ -169,8 +190,14 @@ instance StoreItem BasicValue where
 	renderCompactJSON (NullValue) = "Null"
 	renderCompactJSON (DataRef ids) = "\"$." ++ ( intercalate ":" $ map renderJSON ids ) ++ "\""
 	renderCompactJSON (Vector bvs) = "[" ++ (intercalate "," $ map renderCompactJSON bvs) ++ "]"
+	
 instance StoreItem StoreValue where
+	
+	renderHPSF (StoreValue bv) = (renderHPSF bv)
+	renderHPSF (SubStore s) = "{" ++ (indentBlock $ renderHPSF s)  ++ "}"
+
 	renderJSON (StoreValue bv) = (renderJSON bv)
 	renderJSON (SubStore s) = "{" ++ (indentBlock $ renderJSON s)  ++ "}"
+
 	renderCompactJSON (StoreValue bv) = (renderCompactJSON bv)
 	renderCompactJSON (SubStore s) = "{" ++ (renderCompactJSON s)  ++ "}"

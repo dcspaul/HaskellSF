@@ -37,15 +37,15 @@ class ErrorMessage a where
 	
 instance ErrorMessage Error where
 
-	errorString (ESYSFAIL s) = rstrip $ "command failed: " ++ s
-	errorString (EPARSEFAIL s) = rstrip $ s
-	errorString (EPARENTNOTSTORE s) = rstrip $ "parent not a store [error 1]: " ++ s
-	errorString (ENOPARENT s) = rstrip $ "reference has no parent [error 2]: " ++ s
-	errorString EREPLACEROOTSTORE = rstrip $ "attempt to replace root store [error 3]"
-	errorString (ENOPROTO s) = rstrip $ "can't resolve prototype [error 4]: " ++ s
-	errorString (EPROTONOTSTORE s) = rstrip $ "prototype is not a store [error 4]: " ++ s
-	errorString (ENOLR s) = rstrip $ "can't resolve link value [error 5]: " ++ s
-	errorString ENOSPEC = rstrip $ "no sfConfig at top level of specification [error 7]"
+	errorString (ESYSFAIL s) = "command failed: " ++ s
+	errorString (EPARSEFAIL s) = s
+	errorString (EPARENTNOTSTORE s) = "parent not a store [error 1]: " ++ s
+	errorString (ENOPARENT s) = "reference has no parent [error 2]: " ++ s
+	errorString EREPLACEROOTSTORE = "attempt to replace root store [error 3]"
+	errorString (ENOPROTO s) = "can't resolve prototype [error 4]: " ++ s
+	errorString (EPROTONOTSTORE s) = "prototype is not a store [error 4]: " ++ s
+	errorString (ENOLR s) = "can't resolve link value [error 5]: " ++ s
+	errorString ENOSPEC = "no sfConfig at top level of specification [error 7]"
 	
 	errorCode (ESYSFAIL s) = "sys fail"
 	errorCode (EPARSEFAIL s) = "parse fail"
@@ -98,5 +98,5 @@ parseError e =
 outputOrError :: ErrorMessage e => (Either e String) -> String
 outputOrError r =
 	case r of
-		Left e -> errorString e
-		Right s -> s
+		Left e -> rstrip $ errorString e
+		Right s -> rstrip $ s
