@@ -48,8 +48,8 @@ compareWithOCaml opts compile srcPath = do
 		else do
 			putStrLn ( "** match failed: " ++ indentMsg ((takeBaseName srcPath) 
 				++ status ++ "\n"	
-				++ "Haskell: " ++ (outputOrError haskellResult) ++ "\n"
-				++ "OCaml:   " ++ (outputOrError otherResult) ))
+				++ "Haskell: " ++ (indentMsgBy (tabString 9) (outputOrError haskellResult)) ++ "\n"
+				++ "OCaml:   " ++ (indentMsgBy (tabString 9) (outputOrError otherResult)) ))
 			return False
 
 {------------------------------------------------------------------------------
@@ -116,14 +116,14 @@ matchCsf _ _ = False
 
 instance ErrorMessage O_Error where
 	
-	errorString (O_ESYSFAIL s) = s
-	errorString (O_EPARSEFAIL s) = s
-	errorString (O_ERR1 s) = s
-	errorString (O_ERR2 s) = s
-	errorString (O_ERR3 s) = s
-	errorString (O_ERR4 s) = s
-	errorString (O_ERR5 s) = s
-	errorString (O_ERR7 s) = s
+	errorString (O_ESYSFAIL s) = rstrip $ s
+	errorString (O_EPARSEFAIL s) = rstrip $ s
+	errorString (O_ERR1 s) = rstrip $ s
+	errorString (O_ERR2 s) = rstrip $ s
+	errorString (O_ERR3 s) = rstrip $ s
+	errorString (O_ERR4 s) = rstrip $ s
+	errorString (O_ERR5 s) = rstrip $ s
+	errorString (O_ERR7 s) = rstrip $ s
 
 	errorCode (O_ESYSFAIL s) = "sys fail"
 	errorCode (O_EPARSEFAIL s) = "parse fail"

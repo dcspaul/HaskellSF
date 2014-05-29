@@ -35,15 +35,14 @@ doOCaml() {
 
 doHP() {
 
-	$CPATH $SRCFILE 2>$DSTFILE# \
-		|grep -v "at org.smartfrog." \
-		|grep -v "Parser - SmartFrog" \
-		|grep -v "(C) Copyright" \
-		|grep -v "SFHOME undefined" \
-		|grep -v "^ *$" \
+	$CPATH -v $SRCFILE 2>&1 \
+		|grep -v 'at org.smartfrog' \
+		|grep -v 'Parser - SmartFrog' \
+		|grep -v '(C) Copyright' \
+		|grep -v 'SFHOME undefined' \
+		|grep -v '^\s*at org.smartfrog' \
+		|grep -v '^\s*$' \
 		>$DSTFILE
-	cat $DSTFILE# >>$DSTFILE || exit 2
-	rm -f $DSTFILE# || exit 2
 }
 
 noCompiler() {

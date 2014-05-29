@@ -48,8 +48,8 @@ compareWithScala opts compile srcPath = do
 		else do
 			putStrLn ( "** match failed: " ++ indentMsg ((takeBaseName srcPath) 
 				++ status ++ "\n"	
-				++ "Haskell: " ++ (outputOrError haskellResult) ++ "\n"
-				++ "Scala:   " ++ (outputOrError otherResult) ))
+				++ "Haskell: " ++ (indentMsgBy (tabString 9) (outputOrError haskellResult)) ++ "\n"
+				++ "Scala:   " ++ (indentMsgBy (tabString 9) (outputOrError otherResult)) ))
 			return False
 
 {------------------------------------------------------------------------------
@@ -118,14 +118,14 @@ matchSfParser _ _ = False
 
 instance ErrorMessage S_Error where
 
-	errorString (S_ESYSFAIL s) = s
-	errorString (S_EPARSEFAIL s) = s
-	errorString (S_ERR1 s) = s
-	errorString (S_ERR2 s) = s
-	errorString (S_ERR3 s) = s
-	errorString (S_ERR4 s) = s
-	errorString (S_ERR5 s) = s
-	errorString (S_ERR7 s) = s
+	errorString (S_ESYSFAIL s) = rstrip $ s
+	errorString (S_EPARSEFAIL s) = rstrip $ s
+	errorString (S_ERR1 s) = rstrip $ s
+	errorString (S_ERR2 s) = rstrip $ s
+	errorString (S_ERR3 s) = rstrip $ s
+	errorString (S_ERR4 s) = rstrip $ s
+	errorString (S_ERR5 s) = rstrip $ s
+	errorString (S_ERR7 s) = rstrip $ s
 
 	errorCode (S_ESYSFAIL s) = "sys fail"
 	errorCode (S_EPARSEFAIL s) = "parse fail"

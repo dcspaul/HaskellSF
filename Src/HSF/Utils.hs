@@ -4,7 +4,7 @@
 ------------------------------------------------------------------------------}
 
 module HSF.Utils
-	( indentBlock, indentMsg
+	( tabString, indentBlock, indentBlockBy, indentMsg, indentMsgBy
 	, addToEndOfAL
 	) where
 

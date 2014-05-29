@@ -11,13 +11,13 @@ import HSF.Options
 import HSF.Errors
 import HSF.Utils
 
-import Data.String.Utils (rstrip)
+import Data.String.Utils (strip, rstrip)
 import System.FilePath.Posix (takeDirectory, (</>))
 import System.Environment (getExecutablePath)
 import GHC.IO.Exception (ExitCode(..))
 import System.Process (runProcess, waitForProcess)
 import System.Environment (lookupEnv)
-import Text.Regex (mkRegex, matchRegex)
+import Text.Regex (mkRegex, matchRegex, matchRegexAll, splitRegex)
 import System.FilePath.Posix (takeBaseName)
 
 {------------------------------------------------------------------------------
@@ -48,8 +48,8 @@ compareWithHP opts compile srcPath = do
 		else do
 			putStrLn ( "** match failed: " ++ indentMsg ((takeBaseName srcPath) 
 				++ status ++ "\n"	
-				++ "Haskell: " ++ (outputOrError haskellResult) ++ "\n"
-				++ "HP:      " ++ (outputOrError otherResult) ))
+				++ "Haskell: " ++ (indentMsgBy (tabString 9) (outputOrError haskellResult)) ++ "\n"
+				++ "HP:      " ++ (indentMsgBy (tabString 9) (outputOrError otherResult)) ))
 			return False
 
 {------------------------------------------------------------------------------
@@ -96,11 +96,20 @@ stringToErrorOrResult s
 		| isError s ( "HERE sfConfig, Reference not found" ) = Left (H_ERR7 s)
 		| isError s ( "org.smartfrog.sfcore.languages.sf.ParseException" ) = Left (H_ERR2or4orP s)
 		| isError s ( "Lexical error at line" ) = Left (H_ERR2or4orP s)
-		| otherwise = Right (rstrip s)
+		| otherwise = Right (extractOutput s)
 	where isError s r =
 		case (matchRegex (mkRegex r) s) of
 			Just _ -> True
 			Nothing -> False
+
+-- extract output from last sucessful compiler phase
+
+extractOutput s = case (matchRegexAll (mkRegex success) s) of
+		Just (before,_,_,_) -> strip $ last $ splitRegex (mkRegex phase) before
+		Nothing -> s
+	where
+		success = "SFParse: SUCCESSFUL"
+		phase = "PHASE[^\\*]+\\*+"
 
 -- match with hsf error codes
 
@@ -115,10 +124,10 @@ matchHP _ _ = False
 
 instance ErrorMessage H_Error where
 
-	errorString (H_ESYSFAIL s) = s
-	errorString (H_ERR2or4orP s) = s
-	errorString (H_ERR5 s) = s
-	errorString (H_ERR7 s) = s
+	errorString (H_ESYSFAIL s) = rstrip $ s
+	errorString (H_ERR2or4orP s) = rstrip $ s
+	errorString (H_ERR5 s) = rstrip $ s
+	errorString (H_ERR7 s) = rstrip $ s
 
 	errorCode (H_ESYSFAIL s) = "sys fail"
 	errorCode (H_ERR2or4orP s) = "err2,4,p"
