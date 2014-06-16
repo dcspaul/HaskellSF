@@ -7,7 +7,7 @@
 -- and: http://stackoverflow.com/questions/2259926/testing-io-actions-with-monadic-quickcheck
 
 module HSF.Test.QuickCheck
-	( doCompare
+	( doCompare, doQuickCheck
 	) where
 
 import HSF.Options
@@ -144,7 +144,7 @@ arbitrarySFConfig' n = do
 		rest <- (resize 10) arbitrary
 		-- TODO: this forces sfConfig to be a block
 		-- occasionally we might want to make it a value to test the error condition
-		-- the following line makes it arbitrary (but that is abit too frequent)
+		-- the following line makes it arbitrary (but that is a bit too frequent)
 		-- let a = Assignment (Reference [Identifier "sfConfig"]) (ProtoValue (first:rest))
 		let a = Assignment (Reference [Identifier "sfConfig"]) (ProtoValue (first:rest))
 		right <- ((resize rsize) arbitrary)
@@ -167,7 +167,7 @@ instance Arbitrary SfSource where
 	arbitrary = liftM SfSource $ liftM renderConfig arbitrarySFConfig
 
 {------------------------------------------------------------------------------
-    compile tests with both compilers & compare the result
+    compile tests with two compilers & compare the result
 ------------------------------------------------------------------------------}
 
 type CompileFn = Opts -> String -> IO (Either Error String)
@@ -181,7 +181,6 @@ prop_Compare opts compile comp (SfSource source) = not (null source) ==> monadic
 
 compileForTest :: Opts -> CompileFn -> CompareFn -> String -> IO (Bool)
 compileForTest opts compile comp source = do
-
 		let srcPath = tmpPath opts
 		writeFile srcPath source
 		comp opts compile srcPath
@@ -198,3 +197,35 @@ doCompare opts compile comp = do
 	if (verbosity opts >= Debug)
 		then verboseCheck (prop_Compare opts compile comp)
 		else quickCheck (prop_Compare opts compile comp)
+
+{------------------------------------------------------------------------------
+    compile generated arbitrary code & check that it is valid 
+------------------------------------------------------------------------------}
+
+prop_ValidSource :: Opts -> CompileFn -> SfSource -> Property
+prop_ValidSource opts compile (SfSource source) = not (null source) ==> monadicIO test where
+	test = do		
+		isValid <- run $ compileForValid opts compile source
+		assert $ isValid
+
+compileForValid :: Opts -> CompileFn -> String -> IO (Bool)
+compileForValid opts compile source = do
+
+		let srcPath = tmpPath opts
+		writeFile srcPath source
+		haskellResult <- compile opts srcPath
+		case (haskellResult) of
+			Left _ -> return False
+			Right _ -> return True
+
+doQuickCheck :: Opts -> CompileFn -> IO()
+doQuickCheck opts compile =
+	if (verbosity opts >= Debug)
+		then verboseCheck (prop_ValidSource opts compile)
+		else quickCheck (prop_ValidSource opts compile)
+
+
+
+
+
+

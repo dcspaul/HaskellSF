@@ -26,13 +26,19 @@ main = do
 	-- command line args
 	(opts, files) <- getArgs >>= parseOptions
 
-	-- quickcheck ?
+	-- compare with otehr compilers using quickcheck ?
 	do
 		case (checkWith opts) of
 			NoCompare -> return ()
 			ScalaCompiler -> doCompare opts compile compareWithScala
 			OCamlCompiler -> doCompare opts compile compareWithOCaml
 			HPCompiler -> doCompare opts compile compareWithHP
+
+	-- other quickcheck tests
+	do
+		case (testMode opts) of
+			NoTest -> return ()
+			ValidSource -> doQuickCheck opts compile
 
 	-- process each file on the command line
 	mapM_ (processFile opts) files

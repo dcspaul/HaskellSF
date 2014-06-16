@@ -20,7 +20,8 @@ TEST_PREFIX := t1
 QCFLAGS := -d
 TESTFLAGS := -v
 
-# run tests/quickcheck using these external compilers:
+# run these quickcheck tests:
+TEST_VALID := true
 TEST_HP := false
 TEST_SCALA := true
 TEST_OCAML := true
@@ -134,12 +135,14 @@ test: install
 		-o $(SCRATCH_DIR) $(TEST_DIR)/$(TEST_PREFIX)*.sf || true
 
 # ------------------------------------------------------------------------------
-# run quickcheck comparing the output with sfParser
+# run quickcheck comparing the output with the external compilers
 # ------------------------------------------------------------------------------
 
 quickcheck: install
 	@echo quickcheck ...
 	@mkdir -p $(SCRATCH_DIR) || exit 1
+	@$(TEST_VALID) && echo ">>>>> quickcheck for valid source" || true
+	@$(TEST_VALID) && $(BIN_DIR)/hsf$(VERSION)-$(PLATFORM) $(QCFLAGS) -t -o $(SCRATCH_DIR) || true
 	@$(TEST_SCALA) && echo ">>>>> quickcheck with scala compiler" || true
 	@test -z "$(SF_SCALA_COMPILER)" || export SF_SCALA_COMPILER=$(SF_SCALA_COMPILER) ;\
 		$(TEST_SCALA) && $(BIN_DIR)/hsf$(VERSION)-$(PLATFORM) $(QCFLAGS) -q scala -o $(SCRATCH_DIR) || true

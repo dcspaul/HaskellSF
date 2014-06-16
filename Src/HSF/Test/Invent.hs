@@ -7,6 +7,9 @@ module HSF.Test.Invent
 	( inventSF
 	) where
 
+import Debug.Trace
+import Data.List (intercalate)
+
 import HSF.Store
 import HSF.Parser
 import HSF.Errors
@@ -99,8 +102,7 @@ inventAssignment :: Assignment -> (NameSpace,Store) -> RandomResult Assignment
 
 inventAssignment (Assignment (Reference [Identifier "?ref"]) v) = \(ns,s) -> do
 	r <- inventLHSRef ns s
-	-- "r" instead of "ns |+| r" here, because inventLHSRef returns a full pathname
-	result <- inventValue v $ (ns, r, s)
+	result <- inventValue v $ (ns, (ns |+| r), s)
 	return ( result { node = Assignment r (node result) } )
 	
 inventAssignment (Assignment r v) = \(ns,s) -> do
@@ -129,9 +131,6 @@ inventSF (SFConfig as) = (SFConfig as') where
 
 -- these routines use the store to invent plausible values for placeholders
 
--- TODO: at some point, we should (partially, randomly) strip the namespace
--- from the full paths that we return (on both the lhs & rhs)
-
 -- TODO: sometimes we should generate illegal things
 
 -- invent a reference to a random variable
@@ -146,9 +145,12 @@ inventLHSId = do
 -- eg: REF "stuff"
 -- if there is none, return an arbitrary variable
 inventLHSRef :: NameSpace -> Store -> State StdGen Reference
+-- XXXXX temporarily disable this ... (THIS DEFINITELY CAUSES PROBLEMS)
+inventLHSRef' ns s = inventLHSId
 inventLHSRef ns s = do
 	r <- randomV
-	let candidates = (blockRefs s) ++ (valueRefs s)
+	-- let candidates = (blockRefs s) ++ (valueRefs s)
+	let candidates = rhsRefs ns s
 	let n = length candidates
 	if (n > 0)
 		then return (candidates !! (r `mod` n))
@@ -159,7 +161,9 @@ inventLHSRef ns s = do
 -- if there is none, return an empty block
 -- (most of these empty blocks get filtered out later)
 inventProtoRef :: NameSpace -> Store -> State StdGen Prototype
-inventProtoRef ns s = do
+-- XXXXX temporarily disable this ... (THIS CAUSES PROBLEMS TOO)
+inventProtoRef ns s = do { return (BodyProto (Body [])); }
+inventProtoRef' ns s = do
 	r <- randomV
 	let candidates = blockRefs s
 	let n = length candidates
@@ -173,17 +177,26 @@ inventProtoRef ns s = do
 inventLinkRef :: NameSpace -> Store -> State StdGen Value
 inventLinkRef ns s = do
 	r <- randomV
-	let candidates = (blockRefs s) ++ (valueRefs s)
+	let candidates = rhsRefs ns s
 	let n = length candidates
 	if (n > 0)
 		then return (LinkValue (candidates !! (r `mod` n)))
 		else return (BasicValue (StringValue "noref"))
 
+-- find all the value or block refs in the given namespace
+rhsRefs :: NameSpace -> Store -> [Reference]
+rhsRefs (Reference []) s = (valueRefs s) ++ (blockRefs s)
+rhsRefs (Reference (i:is)) (Store ((k,(SubStore s')):ss)) =
+	if (i==k)
+		then rhsRefs (Reference is) s'
+		else rhsRefs (Reference (i:is)) (Store ss)
+rhsRefs _ _ = []
+
 {------------------------------------------------------------------------------
     return list of candidate references from the store
 ------------------------------------------------------------------------------}
 
--- return a list of all valid value references (not blocks)
+-- return a list of all valid value references (not blocks) in the given store
 valueRefs :: Store -> [Reference]
 valueRefs s = map Reference $ filter (\r -> (length r)>1) (valueRefs' [] s)
 valueRefs' path (Store []) = []
@@ -192,7 +205,7 @@ valueRefs' path (Store ((Identifier i, StoreValue _):s')) =
 valueRefs' path (Store ((Identifier i, SubStore s):s')) =
 	(valueRefs' (path++[Identifier i]) s) ++ (valueRefs' path (Store s'))
 
--- return a list of all valid block references (not basic values)
+-- return a list of all valid block references (not basic values) in the given store
 blockRefs :: Store -> [Reference]
 blockRefs s = map Reference $ filter (\r -> (length r)>1) (blockRefs' [] s)
 blockRefs' path (Store []) = []

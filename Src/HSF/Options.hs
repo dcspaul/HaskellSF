@@ -4,9 +4,9 @@
 ------------------------------------------------------------------------------}
 
 module HSF.Options
-	( Opts , Format(..), Compiler(..), Verbosity(..)
+	( Opts , Format(..), Compiler(..), Verbosity(..), TestMode(..)
 	, parseOptions
-	, format, verbosity
+	, format, verbosity, testMode
 	, compareWith, checkWith
 	, outputPath, jsonPath
 	-- , isComparing, isChecking
@@ -27,6 +27,9 @@ data Format = JSON | CompactJSON | HPSF | UnknownFormat String deriving(Show,Eq)
 -- possible alternative compilers that we can compare output with
 data Compiler = ScalaCompiler | OCamlCompiler | HPCompiler | NoCompare deriving(Show,Eq)
 
+-- testing modes
+data TestMode = ValidSource | NoTest deriving(Show,Eq)
+
 -- verbosity
 data Verbosity = Normal | Verbose | Debug deriving(Show,Eq,Ord)
 
@@ -37,6 +40,7 @@ data Opts = Opts
 	, checkWith :: Compiler
 	, outputPath :: String
 	, verbosity :: Verbosity
+	, testMode :: TestMode
 	}
 
 -- the default options
@@ -46,11 +50,12 @@ defaults = Opts
 	, checkWith = NoCompare
 	, outputPath = ""
 	, verbosity = Normal
+	, testMode = NoTest
 	}
 
 -- the command line flags
 data OptionFlag = Output String | Compare String | Check String | Format String
-				| VerboseOpt | DebugOpt deriving(Show,Eq)
+				| VerboseOpt | TestOpt | DebugOpt deriving(Show,Eq)
 
 options :: [OptDescr OptionFlag]
 options =
@@ -59,6 +64,7 @@ options =
 	, Option ['f'] ["format"] 	(ReqArg Format "json|compact|hpsf")	"output format"
 	, Option ['o'] ["output"]	(ReqArg Output "DIR")				"directory for json output"
 	, Option ['q'] ["quickcheck"] (ReqArg Check "scala|ocaml|hp") 	"quickcheck"
+	, Option ['t'] ["test"]		(NoArg TestOpt)						"test"
 	, Option ['v'] ["verbose"]	(NoArg VerboseOpt)					"verbose"
 	]
 
@@ -82,6 +88,7 @@ extractOptions (f:fs) = do
 	case f of
 		VerboseOpt -> return $ o { verbosity = Verbose }
 		DebugOpt -> return $ o { verbosity = Debug }
+		TestOpt -> return $ o { testMode = ValidSource }
 		(Output p) -> return $ o { outputPath = p }
 		(Format fmt) -> case fmt of
 			"json" -> return $ o { format = JSON }
