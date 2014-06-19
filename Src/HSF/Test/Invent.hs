@@ -8,7 +8,6 @@ module HSF.Test.Invent
 	) where
 
 import Debug.Trace
-import Data.List (intercalate)
 
 import HSF.Store
 import HSF.Parser
@@ -26,8 +25,7 @@ import Control.Monad.State
 -- these functions mirror the semantic evaluation functions
 -- in this case, as well are populating the store,
 -- we also create a copy of the parse tree in which the
--- placeholders have been replaced with arbitrary values
--- the store is then used to select arbitrary values which are legal
+-- placeholders are replaced with random (valid) values from the store
 
 data Result a = Result
 	{ store :: Store
@@ -82,10 +80,13 @@ inventValue (LinkValue lr) = \(ns,r,s) -> do
 inventValue (ProtoValue ps) = \(ns,r,s) -> do
 	let s' = (iBind "pv")(s,r,SubStore (Store []))
 	result <- trimProtoList $ inventProtoList ps $ (ns,r,s')
-	-- result <- inventProtoList ps $ (ns,r,s')
 	return ( result { node = (ProtoValue (node result)) } )
 
 -- remove excess empty blocks from the prototype list
+-- these tend to get generated if the quickcheck output contains placeholders
+-- for block references which we can't instantiate because there are no suitable
+-- values in the store
+
 trimProtoList :: RandomResult [Prototype] -> RandomResult [Prototype]
 trimProtoList ps = do
 	result <- ps
@@ -95,7 +96,6 @@ trimProtoList ps = do
 			where trimmed = trimProtoList'' ps
 		trimProtoList'' [] = []
 		trimProtoList'' ((BodyProto (Body [])):ps) = (trimProtoList'' ps)
-		-- trimProtoList' ((BodyProto (Body [])):ps) = (BodyProto (Body [Assignment (Reference [Identifier "FOO"])  (BasicValue (NumValue 99)) ])):(trimProtoList' ps)
 		trimProtoList'' (p:ps) = p:(trimProtoList'' ps)
 
 inventAssignment :: Assignment -> (NameSpace,Store) -> RandomResult Assignment
@@ -133,87 +133,90 @@ inventSF (SFConfig as) = (SFConfig as') where
 
 -- TODO: sometimes we should generate illegal things
 
--- invent a reference to a random variable
-inventLHSId :: State StdGen Reference
-inventLHSId = do
-	r <- randomV
-	let candidates = map (:[]) ['a' .. 'z']
-	let n = length candidates
-	return (Reference [Identifier (candidates !! (r `mod` n))]) where
-
--- invent a reference for the LHS (placement?)
--- eg: REF "stuff"
--- if there is none, return an arbitrary variable
+-- invent a reference for the LHS of an assignment ("placement")
+-- any reference in the store is suitable (whether it is a block or a value)
+-- if there is none, invent an arbitrary id
 inventLHSRef :: NameSpace -> Store -> State StdGen Reference
--- XXXXX temporarily disable this ... (THIS DEFINITELY CAUSES PROBLEMS)
-inventLHSRef' ns s = inventLHSId
-inventLHSRef ns s = do
-	r <- randomV
-	-- let candidates = (blockRefs s) ++ (valueRefs s)
-	let candidates = rhsRefs ns s
-	let n = length candidates
-	if (n > 0)
-		then return (candidates !! (r `mod` n))
-		else inventLHSId
+inventLHSRef ns s = maybe inventLHSId id (randomRefFromStore ns s) 
+	where
+		inventLHSId = do
+			r <- randomV
+			let candidates = map (:[]) ['a' .. 'z']
+			let n = length candidates
+			return (Reference [Identifier (candidates !! (r `mod` n))]) where
 
--- invent a reference to a prototype
+-- invent a reference to a prototype in an extension
 -- eg: foo extends { .. }, REF, { ..} ...
--- if there is none, return an empty block
--- (most of these empty blocks get filtered out later)
+-- if there is none, return an empty block (most of these get filtered out later)
 inventProtoRef :: NameSpace -> Store -> State StdGen Prototype
--- XXXXX temporarily disable this ... (THIS CAUSES PROBLEMS TOO)
-inventProtoRef ns s = do { return (BodyProto (Body [])); }
-inventProtoRef' ns s = do
-	r <- randomV
-	let candidates = blockRefs s
-	let n = length candidates
-	if (n > 0)
-		then return (RefProto (candidates !! (r `mod` n)))
-		else return (BodyProto (Body []))
+inventProtoRef ns s = maybe emptyBody linkValue (randomBlockRefFromStore ns s)
+	where
+		emptyBody = do
+			return (BodyProto (Body []))
+		linkValue r = do
+			r' <- r
+			return (RefProto r')
 
--- invent a link reference
--- eg: foo REF
+-- invent a link reference for the RHS of an assignment
+-- any reference in the store is suitable (whether it is a block or a value)
 -- if there is none, return a basic value
 inventLinkRef :: NameSpace -> Store -> State StdGen Value
-inventLinkRef ns s = do
-	r <- randomV
-	let candidates = rhsRefs ns s
-	let n = length candidates
-	if (n > 0)
-		then return (LinkValue (candidates !! (r `mod` n)))
-		else return (BasicValue (StringValue "noref"))
-
--- find all the value or block refs in the given namespace
-rhsRefs :: NameSpace -> Store -> [Reference]
-rhsRefs (Reference []) s = (valueRefs s) ++ (blockRefs s)
-rhsRefs (Reference (i:is)) (Store ((k,(SubStore s')):ss)) =
-	if (i==k)
-		then rhsRefs (Reference is) s'
-		else rhsRefs (Reference (i:is)) (Store ss)
-rhsRefs _ _ = []
+inventLinkRef ns s = maybe noRef linkValue (randomRefFromStore ns s)
+	where
+		noRef = do
+			return (BasicValue (StringValue "noref"))
+		linkValue r = do
+			r' <- r
+			return (LinkValue r')
 
 {------------------------------------------------------------------------------
-    return list of candidate references from the store
+    pick random references from the store
 ------------------------------------------------------------------------------}
 
--- return a list of all valid value references (not blocks) in the given store
-valueRefs :: Store -> [Reference]
-valueRefs s = map Reference $ filter (\r -> (length r)>1) (valueRefs' [] s)
-valueRefs' path (Store []) = []
-valueRefs' path (Store ((Identifier i, StoreValue _):s')) =
-	(path++[Identifier i]):(valueRefs' path (Store s'))
-valueRefs' path (Store ((Identifier i, SubStore s):s')) =
-	(valueRefs' (path++[Identifier i]) s) ++ (valueRefs' path (Store s'))
+-- return random block reference from store
+randomBlockRefFromStore :: NameSpace -> Store -> Maybe (State StdGen Reference)
+randomBlockRefFromStore ns s = randomRef $ filter isBlock $ filter isRef $ flattenStore $ subStoreAtNameSpace ns s
 
--- return a list of all valid block references (not basic values) in the given store
-blockRefs :: Store -> [Reference]
-blockRefs s = map Reference $ filter (\r -> (length r)>1) (blockRefs' [] s)
-blockRefs' path (Store []) = []
-blockRefs' path (Store ((Identifier i, StoreValue _):s')) = blockRefs' path (Store s')
-blockRefs' path (Store ((Identifier i, SubStore s):s')) =
-	(path++[Identifier i]) : 
-	( (blockRefs' (path++[Identifier i]) s) ++ (blockRefs' path (Store s')) )
+-- return random reference from store
+randomRefFromStore :: NameSpace -> Store -> Maybe (State StdGen Reference)
+randomRefFromStore ns s = randomRef $ filter isRef $ flattenStore $ subStoreAtNameSpace ns s
 
+-- return substore at specified namespace
+subStoreAtNameSpace :: NameSpace -> Store -> Store
+subStoreAtNameSpace ns s =
+	case (sfFind (s,ns)) of
+		Just (SubStore s) -> s
+		Just _ -> Store []
+		Nothing -> Store []
+
+-- flatten the store into a list of (reference,value) pairs
+flattenStore :: Store -> [(Reference,StoreValue)]
+flattenStore (Store ivs) = flattenStore' (Reference []) ivs
+flattenStore' _ [] = []
+flattenStore' r ((i,StoreValue v):ss) = (r,(StoreValue v)) : (flattenStore' r ss)
+flattenStore' r ((i,(SubStore (Store ivs))):ss) = 
+	(r,(SubStore (Store ivs))) : ( (flattenStore' (r |+| (Reference [i])) ivs) ++ (flattenStore' r ss) )
+
+-- true if store item is a block reference (substore)
+isBlock :: (Reference,StoreValue) -> Bool
+isBlock (_,SubStore _) = True
+isBlock _ = False
+
+-- true if store item has reference with more than one identifier component
+isRef :: (Reference,StoreValue) -> Bool
+isRef ((Reference is),_) = (length is) > 1
+
+-- pick random reference from list of store items
+randomRef :: [(Reference,StoreValue)] -> Maybe (State StdGen Reference)
+randomRef vs =
+	if (numRefs==0) then Nothing else Just (randomRef' vs)
+	where
+		numRefs = length vs
+		randomRef' vs = do
+			n <- randomV
+			let (r,s) = vs !! (n `mod` numRefs)
+			return r
+	
 {------------------------------------------------------------------------------
     store functions
 ------------------------------------------------------------------------------}
