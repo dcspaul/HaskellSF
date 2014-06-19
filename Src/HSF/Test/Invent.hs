@@ -7,8 +7,6 @@ module HSF.Test.Invent
 	( inventSF
 	) where
 
-import Debug.Trace
-
 import HSF.Store
 import HSF.Parser
 import HSF.Errors
@@ -17,6 +15,7 @@ import HSF.Test.Frequencies
 
 import System.Random
 import Control.Monad.State
+import Data.Maybe
 
 {------------------------------------------------------------------------------
     evaluation functions
@@ -54,7 +53,7 @@ inventProtoList ((BodyProto bp):ps) = \(ns,r,s) -> do
 
 -- a reference to a prototype
 inventProtoList ((RefProto rp):ps) = \(ns,r,s) -> do
-	let s' = iInherit(s,ns,rp,r)
+	let s' = either (\_ -> s) id $ sfInherit(s,ns,rp,r)
 	result <- inventProtoList ps $ (ns, r, s')
 	return ( result { node = (RefProto rp):(node result) } )
 
@@ -62,8 +61,12 @@ inventProtoList ([]) = \(ns,r,s) -> return ( Result { store = s, node = [] } )
 
 inventValue :: Value -> (NameSpace,Reference,Store) -> RandomResult Value
 
+-- notice that we ignore failures of sfbind (ie. they don't affect the store)
+-- this shouldn't occur in a valid spec, but we may want
+-- to autogenerate invalid specs for testing, in which case we might see this
+
 inventValue (BasicValue bv) = \(ns,r,s) -> do
-	let s' = (iBind "bv")(s, r, StoreValue bv)
+	let s' = either (\_ -> s) id $ sfBind (s, r, StoreValue bv)
 	return ( Result { store = s', node = BasicValue bv } )
 
 inventValue (LinkValue (Reference [Identifier "?ref"])) = \(ns,r,s) -> do
@@ -74,11 +77,11 @@ inventValue (LinkValue lr) = \(ns,r,s) -> do
 	let (ns',v') = case (sfResolv(s, ns, lr)) of
 		Nothing -> error ( "impossible! cannot resolve generated link: " ++ (show lr) )
 		Just (n,v) -> (n,v)
-	let s' = (iBind "lv")(s, r, v')
+	let s' = either (\_ -> s) id $ sfBind (s, r, v')
 	return ( Result { store = s', node = LinkValue lr } )
 
 inventValue (ProtoValue ps) = \(ns,r,s) -> do
-	let s' = (iBind "pv")(s,r,SubStore (Store []))
+	let s' = either (\_ -> s) id $ sfBind (s,r,SubStore (Store []))
 	result <- trimProtoList $ inventProtoList ps $ (ns,r,s')
 	return ( result { node = (ProtoValue (node result)) } )
 
@@ -137,37 +140,26 @@ inventSF (SFConfig as) = (SFConfig as') where
 -- any reference in the store is suitable (whether it is a block or a value)
 -- if there is none, invent an arbitrary id
 inventLHSRef :: NameSpace -> Store -> State StdGen Reference
-inventLHSRef ns s = maybe inventLHSId id (randomRefFromStore ns s) 
-	where
-		inventLHSId = do
-			r <- randomV
-			let candidates = map (:[]) ['a' .. 'z']
-			let n = length candidates
-			return (Reference [Identifier (candidates !! (r `mod` n))]) where
+inventLHSRef ns s = fromMaybe inventLHSId (randomRefFromStore ns s) 
+	where inventLHSId = do
+		r <- randomV
+		let candidates = map (:[]) ['a' .. 'z']
+		let n = length candidates
+		return (Reference [Identifier (candidates !! (r `mod` n))]) where
 
 -- invent a reference to a prototype in an extension
 -- eg: foo extends { .. }, REF, { ..} ...
 -- if there is none, return an empty block (most of these get filtered out later)
 inventProtoRef :: NameSpace -> Store -> State StdGen Prototype
-inventProtoRef ns s = maybe emptyBody linkValue (randomBlockRefFromStore ns s)
-	where
-		emptyBody = do
-			return (BodyProto (Body []))
-		linkValue r = do
-			r' <- r
-			return (RefProto r')
+inventProtoRef ns s = maybe emptyBody (liftM RefProto) (randomBlockRefFromStore ns s)
+	where emptyBody = return (BodyProto (Body []))
 
 -- invent a link reference for the RHS of an assignment
 -- any reference in the store is suitable (whether it is a block or a value)
 -- if there is none, return a basic value
 inventLinkRef :: NameSpace -> Store -> State StdGen Value
-inventLinkRef ns s = maybe noRef linkValue (randomRefFromStore ns s)
-	where
-		noRef = do
-			return (BasicValue (StringValue "noref"))
-		linkValue r = do
-			r' <- r
-			return (LinkValue r')
+inventLinkRef ns s = maybe noRef (liftM LinkValue) (randomRefFromStore ns s)
+	where noRef = return (BasicValue (StringValue "noref"))
 
 {------------------------------------------------------------------------------
     pick random references from the store
@@ -183,11 +175,10 @@ randomRefFromStore ns s = randomRef $ filter isRef $ flattenStore $ subStoreAtNa
 
 -- return substore at specified namespace
 subStoreAtNameSpace :: NameSpace -> Store -> Store
-subStoreAtNameSpace ns s =
-	case (sfFind (s,ns)) of
-		Just (SubStore s) -> s
-		Just _ -> Store []
-		Nothing -> Store []
+subStoreAtNameSpace ns s = maybe (Store []) store (sfFind (s,ns))
+	where
+		store (SubStore s) = s
+		store _ = Store []
 
 -- flatten the store into a list of (reference,value) pairs
 flattenStore :: Store -> [(Reference,StoreValue)]
@@ -216,26 +207,3 @@ randomRef vs =
 			n <- randomV
 			let (r,s) = vs !! (n `mod` numRefs)
 			return r
-	
-{------------------------------------------------------------------------------
-    store functions
-------------------------------------------------------------------------------}
-
--- these routines ignore errors when attempting to put values into the store
--- this can happen if (for example) a reference on the LHS is used to
--- overwrite the current block (or a parent) - see test t1-error1, for example
--- in this case, we simply ignore the item that we are trying to put in the store
--- it will never be accessed, and the resulting code will fail to compile anyway
--- TODO: I guess we should try to avoid this (or at least control the frequency
--- with which it happens) by not generating LHS references which are in the current
--- path .... 
-
-iInherit :: (Store,NameSpace,Reference,Reference) -> Store
-iInherit (s,n,r,r') = case (sfInherit (s,n,r,r')) of
-	Left e -> s
-	Right s' -> s'
-
-iBind :: String -> (Store,Reference,StoreValue) -> Store
-iBind i (s,r,v) = case (sfBind (s,r,v)) of
-	Left e -> s
-	Right s' -> s'

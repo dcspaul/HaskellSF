@@ -94,13 +94,13 @@ data O_Error
 
 stringToErrorOrResult :: String -> (Either O_Error String)
 stringToErrorOrResult s
-		| isError s "^Fatal error:.*\\[err1\\]" = Left (O_ERR1 s)
-		| isError s "^Fatal error:.*\\[err2\\]" = Left (O_ERR2 s)
-		| isError s "^Fatal error:.*\\[err3\\]" = Left (O_ERR3 s)
-		| isError s "^Fatal error:.*\\[err4\\]" = Left (O_ERR4 s)
-		| isError s "^Fatal error:.*\\[err5\\]" = Left (O_ERR5 s)
-		| isError s "^Fatal error:.*\\[err7\\]" = Left (O_ERR7 s)
-		| isError s "^Fatal error: exception Failure" = Left (O_EPARSEFAIL s)
+		| isError s "\\[err1\\]" = Left (O_ERR1 s)
+		| isError s "\\[err2\\]" = Left (O_ERR2 s)
+		| isError s "\\[err3\\]" = Left (O_ERR3 s)
+		| isError s "\\[err4\\]" = Left (O_ERR4 s)
+		| isError s "\\[err5\\]" = Left (O_ERR5 s)
+		| isError s "\\[err7\\]" = Left (O_ERR7 s)
+		| isError s "exception Failure" = Left (O_EPARSEFAIL s)
 		| otherwise = Right (rstrip s)
 	where isError s r =
 		case (matchRegex (mkRegex r) s) of
