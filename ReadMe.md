@@ -29,7 +29,11 @@ If the external compilers are not in the path, the locations can be specified wi
 
 ### Quickcheck
 
-The "-q scala" option generates random SF source files and compares the output of two compilers using quickcheck:
+The "-t" option generates random valid SF source files and checks that they compile.
+
+	hsf -t
+
+The "-q COMPILER" option generates random valid SF source files and compares the output with another compiler:
 
 	hsf -q scala
 

@@ -1,0 +1,10 @@
+// this should be correct (according to the fixed semantics)
+
+sfConfig extends {
+  A extends {
+    A extends {}
+    B 11;
+    A:X extends { C 22; }
+    D 33;
+  }
+}

@@ -1,4 +1,4 @@
-// references
+// this used to be ok, but is now an error (according to the fixed semantics)
 
 A extends { B extends { x 99; } }
 
